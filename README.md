@@ -29,6 +29,12 @@ FALCON will help users understand their financial behaviour, forecast future cas
 - Testing: Pytest, Vitest and Playwright
 - Version control: Git and GitHub
 
+## Development environment
+
+FALCON standardizes on Python 3.13.15, Node.js 24.19.0 LTS and npm 11.17.0.
+
+See [Development Environment](docs/DEVELOPMENT_ENVIRONMENT.md) for the version declarations and verification commands.
+
 ## Development workflow
 
 FALCON is being developed incrementally:
