@@ -29,6 +29,26 @@ FALCON is developed incrementally by a four-member team. Every change must be fo
 - Do not add dependencies without documenting their purpose and compatibility.
 - Record material architectural decisions in an Architecture Decision Record.
 
+## Repository quality checks
+
+Install the pinned repository-check runner in the active Python environment, then install its Git hook:
+
+```powershell
+python -m pip install "pre-commit==4.6.1"
+python -m pre_commit install
+```
+
+Before every commit, run the complete repository checks and validate the Compose configuration:
+
+```powershell
+python -m pre_commit run --all-files --show-diff-on-failure
+docker compose --env-file .env.example config --quiet
+```
+
+The `Repository quality` GitHub Actions workflow runs the same checks for pull requests and pushes targeting `develop` or `main`. Fix all failures before merge.
+
+Backend linting, type checking and tests; frontend linting, type checking, tests and builds; and ML validation will be added when their project manifests and executable code exist.
+
 ## Security and financial-data rules
 
 - Never commit secrets, tokens, credentials, private connection strings or local `.env` files.
