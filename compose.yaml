@@ -1,0 +1,26 @@
+name: falcon
+
+services:
+  postgres:
+    image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
+    environment:
+      POSTGRES_DB: "${FALCON_DB_NAME:?Set FALCON_DB_NAME in .env}"
+      POSTGRES_USER: "${FALCON_DB_USER:?Set FALCON_DB_USER in .env}"
+      POSTGRES_PASSWORD: "${FALCON_DB_PASSWORD:?Set FALCON_DB_PASSWORD in .env}"
+    ports:
+      - "127.0.0.1:${FALCON_DB_PORT:?Set FALCON_DB_PORT in .env}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    shm_size: 256mb
+    stop_grace_period: 30s
+
+volumes:
+  postgres_data:
