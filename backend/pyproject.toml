@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "falcon-api"
+version = "0.1.0"
+description = "Backend API for the FALCON financial advisor."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "fastapi==0.139.2",
+  "pydantic==2.13.4",
+  "pydantic-settings==2.14.2",
+  "uvicorn==0.52.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx2==2.10.0",
+  "pytest==9.1.1",
+  "pytest-cov==7.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["falcon_api*"]
+
+[tool.pytest.ini_options]
+addopts = [
+  "--strict-config",
+  "--strict-markers",
+  "--cov=falcon_api",
+  "--cov-branch",
+  "--cov-report=term-missing",
+  "--cov-report=xml:coverage.xml",
+  "--cov-fail-under=90",
+]
+filterwarnings = ["error"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["falcon_api"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
