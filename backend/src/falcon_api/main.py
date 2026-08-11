@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from falcon_api import __version__
 from falcon_api.api.errors import register_exception_handlers
@@ -11,7 +12,12 @@ from falcon_api.api.router import api_v1_router
 from falcon_api.api.routes.health import health_router
 from falcon_api.core.config import Settings, get_settings
 from falcon_api.core.logging import configure_logging
+from falcon_api.core.request_context import REQUEST_ID_HEADER
 from falcon_api.middleware.request_context import RequestContextMiddleware
+
+
+_CORS_ALLOWED_METHODS = ("GET",)
+_CORS_ALLOWED_HEADERS = ("Accept", "Content-Type", REQUEST_ID_HEADER)
 
 
 @asynccontextmanager
@@ -36,6 +42,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.settings = app_settings
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=app_settings.cors_allowed_origins,
+        allow_credentials=False,
+        allow_methods=_CORS_ALLOWED_METHODS,
+        allow_headers=_CORS_ALLOWED_HEADERS,
+        expose_headers=(REQUEST_ID_HEADER,),
+    )
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)
     application.include_router(health_router)

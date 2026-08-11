@@ -9,11 +9,12 @@ The current foundation provides:
 - An explicit `/api/v1` compatibility boundary.
 - A dependency-free `GET /health/live` operational endpoint.
 - Safe request correlation through `X-Request-ID`.
+- An explicit, deny-by-default trusted browser-origin policy.
 - Body-free structured JSON request logs written to standard output.
 - One typed error envelope for validation, HTTP, application and unexpected errors.
 - Automated API, configuration, request-context and error-contract tests.
 
-PostgreSQL access, readiness checks, CORS, Docker API service, business modules and authentication are intentionally deferred to their dedicated checkpoints.
+PostgreSQL access, readiness checks, Docker API service, business modules and authentication are intentionally deferred to their dedicated checkpoints.
 
 ## Requirements
 
@@ -61,6 +62,20 @@ The initial endpoints are:
 | `GET` | `/openapi.json` | Development-only OpenAPI document |
 
 Production disables all documentation routes unless `FALCON_DOCS_ENABLED=true` is explicitly supplied. Production also rejects `FALCON_DEBUG=true`.
+
+## Browser access
+
+FALCON authorizes browser origins only when they are listed exactly in the JSON-formatted `FALCON_CORS_ALLOWED_ORIGINS` setting:
+
+```dotenv
+FALCON_CORS_ALLOWED_ORIGINS=["http://localhost:5173","https://app.example.com"]
+```
+
+The setting defaults to an empty list, so browser cross-origin access is denied unless explicitly configured. Each entry must be a unique HTTP(S) origin containing only a scheme, host and optional non-default port. Wildcards, credentials, paths, query strings and fragments are rejected during startup.
+
+The current policy permits only `GET` requests and the `Accept`, `Content-Type` and `X-Request-ID` request headers. It exposes `X-Request-ID` to trusted browser clients. Credentialed cross-origin requests, `Authorization` and mutating methods remain disabled until their owning API and authentication checkpoints define them deliberately.
+
+An untrusted simple request is still processed by the API but receives no `Access-Control-Allow-Origin` response header, so the browser denies cross-origin access. A rejected preflight receives a CORS `400` response rather than an application authorization response.
 
 ## Request correlation and logging
 
