@@ -6,9 +6,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from falcon_api import __version__
+from falcon_api.api.errors import register_exception_handlers
 from falcon_api.api.router import api_v1_router
 from falcon_api.api.routes.health import health_router
 from falcon_api.core.config import Settings, get_settings
+from falcon_api.core.logging import configure_logging
+from falcon_api.middleware.request_context import RequestContextMiddleware
 
 
 @asynccontextmanager
@@ -21,6 +24,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Build an isolated FastAPI application instance."""
     app_settings = settings or get_settings()
     docs_enabled = app_settings.api_docs_enabled
+    configure_logging()
 
     application = FastAPI(
         title=app_settings.app_name,
@@ -32,6 +36,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.settings = app_settings
+    application.add_middleware(RequestContextMiddleware)
+    register_exception_handlers(application)
     application.include_router(health_router)
     application.include_router(api_v1_router)
     return application
