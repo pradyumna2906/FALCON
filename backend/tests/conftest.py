@@ -18,6 +18,7 @@ def test_settings() -> Settings:
         api_host="127.0.0.1",
         api_port=8000,
         docs_enabled=True,
+        cors_allowed_origins=("https://app.falcon.test",),
     )
 
 
