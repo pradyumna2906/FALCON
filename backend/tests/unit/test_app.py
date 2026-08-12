@@ -1,8 +1,12 @@
 """Application factory tests."""
 
+from typing import cast
+from unittest.mock import Mock
+
 from falcon_api import __version__
 from falcon_api.core.config import AppEnvironment, Settings
-from falcon_api.main import create_app
+from falcon_api.infrastructure.database import DatabaseResources
+from falcon_api.main import DatabaseFactory, create_app
 from fastapi.testclient import TestClient
 
 
@@ -16,6 +20,23 @@ def test_factory_uses_injected_settings(test_settings: Settings) -> None:
 
 def test_factory_returns_isolated_applications(test_settings: Settings) -> None:
     assert create_app(test_settings) is not create_app(test_settings)
+
+
+def test_lifespan_owns_one_database_resource_set(
+    test_settings: Settings,
+) -> None:
+    resources = Mock(spec=DatabaseResources)
+    factory = Mock(return_value=resources)
+    application = create_app(
+        test_settings,
+        database_factory=cast(DatabaseFactory, factory),
+    )
+
+    with TestClient(application):
+        assert application.state.database is resources
+        factory.assert_called_once_with(test_settings)
+
+    resources.dispose.assert_awaited_once_with()
 
 
 def test_development_documentation_is_available() -> None:
