@@ -16,7 +16,7 @@ The current foundation provides:
 - One typed error envelope for validation, HTTP, application and unexpected errors.
 - Automated API, configuration, database, request-context and error-contract tests.
 
-Database tables, models, migrations, the Docker API service, business modules and authentication remain intentionally deferred to their dedicated checkpoints.
+Database tables, models, migrations, business modules and authentication remain intentionally deferred to their dedicated checkpoints.
 
 ## Requirements
 
@@ -94,6 +94,29 @@ The initial endpoints are:
 
 Production disables all documentation routes unless `FALCON_DOCS_ENABLED=true` is explicitly supplied. Production also rejects `FALCON_DEBUG=true`.
 
+## Run with Docker Compose
+
+Build and start the production-shaped API and PostgreSQL services:
+
+```powershell
+docker compose --env-file .env up --build --detach --wait api postgres
+```
+
+Verify both health contracts from the host:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health/live
+Invoke-RestMethod http://127.0.0.1:8000/health/ready
+```
+
+Inspect logs and stop the services without deleting PostgreSQL data:
+
+```powershell
+docker compose --env-file .env logs --follow api
+docker compose --env-file .env down
+```
+
+The default API container has no source bind mount and no reload process. It runs as UID/GID `10001`, publishes only to loopback, connects to PostgreSQL at `postgres:5432`, and uses dependency-free liveness for its Docker healthcheck. Readiness remains a separate PostgreSQL-backed contract.
 ## PostgreSQL lifecycle
 
 FALCON creates one lazy async SQLAlchemy engine and one `async_sessionmaker` when each application process enters its lifespan. Engine creation does not open a database connection, so the API can start and continue serving `/health/live` while PostgreSQL is temporarily unavailable. Shutdown always disposes the engine and its connection pool.
