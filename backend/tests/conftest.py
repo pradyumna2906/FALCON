@@ -19,6 +19,17 @@ def test_settings() -> Settings:
         api_port=8000,
         docs_enabled=True,
         cors_allowed_origins=("https://app.falcon.test",),
+        db_host="127.0.0.1",
+        db_port=5433,
+        db_name="falcon_test",
+        db_user="falcon_test",
+        db_password="test-only-database-password",
+        db_pool_size=2,
+        db_max_overflow=1,
+        db_pool_timeout_seconds=1,
+        db_pool_recycle_seconds=300,
+        db_connect_timeout_seconds=1,
+        db_readiness_timeout_seconds=0.1,
     )
 
 

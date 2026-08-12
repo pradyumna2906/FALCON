@@ -6,19 +6,22 @@ The current foundation provides:
 
 - A testable `create_app()` factory and Uvicorn entrypoint.
 - Typed, immutable settings using `FALCON_` environment variables.
+- One lazy async SQLAlchemy engine and session factory per application process.
 - An explicit `/api/v1` compatibility boundary.
 - A dependency-free `GET /health/live` operational endpoint.
+- A bounded PostgreSQL-backed `GET /health/ready` readiness endpoint.
 - Safe request correlation through `X-Request-ID`.
 - An explicit, deny-by-default trusted browser-origin policy.
 - Body-free structured JSON request logs written to standard output.
 - One typed error envelope for validation, HTTP, application and unexpected errors.
-- Automated API, configuration, request-context and error-contract tests.
+- Automated API, configuration, database, request-context and error-contract tests.
 
-PostgreSQL access, readiness checks, Docker API service, business modules and authentication are intentionally deferred to their dedicated checkpoints.
+Database tables, models, migrations, the Docker API service, business modules and authentication remain intentionally deferred to their dedicated checkpoints.
 
 ## Requirements
 
 - Python 3.13.15.
+- Docker Engine with Docker Compose for the real PostgreSQL integration test.
 - A local `.env` copied from `.env.example` and kept out of Git.
 
 Run all commands below from the repository root.
@@ -36,11 +39,35 @@ py -3.13 -m venv .venv
 
 ## Test
 
+### Unit tests
+
 ```powershell
-& .\.venv\Scripts\python.exe -m pytest backend
+& .\.venv\Scripts\python.exe -m pytest backend\tests\unit
 ```
 
-The test command enforces at least 90% statement and branch coverage for the current backend package.
+The unit command does not require PostgreSQL and enforces at least 90% statement and branch coverage for the current backend package.
+
+### PostgreSQL integration test
+
+Start the digest-pinned PostgreSQL service and explicitly enable the real integration test:
+
+```powershell
+docker compose --env-file .env up -d --wait postgres
+
+$env:FALCON_RUN_DATABASE_INTEGRATION = '1'
+try {
+    & .\.venv\Scripts\python.exe -m pytest `
+        backend\tests\integration `
+        -m integration `
+        --no-cov `
+        --tb=short
+}
+finally {
+    Remove-Item Env:\FALCON_RUN_DATABASE_INTEGRATION -ErrorAction SilentlyContinue
+}
+```
+
+This test uses the PostgreSQL address and credentials from `.env`. It runs the production Psycopg async driver and the public readiness route; it does not create tables or modify persisted application data. Stop the service when it is no longer needed with `docker compose --env-file .env stop postgres`.
 
 ## Run
 
@@ -48,8 +75,11 @@ The test command enforces at least 90% statement and branch coverage for the cur
 & .\.venv\Scripts\python.exe -m uvicorn falcon_api.main:app `
     --host 127.0.0.1 `
     --port 8000 `
+    --loop falcon_api.core.event_loop:create_psycopg_compatible_event_loop `
     --reload
 ```
+
+The explicit loop factory selects an asyncio selector loop. Psycopg async connections require this on Windows because they are incompatible with the default proactor loop; the same factory keeps integration tests and local API execution on one verified event-loop contract.
 
 The initial endpoints are:
 
@@ -57,11 +87,22 @@ The initial endpoints are:
 | --- | --- | --- |
 | `GET` | `/api/v1` | Identifies the public API compatibility boundary |
 | `GET` | `/health/live` | Confirms the API process is responsive without querying dependencies |
+| `GET` | `/health/ready` | Confirms PostgreSQL can accept a bounded `SELECT 1` probe |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |
 
 Production disables all documentation routes unless `FALCON_DOCS_ENABLED=true` is explicitly supplied. Production also rejects `FALCON_DEBUG=true`.
+
+## PostgreSQL lifecycle
+
+FALCON creates one lazy async SQLAlchemy engine and one `async_sessionmaker` when each application process enters its lifespan. Engine creation does not open a database connection, so the API can start and continue serving `/health/live` while PostgreSQL is temporarily unavailable. Shutdown always disposes the engine and its connection pool.
+
+Application code receives one `AsyncSession` per request or explicit unit of work. The session dependency never commits automatically, rolls back failed work and always closes the session. Service-layer code will own commit boundaries when persistence operations are introduced.
+
+The initial pool permits five persistent connections plus five overflow connections per API process. Pool checkout, recycling, driver connection and readiness timeouts are configured through the `FALCON_DB_*` settings in `.env.example`. `pool_pre_ping` checks reused connections before application work.
+
+`GET /health/ready` bounds the entire connection-and-query operation and executes only `SELECT 1`. A timeout or database failure returns the common `503 service_unavailable` error envelope without exposing the database host, username, password, SQLAlchemy URL, query parameters or driver message. Database passwords use Pydantic `SecretStr`, and normal SQLAlchemy URL rendering redacts them.
 
 ## Browser access
 

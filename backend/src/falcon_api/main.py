@@ -1,6 +1,6 @@
 """FastAPI application composition root."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,20 +13,35 @@ from falcon_api.api.routes.health import health_router
 from falcon_api.core.config import Settings, get_settings
 from falcon_api.core.logging import configure_logging
 from falcon_api.core.request_context import REQUEST_ID_HEADER
+from falcon_api.infrastructure.database import (
+    DatabaseResources,
+    create_database_resources,
+)
 from falcon_api.middleware.request_context import RequestContextMiddleware
 
 
 _CORS_ALLOWED_METHODS = ("GET",)
 _CORS_ALLOWED_HEADERS = ("Accept", "Content-Type", REQUEST_ID_HEADER)
+DatabaseFactory = Callable[[Settings], DatabaseResources]
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Own process-scoped resources as later checkpoints introduce them."""
-    yield
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    """Create and reliably dispose process-scoped resources."""
+    database_factory: DatabaseFactory = application.state.database_factory
+    database = database_factory(application.state.settings)
+    application.state.database = database
+    try:
+        yield
+    finally:
+        await database.dispose()
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    database_factory: DatabaseFactory = create_database_resources,
+) -> FastAPI:
     """Build an isolated FastAPI application instance."""
     app_settings = settings or get_settings()
     docs_enabled = app_settings.api_docs_enabled
@@ -42,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.settings = app_settings
+    application.state.database_factory = database_factory
     application.add_middleware(
         CORSMiddleware,
         allow_origins=app_settings.cors_allowed_origins,
