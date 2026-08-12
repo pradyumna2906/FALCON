@@ -1,6 +1,41 @@
 name: falcon
 
 services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      FALCON_ENV: "${FALCON_ENV:-development}"
+      FALCON_DEBUG: "${FALCON_DEBUG:-false}"
+      FALCON_DOCS_ENABLED: "${FALCON_DOCS_ENABLED:-true}"
+      FALCON_CORS_ALLOWED_ORIGINS: "${FALCON_CORS_ALLOWED_ORIGINS:-[]}"
+      FALCON_DB_HOST: postgres
+      FALCON_DB_PORT: "5432"
+      FALCON_DB_NAME: "${FALCON_DB_NAME:?Set FALCON_DB_NAME in .env}"
+      FALCON_DB_USER: "${FALCON_DB_USER:?Set FALCON_DB_USER in .env}"
+      FALCON_DB_PASSWORD: "${FALCON_DB_PASSWORD:?Set FALCON_DB_PASSWORD in .env}"
+      FALCON_DB_POOL_SIZE: "${FALCON_DB_POOL_SIZE:-5}"
+      FALCON_DB_MAX_OVERFLOW: "${FALCON_DB_MAX_OVERFLOW:-5}"
+      FALCON_DB_POOL_TIMEOUT_SECONDS: "${FALCON_DB_POOL_TIMEOUT_SECONDS:-5}"
+      FALCON_DB_POOL_RECYCLE_SECONDS: "${FALCON_DB_POOL_RECYCLE_SECONDS:-1800}"
+      FALCON_DB_CONNECT_TIMEOUT_SECONDS: "${FALCON_DB_CONNECT_TIMEOUT_SECONDS:-5}"
+      FALCON_DB_READINESS_TIMEOUT_SECONDS: "${FALCON_DB_READINESS_TIMEOUT_SECONDS:-2}"
+    ports:
+      - "127.0.0.1:${FALCON_API_PORT:?Set FALCON_API_PORT in .env}:8000"
+    depends_on:
+      postgres:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+
   postgres:
     image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
     environment:
@@ -12,9 +47,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 10
