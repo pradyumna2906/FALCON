@@ -1,4 +1,4 @@
-"""Real PostgreSQL readiness integration test."""
+"""Real PostgreSQL readiness and transactional-session integration tests."""
 
 import asyncio
 import os
@@ -6,10 +6,8 @@ import os
 import pytest
 from falcon_api.core.config import AppEnvironment, Settings
 from falcon_api.core.event_loop import create_psycopg_compatible_event_loop
-from falcon_api.infrastructure.database import (
-    create_database_resources,
-    session_scope,
-)
+from falcon_api.infrastructure.database import create_database_resources
+from falcon_api.infrastructure.persistence import transaction_scope
 from falcon_api.main import create_app
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -51,19 +49,74 @@ def test_readiness_against_real_postgresql() -> None:
     assert response.headers["X-Request-ID"] == "postgresql-integration-id"
 
 
-def test_async_session_against_real_postgresql() -> None:
-    """Exercise the production async session factory without modifying data."""
+def test_transaction_scope_against_real_postgresql() -> None:
+    """Verify successful commit and failed-work rollback using PostgreSQL."""
     resources = create_database_resources(_integration_settings())
 
-    async def execute_probe() -> None:
+    async def exercise_transactions() -> None:
         try:
-            async with session_scope(resources) as session:
-                result = await session.execute(text("SELECT 1"))
-                assert result.scalar_one() == 1
+            async with resources.engine.begin() as connection:
+                await connection.execute(
+                    text(
+                        """
+                        CREATE TEMPORARY TABLE falcon_session_scope_probe (
+                            value INTEGER PRIMARY KEY
+                        ) ON COMMIT PRESERVE ROWS
+                        """
+                    )
+                )
+
+            async with transaction_scope(resources.session_factory) as session:
+                await session.execute(
+                    text(
+                        """
+                        INSERT INTO falcon_session_scope_probe (value)
+                        VALUES (1)
+                        """
+                    )
+                )
+
+            async with resources.engine.connect() as connection:
+                committed_result = await connection.execute(
+                    text(
+                        """
+                        SELECT value
+                        FROM falcon_session_scope_probe
+                        ORDER BY value
+                        """
+                    )
+                )
+                assert committed_result.scalars().all() == [1]
+
+            with pytest.raises(RuntimeError, match="force rollback"):
+                async with transaction_scope(
+                    resources.session_factory
+                ) as session:
+                    await session.execute(
+                        text(
+                            """
+                            INSERT INTO falcon_session_scope_probe (value)
+                            VALUES (2)
+                            """
+                        )
+                    )
+                    raise RuntimeError("force rollback")
+
+            async with resources.engine.connect() as connection:
+                rollback_result = await connection.execute(
+                    text(
+                        """
+                        SELECT value
+                        FROM falcon_session_scope_probe
+                        ORDER BY value
+                        """
+                    )
+                )
+                assert rollback_result.scalars().all() == [1]
         finally:
             await resources.dispose()
 
     asyncio.run(
-        execute_probe(),
+        exercise_transactions(),
         loop_factory=create_psycopg_compatible_event_loop,
     )
