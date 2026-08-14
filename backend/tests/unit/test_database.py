@@ -1,4 +1,4 @@
-"""PostgreSQL resource, session and readiness tests."""
+"""PostgreSQL resource, request-session and readiness tests."""
 
 import asyncio
 from types import SimpleNamespace
@@ -13,10 +13,10 @@ from falcon_api.infrastructure.database import (
     assert_database_ready,
     create_database_resources,
     get_database_session,
-    session_scope,
 )
+from falcon_api.infrastructure.persistence import SessionFactory
 from fastapi import Request
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 
 def _resources_with(
@@ -27,10 +27,21 @@ def _resources_with(
     return DatabaseResources(
         engine=cast(AsyncEngine, engine),
         session_factory=cast(
-            async_sessionmaker[AsyncSession],
+            SessionFactory,
             session_factory or Mock(),
         ),
     )
+
+
+def _session_with_transaction() -> tuple[AsyncMock, AsyncMock]:
+    transaction = AsyncMock()
+    transaction.__aenter__.return_value = transaction
+    transaction.__aexit__.return_value = False
+
+    session = AsyncMock(spec=AsyncSession)
+    session.begin = Mock(return_value=transaction)
+
+    return session, transaction
 
 
 def test_resources_use_async_psycopg_and_safe_engine_configuration(
@@ -41,50 +52,16 @@ def test_resources_use_async_psycopg_and_safe_engine_configuration(
     assert resources.engine.url.drivername == "postgresql+psycopg"
     assert resources.engine.sync_engine.hide_parameters is True
     assert resources.engine.sync_engine.pool.size() == test_settings.db_pool_size
+    assert resources.session_factory.kw["bind"] is resources.engine
+    assert resources.session_factory.kw["autoflush"] is False
+    assert resources.session_factory.kw["expire_on_commit"] is False
     assert "test-only-database-password" not in str(resources.engine.url)
 
     asyncio.run(resources.dispose())
 
 
-def test_session_scope_closes_without_implicit_commit() -> None:
-    session = AsyncMock(spec=AsyncSession)
-    resources = _resources_with(
-        engine=Mock(),
-        session_factory=Mock(return_value=session),
-    )
-
-    async def use_session() -> None:
-        async with session_scope(resources) as yielded:
-            assert yielded is session
-
-    asyncio.run(use_session())
-
-    session.commit.assert_not_awaited()
-    session.rollback.assert_not_awaited()
-    session.close.assert_awaited_once_with()
-
-
-def test_session_scope_rolls_back_and_closes_failed_work() -> None:
-    session = AsyncMock(spec=AsyncSession)
-    resources = _resources_with(
-        engine=Mock(),
-        session_factory=Mock(return_value=session),
-    )
-
-    async def fail_session() -> None:
-        async with session_scope(resources):
-            raise RuntimeError("unit-of-work failed")
-
-    with pytest.raises(RuntimeError, match="unit-of-work failed"):
-        asyncio.run(fail_session())
-
-    session.commit.assert_not_awaited()
-    session.rollback.assert_awaited_once_with()
-    session.close.assert_awaited_once_with()
-
-
-def test_request_dependency_uses_attached_process_resources() -> None:
-    session = AsyncMock(spec=AsyncSession)
+def test_request_dependency_commits_successful_work_and_closes() -> None:
+    session, transaction = _session_with_transaction()
     resources = _resources_with(
         engine=Mock(),
         session_factory=Mock(return_value=session),
@@ -100,12 +77,50 @@ def test_request_dependency_uses_attached_process_resources() -> None:
 
     async def consume_dependency() -> None:
         dependency = get_database_session(request)
+
         assert await anext(dependency) is session
+
         with pytest.raises(StopAsyncIteration):
             await anext(dependency)
 
     asyncio.run(consume_dependency())
 
+    session.begin.assert_called_once_with()
+    transaction.__aenter__.assert_awaited_once_with()
+    transaction.__aexit__.assert_awaited_once_with(None, None, None)
+    session.close.assert_awaited_once_with()
+
+
+def test_request_dependency_rolls_back_failed_work_and_closes() -> None:
+    session, transaction = _session_with_transaction()
+    resources = _resources_with(
+        engine=Mock(),
+        session_factory=Mock(return_value=session),
+    )
+    request = cast(
+        Request,
+        SimpleNamespace(
+            app=SimpleNamespace(
+                state=SimpleNamespace(database=resources),
+            ),
+        ),
+    )
+    failure = RuntimeError("request operation failed")
+
+    async def fail_dependency() -> None:
+        dependency = get_database_session(request)
+
+        assert await anext(dependency) is session
+        await dependency.athrow(failure)
+
+    with pytest.raises(RuntimeError, match="request operation failed"):
+        asyncio.run(fail_dependency())
+
+    exit_args = transaction.__aexit__.await_args.args
+
+    assert exit_args[0] is RuntimeError
+    assert exit_args[1] is failure
+    assert exit_args[2] is not None
     session.close.assert_awaited_once_with()
 
 

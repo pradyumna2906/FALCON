@@ -171,3 +171,69 @@ Validation responses may additionally contain bounded field-level `details`. Rej
 - Never log or commit secrets, tokens, bank statements or real financial records.
 - Never include private exception or dependency details in an `ApplicationError` message.
 - Do not trust client-calculated financial values.
+
+
+## Persistence and transaction boundaries
+
+FALCON uses one process-owned asynchronous SQLAlchemy engine and one session
+factory derived from that engine. The application lifecycle creates and
+disposes the engine; feature code must not create separate connection pools.
+
+Every database-backed operation uses one `AsyncSession` inside
+`transaction_scope()`:
+
+```python
+async with transaction_scope(resources.session_factory) as session:
+    await service_operation(session)
+```
+
+The boundary provides the following behaviour:
+
+- successful work commits when the transaction context exits
+- failed work rolls back before the exception propagates
+- the session closes in every case
+- objects remain available after commit because `expire_on_commit` is disabled
+- autoflush is disabled, so feature code flushes deliberately when required
+
+FastAPI request handlers receive their session through
+`get_database_session()`. Routes, services, repositories, and SQLAlchemy models
+must not:
+
+- create independent engines or session factories
+- open unrelated sessions inside one business operation
+- call `commit()` implicitly
+- hide transaction boundaries inside model methods
+- call `metadata.create_all()` during startup, tests, CI, or production
+
+SQLAlchemy relationships help Python code navigate models. PostgreSQL foreign
+keys and constraints remain authoritative for persistent integrity.
+
+No concrete FALCON domain tables are introduced by the persistence foundation.
+Domain models will be added only after Alembic migration infrastructure is
+established and reviewed.
+
+### Running persistence tests
+
+Run the unit suite with the project Python environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest backend\tests\unit -q
+```
+
+The real PostgreSQL integration tests are explicitly enabled:
+
+```powershell
+$env:FALCON_RUN_DATABASE_INTEGRATION = '1'
+
+.\.venv\Scripts\python.exe -m pytest `
+    backend\tests\integration\test_postgresql_readiness.py `
+    -m integration `
+    --no-cov `
+    -q
+```
+
+Clear the temporary environment setting afterward:
+
+```powershell
+Remove-Item Env:FALCON_RUN_DATABASE_INTEGRATION
+```
