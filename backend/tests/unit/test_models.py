@@ -36,6 +36,8 @@ from falcon_api.models.enums import (
 
 _EXPECTED_TABLES = {
     "accounts",
+    "authentication_challenges",
+    "authentication_delivery_outbox",
     "budget_limits",
     "budgets",
     "categories",
@@ -44,8 +46,11 @@ _EXPECTED_TABLES = {
     "goals",
     "import_jobs",
     "liability_details",
+    "refresh_sessions",
+    "refresh_tokens",
     "transactions",
     "transfer_groups",
+    "user_credentials",
     "users",
 }
 

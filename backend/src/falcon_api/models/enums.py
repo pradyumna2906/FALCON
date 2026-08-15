@@ -143,6 +143,20 @@ class ContributionSourceType(StrEnum):
     TRANSACTION = "transaction"
     OPENING_BALANCE = "opening_balance"
 
+class AuthenticationChallengePurpose(StrEnum):
+    """Supported single-use authentication challenge purposes."""
+
+    EMAIL_VERIFICATION = "email_verification"
+    PASSWORD_RESET = "password_reset"
+
+
+class AuthenticationDeliveryStatus(StrEnum):
+    """Durable authentication-message delivery states."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SENT = "sent"
+    FAILED = "failed"
 
 _EnumType = TypeVar("_EnumType", bound=StrEnum)
 

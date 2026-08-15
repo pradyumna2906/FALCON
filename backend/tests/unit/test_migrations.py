@@ -11,9 +11,11 @@ from falcon_api.models import register_models
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _BACKEND_ROOT = _REPOSITORY_ROOT / "backend"
 _ALEMBIC_CONFIG = _BACKEND_ROOT / "alembic.ini"
+
 _BASELINE_REVISION = "25efb498276a"
 _DOMAIN_SCHEMA_REVISION = "771fa3a74464"
 _HARDENING_REVISION = "a1b1833784e5"
+_AUTH_PERSISTENCE_REVISION = "7fff19ce50be"
 
 
 def create_alembic_config() -> Config:
@@ -33,20 +35,35 @@ def test_migrations_share_application_metadata() -> None:
     register_models()
 
     assert model_metadata() is Base.metadata
-    assert len(model_metadata().tables) == 12
+    assert len(model_metadata().tables) == 17
 
 
-def test_hardening_revision_is_the_single_head() -> None:
+def test_authentication_persistence_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_HARDENING_REVISION]
+    assert scripts.get_heads() == [_AUTH_PERSISTENCE_REVISION]
 
+    authentication_revision = scripts.get_revision(
+        _AUTH_PERSISTENCE_REVISION
+    )
+
+    assert authentication_revision is not None
+    assert authentication_revision.down_revision == _HARDENING_REVISION
+    assert authentication_revision.branch_labels == set()
+    assert authentication_revision.dependencies is None
+    assert callable(authentication_revision.module.upgrade)
+    assert callable(authentication_revision.module.downgrade)
+
+
+def test_hardening_revision_follows_the_domain_schema() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
     hardening_revision = scripts.get_revision(_HARDENING_REVISION)
 
     assert hardening_revision is not None
     assert hardening_revision.down_revision == _DOMAIN_SCHEMA_REVISION
     assert hardening_revision.branch_labels == set()
     assert hardening_revision.dependencies is None
+
 
 def test_domain_schema_follows_the_empty_baseline() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())

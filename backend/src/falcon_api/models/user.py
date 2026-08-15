@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from falcon_api.infrastructure.persistence import (
     Base,
     CurrencyCode,
     TimestampMixin,
+    UTCDateTime,
     UUIDPrimaryKeyMixin,
 )
 from falcon_api.models.enums import (
@@ -27,6 +29,14 @@ from sqlalchemy import (
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+if TYPE_CHECKING:
+    from falcon_api.models.auth import (
+        AuthenticationChallenge,
+        AuthenticationDelivery,
+        RefreshSession,
+        UserCredential,
+    )
 
 
 class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -49,6 +59,13 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "default_currency ~ '^[A-Z]{3}$'",
             name="default_currency_iso",
+        ),
+        CheckConstraint(
+            (
+                "email_verified_at IS NULL OR "
+                "email_verified_at >= created_at"
+            ),
+            name="email_verification_not_before_creation",
         ),
     )
 
@@ -74,12 +91,40 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     default_currency: Mapped[CurrencyCode] = mapped_column(
         nullable=False,
     )
+    email_verified_at: Mapped[UTCDateTime | None] = mapped_column(
+        nullable=True,
+    )
 
     financial_profile: Mapped[FinancialProfile | None] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
         uselist=False,
+    )
+    credential: Mapped[UserCredential | None] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+    )
+    refresh_sessions: Mapped[list[RefreshSession]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    authentication_challenges: Mapped[
+        list[AuthenticationChallenge]
+    ] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    authentication_deliveries: Mapped[
+        list[AuthenticationDelivery]
+    ] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
