@@ -8,6 +8,7 @@ from alembic import context
 from falcon_api.core.config import Settings
 from falcon_api.core.event_loop import create_psycopg_compatible_event_loop
 from falcon_api.infrastructure.persistence.base import model_metadata
+from falcon_api.models import register_models
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -18,6 +19,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+register_models()
 target_metadata = model_metadata()
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]

@@ -21,6 +21,7 @@ pytestmark = [
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _ALEMBIC_CONFIG = _REPOSITORY_ROOT / "backend" / "alembic.ini"
 _BASELINE_REVISION = "25efb498276a"
+_SCHEMA_REVISION = "771fa3a74464"
 
 
 def integration_settings() -> Settings:
@@ -56,8 +57,8 @@ def current_database_revision(settings: Settings) -> str | None:
     return None if row is None else row[0]
 
 
-def test_baseline_upgrade_downgrade_lifecycle_against_postgresql() -> None:
-    """Verify repeatable upgrade and downgrade behavior on PostgreSQL."""
+def test_schema_upgrade_downgrade_lifecycle_against_postgresql() -> None:
+    """Verify repeatable schema upgrades and complete downgrades."""
     config = create_alembic_config()
     settings = integration_settings()
 
@@ -65,15 +66,17 @@ def test_baseline_upgrade_downgrade_lifecycle_against_postgresql() -> None:
 
     try:
         command.upgrade(config, "head")
+        assert current_database_revision(settings) == _SCHEMA_REVISION
+
+        command.upgrade(config, "head")
+        assert current_database_revision(settings) == _SCHEMA_REVISION
+
+        command.downgrade(config, _BASELINE_REVISION)
         assert current_database_revision(settings) == _BASELINE_REVISION
 
         command.upgrade(config, "head")
-        assert current_database_revision(settings) == _BASELINE_REVISION
-
-        command.downgrade(config, "base")
-        assert current_database_revision(settings) is None
-
-        command.upgrade(config, "head")
-        assert current_database_revision(settings) == _BASELINE_REVISION
+        assert current_database_revision(settings) == _SCHEMA_REVISION
     finally:
         command.downgrade(config, "base")
+
+    assert current_database_revision(settings) is None

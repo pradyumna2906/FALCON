@@ -26,9 +26,8 @@ class _ExampleModel(UUIDPrimaryKeyMixin, TimestampMixin, _TestBase):
     value: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
-def test_base_exposes_single_empty_model_metadata() -> None:
+def test_base_exposes_single_model_metadata() -> None:
     assert model_metadata() is Base.metadata
-    assert len(Base.metadata.tables) == 0
 
 
 def test_create_metadata_returns_isolated_metadata() -> None:
