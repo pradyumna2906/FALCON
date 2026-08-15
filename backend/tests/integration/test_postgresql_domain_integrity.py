@@ -527,3 +527,429 @@ def test_user_erasure_cascades_private_data_but_preserves_system_category() -> N
         ).fetchone()
 
         assert system_count == (1,)
+
+def test_category_references_enforce_owner_kind_and_budget_eligibility() -> None:
+    """Reject private cross-user, wrong-kind and ineligible budget categories."""
+    with connect_to_postgresql() as connection:
+        first_user_id = insert_user(
+            connection,
+            email=f"reference-a-{uuid4().hex}@falcon.test",
+        )
+        second_user_id = insert_user(
+            connection,
+            email=f"reference-b-{uuid4().hex}@falcon.test",
+        )
+        second_account_id = insert_account(
+            connection,
+            user_id=second_user_id,
+            name=f"Reference account {uuid4().hex}",
+        )
+        private_expense_id = insert_category(
+            connection,
+            user_id=first_user_id,
+            name=f"Private expense {uuid4().hex}",
+            kind="expense",
+            is_system=False,
+        )
+        system_income_id = insert_category(
+            connection,
+            user_id=None,
+            name=f"System income {uuid4().hex}",
+            kind="income",
+            is_system=True,
+        )
+        connection.commit()
+
+        with pytest.raises(CheckViolation):
+            insert_transaction(
+                connection,
+                user_id=second_user_id,
+                account_id=second_account_id,
+                category_id=private_expense_id,
+                amount=Decimal("-10.0000"),
+                description="Rejected private category",
+            )
+
+        connection.rollback()
+
+        with pytest.raises(CheckViolation):
+            insert_transaction(
+                connection,
+                user_id=second_user_id,
+                account_id=second_account_id,
+                category_id=system_income_id,
+                amount=Decimal("-10.0000"),
+                description="Rejected category kind",
+            )
+
+        connection.rollback()
+
+        budget_id = uuid4()
+        connection.execute(
+            """
+            INSERT INTO budgets (
+                id,
+                user_id,
+                name,
+                period_start_date,
+                period_end_date,
+                currency,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                'INR',
+                now(),
+                now()
+            )
+            """,
+            (
+                budget_id,
+                second_user_id,
+                f"Budget {uuid4().hex}",
+                date(2026, 1, 1),
+                date(2026, 1, 31),
+            ),
+        )
+        connection.commit()
+
+        with pytest.raises(CheckViolation):
+            connection.execute(
+                """
+                INSERT INTO budget_limits (
+                    id,
+                    user_id,
+                    budget_id,
+                    category_id,
+                    limit_amount,
+                    created_at,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, now(), now())
+                """,
+                (
+                    uuid4(),
+                    second_user_id,
+                    budget_id,
+                    system_income_id,
+                    Decimal("100.0000"),
+                ),
+            )
+
+        connection.rollback()
+
+
+def test_liability_details_require_matching_debt_account() -> None:
+    """Reject non-debt accounts and account/subtype mismatches."""
+    with connect_to_postgresql() as connection:
+        user_id = insert_user(
+            connection,
+            email=f"liability-{uuid4().hex}@falcon.test",
+        )
+        bank_account_id = insert_account(
+            connection,
+            user_id=user_id,
+            name=f"Bank account {uuid4().hex}",
+        )
+        loan_account_id = insert_account(
+            connection,
+            user_id=user_id,
+            name=f"Loan account {uuid4().hex}",
+        )
+        connection.execute(
+            """
+            UPDATE accounts
+            SET account_type = 'loan'
+            WHERE id = %s
+            """,
+            (loan_account_id,),
+        )
+        connection.commit()
+
+        with pytest.raises(CheckViolation):
+            connection.execute(
+                """
+                INSERT INTO liability_details (
+                    id,
+                    user_id,
+                    account_id,
+                    liability_subtype,
+                    created_at,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, 'loan', now(), now())
+                """,
+                (uuid4(), user_id, bank_account_id),
+            )
+
+        connection.rollback()
+
+        liability_id = uuid4()
+        connection.execute(
+            """
+            INSERT INTO liability_details (
+                id,
+                user_id,
+                account_id,
+                liability_subtype,
+                principal_amount,
+                annual_interest_rate,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                'loan',
+                %s,
+                %s,
+                now(),
+                now()
+            )
+            """,
+            (
+                liability_id,
+                user_id,
+                loan_account_id,
+                Decimal("100000.0000"),
+                Decimal("0.075000"),
+            ),
+        )
+        connection.commit()
+
+        with pytest.raises(CheckViolation):
+            connection.execute(
+                """
+                UPDATE accounts
+                SET account_type = 'bank'
+                WHERE id = %s
+                """,
+                (loan_account_id,),
+            )
+
+        connection.rollback()
+
+        stored_values = connection.execute(
+            """
+            SELECT principal_amount, annual_interest_rate
+            FROM liability_details
+            WHERE id = %s
+            """,
+            (liability_id,),
+        ).fetchone()
+
+        assert stored_values == (
+            Decimal("100000.0000"),
+            Decimal("0.075000"),
+        )
+
+
+def test_goal_allocations_cannot_exceed_supporting_transaction() -> None:
+    """Reject aggregate goal allocations above a transaction's magnitude."""
+    with connect_to_postgresql() as connection:
+        user_id = insert_user(
+            connection,
+            email=f"allocation-{uuid4().hex}@falcon.test",
+        )
+        account_id = insert_account(
+            connection,
+            user_id=user_id,
+            name=f"Allocation account {uuid4().hex}",
+        )
+        transaction_id = insert_transaction(
+            connection,
+            user_id=user_id,
+            account_id=account_id,
+            amount=Decimal("-100.0000"),
+            description="Eligible goal allocation",
+        )
+        goal_id = uuid4()
+
+        connection.execute(
+            """
+            INSERT INTO goals (
+                id,
+                user_id,
+                name,
+                goal_type,
+                target_amount,
+                starting_amount,
+                currency,
+                target_date,
+                priority,
+                status,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                'other',
+                %s,
+                %s,
+                'INR',
+                %s,
+                'medium',
+                'active',
+                now(),
+                now()
+            )
+            """,
+            (
+                goal_id,
+                user_id,
+                f"Allocation goal {uuid4().hex}",
+                Decimal("1000.0000"),
+                Decimal("0.0000"),
+                date(2026, 12, 31),
+            ),
+        )
+        connection.commit()
+
+        connection.execute(
+            """
+            INSERT INTO goal_contributions (
+                id,
+                user_id,
+                goal_id,
+                transaction_id,
+                amount,
+                contribution_date,
+                source_type,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                'transaction',
+                now(),
+                now()
+            )
+            """,
+            (
+                uuid4(),
+                user_id,
+                goal_id,
+                transaction_id,
+                Decimal("60.0000"),
+                date(2026, 1, 15),
+            ),
+        )
+        connection.commit()
+
+        connection.execute(
+            """
+            INSERT INTO goal_contributions (
+                id,
+                user_id,
+                goal_id,
+                transaction_id,
+                amount,
+                contribution_date,
+                source_type,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                'transaction',
+                now(),
+                now()
+            )
+            """,
+            (
+                uuid4(),
+                user_id,
+                goal_id,
+                transaction_id,
+                Decimal("50.0000"),
+                date(2026, 1, 16),
+            ),
+        )
+
+        with pytest.raises(CheckViolation):
+            connection.commit()
+
+        connection.rollback()
+
+        allocated_amount = connection.execute(
+            """
+            SELECT sum(amount)
+            FROM goal_contributions
+            WHERE transaction_id = %s
+            """,
+            (transaction_id,),
+        ).fetchone()
+
+        assert allocated_amount == (Decimal("60.0000"),)
+
+
+def test_expected_integrity_functions_and_triggers_exist() -> None:
+    """Verify PostgreSQL contains the reviewed integrity objects."""
+    expected_functions = {
+        "falcon_assert_category_reference",
+        "falcon_assert_transaction_allocation_valid",
+        "falcon_assert_transfer_group_valid",
+        "falcon_enforce_transaction_allocation",
+        "falcon_enforce_transfer_integrity",
+        "falcon_validate_account_liability",
+        "falcon_validate_budget_limit_category",
+        "falcon_validate_category_dependents",
+        "falcon_validate_category_scope",
+        "falcon_validate_liability_detail",
+        "falcon_validate_transaction_category",
+    }
+    expected_triggers = {
+        "trg_accounts_validate_liability",
+        "trg_budget_limits_validate_category",
+        "trg_categories_validate_dependents",
+        "trg_categories_validate_scope",
+        "trg_goal_contributions_allocation_integrity",
+        "trg_liability_details_validate_account",
+        "trg_transactions_allocation_integrity",
+        "trg_transactions_transfer_integrity",
+        "trg_transactions_validate_category",
+        "trg_transfer_groups_pair_integrity",
+    }
+
+    with connect_to_postgresql() as connection:
+        function_names = {
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT proname
+                FROM pg_proc
+                WHERE proname LIKE 'falcon_%'
+                """
+            )
+        }
+        trigger_names = {
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT tgname
+                FROM pg_trigger
+                WHERE NOT tgisinternal
+                """
+            )
+        }
+
+    assert expected_functions <= function_names
+    assert expected_triggers <= trigger_names

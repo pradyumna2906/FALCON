@@ -21,7 +21,7 @@ pytestmark = [
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _ALEMBIC_CONFIG = _REPOSITORY_ROOT / "backend" / "alembic.ini"
 _BASELINE_REVISION = "25efb498276a"
-_SCHEMA_REVISION = "771fa3a74464"
+_SCHEMA_REVISION = "a1b1833784e5"
 
 
 def integration_settings() -> Settings:

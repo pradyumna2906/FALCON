@@ -92,10 +92,10 @@ jobs:
           --disable-pip-version-check
           --no-cache-dir
           -e "backend[dev]"
-      - name: Run PostgreSQL migration lifecycle
+      - name: Run PostgreSQL schema and integrity tests
         run: >-
           python -m pytest
-          backend/tests/integration/test_postgresql_migrations.py
+          backend/tests/integration
           -m integration
           --no-cov
           --tb=short
