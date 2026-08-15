@@ -12,7 +12,8 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _BACKEND_ROOT = _REPOSITORY_ROOT / "backend"
 _ALEMBIC_CONFIG = _BACKEND_ROOT / "alembic.ini"
 _BASELINE_REVISION = "25efb498276a"
-_SCHEMA_REVISION = "771fa3a74464"
+_DOMAIN_SCHEMA_REVISION = "771fa3a74464"
+_HARDENING_REVISION = "a1b1833784e5"
 
 
 def create_alembic_config() -> Config:
@@ -35,17 +36,24 @@ def test_migrations_share_application_metadata() -> None:
     assert len(model_metadata().tables) == 12
 
 
-def test_schema_revision_is_the_single_head() -> None:
+def test_hardening_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_SCHEMA_REVISION]
+    assert scripts.get_heads() == [_HARDENING_REVISION]
 
-    schema_revision = scripts.get_revision(_SCHEMA_REVISION)
+    hardening_revision = scripts.get_revision(_HARDENING_REVISION)
 
-    assert schema_revision is not None
-    assert schema_revision.down_revision == _BASELINE_REVISION
-    assert schema_revision.branch_labels == set()
-    assert schema_revision.dependencies is None
+    assert hardening_revision is not None
+    assert hardening_revision.down_revision == _DOMAIN_SCHEMA_REVISION
+    assert hardening_revision.branch_labels == set()
+    assert hardening_revision.dependencies is None
+
+def test_domain_schema_follows_the_empty_baseline() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+    domain_revision = scripts.get_revision(_DOMAIN_SCHEMA_REVISION)
+
+    assert domain_revision is not None
+    assert domain_revision.down_revision == _BASELINE_REVISION
 
 
 def test_baseline_remains_the_migration_root() -> None:
