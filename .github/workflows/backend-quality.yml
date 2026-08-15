@@ -3,10 +3,22 @@ name: Backend quality
 on:
   pull_request:
     branches: [develop, main]
-    paths: ["backend/**", "compose.yaml", ".dockerignore", ".env.example", "scripts/compose-smoke.sh", ".github/workflows/backend-quality.yml"]
+    paths:
+      - "backend/**"
+      - "compose.yaml"
+      - ".dockerignore"
+      - ".env.example"
+      - "scripts/compose-smoke.sh"
+      - ".github/workflows/backend-quality.yml"
   push:
     branches: [develop, main]
-    paths: ["backend/**", "compose.yaml", ".dockerignore", ".env.example", "scripts/compose-smoke.sh", ".github/workflows/backend-quality.yml"]
+    paths:
+      - "backend/**"
+      - "compose.yaml"
+      - ".dockerignore"
+      - ".env.example"
+      - "scripts/compose-smoke.sh"
+      - ".github/workflows/backend-quality.yml"
 
 permissions:
   contents: read
@@ -22,11 +34,71 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: {persist-credentials: false}
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with: {python-version-file: .python-version, cache: pip}
-      - run: python -m pip install --disable-pip-version-check --no-cache-dir -e "backend[dev]"
-      - run: python -m pytest backend/tests/unit
+        with:
+          python-version-file: .python-version
+          cache: pip
+      - name: Install backend
+        run: >-
+          python -m pip install
+          --disable-pip-version-check
+          --no-cache-dir
+          -e "backend[dev]"
+      - name: Run backend unit tests
+        run: python -m pytest backend/tests/unit
+
+  migration-tests:
+    name: PostgreSQL migration lifecycle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      FALCON_ENV: test
+      FALCON_DEBUG: "false"
+      FALCON_DOCS_ENABLED: "false"
+      FALCON_CORS_ALLOWED_ORIGINS: "[]"
+      FALCON_DB_HOST: 127.0.0.1
+      FALCON_DB_PORT: "5432"
+      FALCON_DB_NAME: falcon_test
+      FALCON_DB_USER: falcon_test
+      FALCON_DB_PASSWORD: ci-only-database-password
+      FALCON_RUN_DATABASE_INTEGRATION: "1"
+    services:
+      postgres:
+        image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
+        env:
+          POSTGRES_DB: falcon_test
+          POSTGRES_USER: falcon_test
+          POSTGRES_PASSWORD: ci-only-database-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U falcon_test -d falcon_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+          cache: pip
+      - name: Install backend
+        run: >-
+          python -m pip install
+          --disable-pip-version-check
+          --no-cache-dir
+          -e "backend[dev]"
+      - name: Run PostgreSQL migration lifecycle
+        run: >-
+          python -m pytest
+          backend/tests/integration/test_postgresql_migrations.py
+          -m integration
+          --no-cov
+          --tb=short
 
   container-build:
     name: API container build
@@ -34,9 +106,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: {persist-credentials: false}
-      - run: docker compose --env-file .env.example config --quiet
-      - run: docker compose --env-file .env.example build api
+        with:
+          persist-credentials: false
+      - name: Validate Compose configuration
+        run: docker compose --env-file .env.example config --quiet
+      - name: Build API container
+        run: docker compose --env-file .env.example build api
 
   compose-smoke:
     name: Compose smoke test
@@ -44,5 +119,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: {persist-credentials: false}
-      - run: bash scripts/compose-smoke.sh
+        with:
+          persist-credentials: false
+      - name: Run Compose smoke test
+        run: bash scripts/compose-smoke.sh
