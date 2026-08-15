@@ -68,7 +68,54 @@ finally {
 ```
 
 This test uses the PostgreSQL address and credentials from `.env`. It runs the production Psycopg async driver and the public readiness route; it does not create tables or modify persisted application data. Stop the service when it is no longer needed with `docker compose --env-file .env stop postgres`.
+## Database migrations
 
+FALCON uses Alembic as the only mechanism for creating or changing persistent
+database schema. Application startup, tests and deployment code must never call
+`metadata.create_all()`.
+
+Alembic loads the PostgreSQL connection settings from the ignored root `.env`
+file. Database credentials are never stored in `backend/alembic.ini`.
+
+Inspect the current database revision:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic `
+    -c backend\alembic.ini `
+    current
+```
+
+Upgrade to the latest reviewed migration:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic `
+    -c backend\alembic.ini `
+    upgrade head
+```
+
+Downgrade one revision:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic `
+    -c backend\alembic.ini `
+    downgrade -1
+```
+
+Generate a candidate migration after changing reviewed SQLAlchemy models:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic `
+    -c backend\alembic.ini `
+    revision --autogenerate -m "describe schema change"
+```
+
+Every generated migration must be inspected before it is committed. Upgrade and
+downgrade functions must be explicit and reversible whenever PostgreSQL permits.
+Production deployments must run `upgrade head` as a separate controlled step,
+not during API process startup.
+
+The initial `25efb498276a` revision is intentionally empty. It establishes the
+migration history before Phase 2.5 introduces domain tables.
 ## Run
 
 ```powershell
