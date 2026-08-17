@@ -53,9 +53,11 @@ def test_development_documentation_is_available() -> None:
 
 def test_production_documentation_is_disabled_by_default() -> None:
     settings = Settings(
+        _env_file=None,
         env=AppEnvironment.PRODUCTION,
         debug=False,
         docs_enabled=None,
+        auth_signing_secret="x" * 48,
     )
 
     with TestClient(create_app(settings)) as client:
@@ -66,9 +68,11 @@ def test_production_documentation_is_disabled_by_default() -> None:
 
 def test_production_documentation_requires_explicit_enablement() -> None:
     settings = Settings(
+        _env_file=None,
         env=AppEnvironment.PRODUCTION,
         debug=False,
         docs_enabled=True,
+        auth_signing_secret="x" * 48,
     )
 
     with TestClient(create_app(settings)) as client:

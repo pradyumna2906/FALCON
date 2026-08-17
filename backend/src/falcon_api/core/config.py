@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 from functools import lru_cache
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import (
     AnyHttpUrl,
@@ -18,7 +18,9 @@ from sqlalchemy import URL
 
 
 _HTTP_URL_ADAPTER = TypeAdapter(AnyHttpUrl)
-
+_AUTH_SECRET_PLACEHOLDER = (
+    "replace_with_a_random_secret_of_at_least_32_characters"
+)
 
 class AppEnvironment(StrEnum):
     """Supported deployment environments."""
@@ -46,6 +48,55 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000, ge=1, le=65535)
     docs_enabled: bool | None = None
     cors_allowed_origins: tuple[str, ...] = ()
+    auth_signing_secret: SecretStr = SecretStr(
+        _AUTH_SECRET_PLACEHOLDER,
+    )
+    auth_access_token_algorithm: Literal["HS256"] = "HS256"
+    auth_access_token_issuer: str = Field(
+        default="falcon-api",
+        min_length=1,
+        max_length=128,
+    )
+    auth_access_token_audience: str = Field(
+        default="falcon-web",
+        min_length=1,
+        max_length=128,
+    )
+    auth_access_token_lifetime_minutes: int = Field(
+        default=15,
+        ge=1,
+        le=60,
+    )
+    auth_refresh_token_lifetime_days: int = Field(
+        default=7,
+        ge=1,
+        le=30,
+    )
+    auth_email_verification_lifetime_minutes: int = Field(
+        default=30,
+        ge=5,
+        le=1440,
+    )
+    auth_password_reset_lifetime_minutes: int = Field(
+        default=15,
+        ge=5,
+        le=120,
+    )
+    auth_opaque_token_bytes: int = Field(
+        default=32,
+        ge=32,
+        le=64,
+    )
+    auth_password_min_length: int = Field(
+        default=12,
+        ge=12,
+        le=128,
+    )
+    auth_password_max_length: int = Field(
+        default=128,
+        ge=12,
+        le=128,
+    )
     db_host: str = Field(default="127.0.0.1", min_length=1, max_length=253)
     db_port: int = Field(default=5433, ge=1, le=65535)
     db_name: str = Field(default="falcon", min_length=1, max_length=63)
@@ -108,12 +159,46 @@ class Settings(BaseSettings):
             normalized_origins.append(normalized)
 
         return tuple(normalized_origins)
-
+    @field_validator(
+        "auth_access_token_issuer",
+        "auth_access_token_audience",
+    )
+    @classmethod
+    def reject_blank_authentication_identifiers(
+        cls,
+        value: str,
+    ) -> str:
+        """Reject blank JWT issuer and audience identifiers."""
+        if not value.strip():
+            raise ValueError(
+                "Authentication identifiers must not be blank.",
+            )
+        return value
     @model_validator(mode="after")
-    def reject_unsafe_production_debug(self) -> Self:
-        """Prevent debug tracebacks from being enabled in production."""
-        if self.env is AppEnvironment.PRODUCTION and self.debug:
-            raise ValueError("Debug mode must be disabled in production.")
+    def validate_cross_field_security(self) -> Self:
+        """Reject unsafe production and authentication combinations."""
+        if self.auth_password_min_length > self.auth_password_max_length:
+            raise ValueError(
+                "Password minimum length must not exceed maximum length.",
+            )
+
+        if self.env is AppEnvironment.PRODUCTION:
+            if self.debug:
+                raise ValueError(
+                    "Debug mode must be disabled in production.",
+                )
+
+            signing_secret = self.auth_signing_secret.get_secret_value()
+
+            if (
+                signing_secret == _AUTH_SECRET_PLACEHOLDER
+                or len(signing_secret) < 32
+            ):
+                raise ValueError(
+                    "Production requires a strong authentication "
+                    "signing secret.",
+                )
+
         return self
 
     @property
