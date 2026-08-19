@@ -284,3 +284,28 @@ Clear the temporary environment setting afterward:
 ```powershell
 Remove-Item Env:FALCON_RUN_DATABASE_INTEGRATION
 ```
+## Authentication implementation
+
+Phase 3 provides registration, email verification, login, refresh-token
+rotation, replay revocation, logout, password recovery, bearer authentication,
+and the authenticated `/api/v1/auth/me` endpoint.
+
+The authoritative implementation and operational contract is documented in
+[`docs/authentication/PHASE_3_IMPLEMENTATION.md`](../docs/authentication/PHASE_3_IMPLEMENTATION.md).
+
+Run the complete backend suite from the repository root:
+
+```powershell
+.venv\Scripts\python.exe -m pytest -q backend/tests
+```
+
+Run the real PostgreSQL authentication and database lifecycles:
+
+```powershell
+$env:FALCON_RUN_DATABASE_INTEGRATION = '1'
+.venv\Scripts\python.exe -m pytest --no-cov -q backend/tests/integration
+Remove-Item Env:FALCON_RUN_DATABASE_INTEGRATION
+```
+
+The private root `.env` must remain outside Git.
+`` Git.
