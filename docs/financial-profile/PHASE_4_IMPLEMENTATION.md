@@ -124,8 +124,8 @@ messages.
   server-derived completion logic.
 - **Checkpoint 4.4 (complete):** expose the authenticated GET and PUT
   operations and add OpenAPI and route tests.
-- **Checkpoint 4.5:** add real PostgreSQL lifecycle tests, security hardening,
-  completion documentation, and full-project validation.
+- **Checkpoint 4.5 (validation pending):** add real PostgreSQL lifecycle tests,
+  security hardening, completion documentation, and full-project validation.
 
 ## 9. Deferred scope
 
@@ -181,3 +181,21 @@ contract.
 Trusted browser preflight policy permits PUT and the `Authorization` header so
 the frontend can call authenticated profile operations. Other new methods are
 not enabled.
+
+## 13. PostgreSQL validation contract
+
+The final checkpoint exercises the profile lifecycle against the migrated
+PostgreSQL schema rather than an in-memory substitute. It verifies:
+
+- missing-profile behavior;
+- draft creation and complete replacement;
+- one profile per user;
+- cross-user read isolation;
+- rollback of an interrupted replacement;
+- the named user-profile uniqueness constraint;
+- convergence of concurrent first updates through the savepoint recovery path;
+- registration, login, authenticated profile creation, retrieval, and
+  cross-user isolation through the public API.
+
+Phase 4 remains in progress until these tests pass against PostgreSQL together
+with the complete unit suite.
