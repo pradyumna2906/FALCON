@@ -109,7 +109,7 @@ The API uses FALCON's unified error envelope.
 |---|---|---|
 | 401 | `invalid_access_token` | The bearer credential is missing or invalid |
 | 404 | `profile_not_found` | No profile exists for the authenticated user |
-| 422 | `request_validation_error` | The request violates the schema contract |
+| 422 | `validation_error` | The request violates the schema contract |
 
 Database failures and internal details are never exposed through public error
 messages.
@@ -122,8 +122,8 @@ messages.
   repository.
 - **Checkpoint 4.3 (complete):** implement the application service and
   server-derived completion logic.
-- **Checkpoint 4.4:** expose the authenticated GET and PUT operations and add
-  OpenAPI and route tests.
+- **Checkpoint 4.4 (complete):** expose the authenticated GET and PUT
+  operations and add OpenAPI and route tests.
 - **Checkpoint 4.5:** add real PostgreSQL lifecycle tests, security hardening,
   completion documentation, and full-project validation.
 
@@ -164,3 +164,20 @@ the outer request transaction. If another request creates the same user's
 profile first, the service locks that row and applies the latest complete
 replacement. Unrelated integrity failures remain internal failures and are not
 translated into public profile errors.
+
+## 12. Authenticated API boundary
+
+The versioned router exposes only GET and PUT at `/api/v1/profile`. Both
+operations resolve ownership from the bearer-authenticated principal and pass
+that trusted user identifier to the application service. Neither route accepts
+a client-selected owner.
+
+The PUT operation returns `201 Created` when the service creates the first
+profile and `200 OK` for replacement. Both success paths return the same public
+profile representation. OpenAPI documents the two success cases, bearer
+security, validation failures, authentication failures, and the GET not-found
+contract.
+
+Trusted browser preflight policy permits PUT and the `Authorization` header so
+the frontend can call authenticated profile operations. Other new methods are
+not enabled.

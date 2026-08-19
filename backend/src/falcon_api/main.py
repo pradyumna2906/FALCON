@@ -25,10 +25,16 @@ from falcon_api.infrastructure.database import (
     create_database_resources,
 )
 from falcon_api.middleware.request_context import RequestContextMiddleware
+from falcon_api.profile import FinancialProfileService
 
 
-_CORS_ALLOWED_METHODS = ("GET", "POST")
-_CORS_ALLOWED_HEADERS = ("Accept", "Content-Type", REQUEST_ID_HEADER)
+_CORS_ALLOWED_METHODS = ("GET", "POST", "PUT")
+_CORS_ALLOWED_HEADERS = (
+    "Accept",
+    "Authorization",
+    "Content-Type",
+    REQUEST_ID_HEADER,
+)
 DatabaseFactory = Callable[[Settings], DatabaseResources]
 
 
@@ -114,6 +120,9 @@ def create_app(
         SessionLifecycleService(
             cryptography=authentication_cryptography,
         )
+    )
+    application.state.financial_profile_service = (
+        FinancialProfileService()
     )
 
     application.add_middleware(RequestContextMiddleware)

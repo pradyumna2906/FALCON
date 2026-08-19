@@ -63,14 +63,19 @@ def test_trusted_preflight_is_limited_correlated_and_logged(
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == TRUSTED_ORIGIN
-    assert response.headers["access-control-allow-methods"] == "GET, POST"
+    assert response.headers["access-control-allow-methods"] == (
+        "GET, POST, PUT"
+    )
     allowed_headers = {
         header.strip().lower()
-        for header in response.headers["access-control-allow-headers"].split(",")
+        for header in response.headers[
+            "access-control-allow-headers"
+        ].split(",")
     }
     assert allowed_headers == {
         "accept",
         "accept-language",
+        "authorization",
         "content-language",
         "content-type",
         "x-request-id",
@@ -99,8 +104,7 @@ def test_trusted_preflight_is_limited_correlated_and_logged(
         },
         {
             "Origin": TRUSTED_ORIGIN,
-            "Access-Control-Request-Method": "GET",
-            "Access-Control-Request-Headers": "Authorization",
+            "Access-Control-Request-Method": "PATCH",
         },
         {
             "Origin": UNTRUSTED_ORIGIN,
@@ -119,3 +123,31 @@ def test_disallowed_preflight_is_rejected_without_origin_authorization(
         assert "access-control-allow-origin" not in response.headers
     assert response.headers["access-control-allow-credentials"] == "true"
     assert "X-Request-ID" in response.headers
+
+
+def test_trusted_profile_preflight_allows_put_and_bearer_auth(
+    client: TestClient,
+) -> None:
+    response = client.options(
+        "/api/v1/profile",
+        headers={
+            "Origin": TRUSTED_ORIGIN,
+            "Access-Control-Request-Method": "PUT",
+            "Access-Control-Request-Headers": (
+                "Authorization, Content-Type, X-Request-ID"
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == TRUSTED_ORIGIN
+    assert response.headers["access-control-allow-credentials"] == "true"
+    allowed_headers = {
+        header.strip().lower()
+        for header in response.headers["access-control-allow-headers"].split(
+            ","
+        )
+    }
+    assert "authorization" in allowed_headers
+    assert "content-type" in allowed_headers
+    assert "x-request-id" in allowed_headers
