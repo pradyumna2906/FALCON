@@ -13,6 +13,7 @@ from falcon_api.api.router import api_v1_router
 from falcon_api.api.routes.health import health_router
 from falcon_api.auth.login import LoginService
 from falcon_api.auth.password_recovery import PasswordRecoveryService
+from falcon_api.auth.principal import CurrentPrincipalService
 from falcon_api.auth.registration import RegistrationService
 from falcon_api.auth.services import create_authentication_cryptography
 from falcon_api.auth.session_lifecycle import SessionLifecycleService
@@ -93,6 +94,11 @@ def create_app(
         refresh_lifetime=timedelta(
             days=app_settings.auth_refresh_token_lifetime_days,
         ),
+    )
+    application.state.current_principal_service = (
+        CurrentPrincipalService(
+            access_tokens=authentication_cryptography.access_tokens,
+        )
     )
     application.state.password_recovery_service = (
         PasswordRecoveryService(

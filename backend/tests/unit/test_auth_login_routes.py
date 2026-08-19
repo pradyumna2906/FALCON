@@ -178,4 +178,4 @@ def test_openapi_exposes_session_lifecycle_routes(
     assert "/api/v1/auth/login" in paths
     assert "/api/v1/auth/refresh" in paths
     assert "/api/v1/auth/logout" in paths
-    assert "/api/v1/auth/me" not in paths
+    assert "/api/v1/auth/me" in paths
