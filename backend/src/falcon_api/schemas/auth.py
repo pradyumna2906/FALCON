@@ -133,7 +133,30 @@ class EmailVerificationConfirmation(AuthenticationSchema):
         pattern=r"^[A-Za-z0-9_-]+$",
     )
 
+class PasswordResetRequest(AuthenticationSchema):
+    """Request a password-reset message without account disclosure."""
 
+    email: str = Field(min_length=3, max_length=320)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        """Normalize password-reset lookups consistently."""
+        return normalize_email_address(value)
+
+
+class PasswordResetConfirmation(AuthenticationSchema):
+    """Consume a password-reset token and replace the credential."""
+
+    token: str = Field(
+        min_length=43,
+        max_length=256,
+        pattern=r"^[A-Za-z0-9_-]+$",
+    )
+    new_password: str = Field(
+        min_length=12,
+        max_length=128,
+    )
 class GenericAcceptedResponse(AuthenticationSchema):
     """Enumeration-resistant response for message requests."""
 

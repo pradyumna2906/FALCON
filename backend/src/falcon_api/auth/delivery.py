@@ -8,6 +8,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 
 _EMAIL_VERIFICATION_PURPOSE: Final = "email_verification"
+_PASSWORD_RESET_PURPOSE: Final = "password_reset"
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +22,14 @@ class EncryptedDeliveryPayload:
 @dataclass(frozen=True, slots=True)
 class EmailVerificationDelivery:
     """Trusted email-verification delivery content."""
+
+    email: str
+    token: str
+
+
+@dataclass(frozen=True, slots=True)
+class PasswordResetDelivery:
+    """Trusted password-reset delivery content."""
 
     email: str
     token: str
@@ -54,10 +63,67 @@ class AuthenticationDeliveryCipher:
         token: str,
     ) -> EncryptedDeliveryPayload:
         """Encrypt one verification message for durable delivery."""
+        return self._encrypt(
+            email=email,
+            purpose=_EMAIL_VERIFICATION_PURPOSE,
+            token=token,
+        )
+
+    def decrypt_email_verification(
+        self,
+        payload: EncryptedDeliveryPayload,
+    ) -> EmailVerificationDelivery:
+        """Decrypt and strictly validate one verification payload."""
+        content = self._decrypt(
+            payload,
+            expected_purpose=_EMAIL_VERIFICATION_PURPOSE,
+        )
+
+        return EmailVerificationDelivery(
+            email=content["email"],
+            token=content["token"],
+        )
+
+    def encrypt_password_reset(
+        self,
+        *,
+        email: str,
+        token: str,
+    ) -> EncryptedDeliveryPayload:
+        """Encrypt one password-reset message for durable delivery."""
+        return self._encrypt(
+            email=email,
+            purpose=_PASSWORD_RESET_PURPOSE,
+            token=token,
+        )
+
+    def decrypt_password_reset(
+        self,
+        payload: EncryptedDeliveryPayload,
+    ) -> PasswordResetDelivery:
+        """Decrypt and strictly validate one password-reset payload."""
+        content = self._decrypt(
+            payload,
+            expected_purpose=_PASSWORD_RESET_PURPOSE,
+        )
+
+        return PasswordResetDelivery(
+            email=content["email"],
+            token=content["token"],
+        )
+
+    def _encrypt(
+        self,
+        *,
+        email: str,
+        purpose: str,
+        token: str,
+    ) -> EncryptedDeliveryPayload:
+        """Encrypt one strictly structured authentication message."""
         plaintext = json.dumps(
             {
                 "email": email,
-                "purpose": _EMAIL_VERIFICATION_PURPOSE,
+                "purpose": purpose,
                 "token": token,
             },
             ensure_ascii=False,
@@ -70,11 +136,13 @@ class AuthenticationDeliveryCipher:
             key_id=self._key_id,
         )
 
-    def decrypt_email_verification(
+    def _decrypt(
         self,
         payload: EncryptedDeliveryPayload,
-    ) -> EmailVerificationDelivery:
-        """Decrypt and strictly validate one delivery payload."""
+        *,
+        expected_purpose: str,
+    ) -> dict[str, str]:
+        """Decrypt and validate one expected authentication message."""
         if payload.key_id != self._key_id:
             raise ValueError("Authentication delivery payload is invalid.")
 
@@ -93,7 +161,7 @@ class AuthenticationDeliveryCipher:
         if (
             not isinstance(content, dict)
             or set(content) != {"email", "purpose", "token"}
-            or content.get("purpose") != _EMAIL_VERIFICATION_PURPOSE
+            or content.get("purpose") != expected_purpose
             or not isinstance(content.get("email"), str)
             or not isinstance(content.get("token"), str)
         ):
@@ -101,7 +169,7 @@ class AuthenticationDeliveryCipher:
                 "Authentication delivery payload is invalid."
             )
 
-        return EmailVerificationDelivery(
-            email=content["email"],
-            token=content["token"],
-        )
+        return {
+            "email": content["email"],
+            "token": content["token"],
+        }

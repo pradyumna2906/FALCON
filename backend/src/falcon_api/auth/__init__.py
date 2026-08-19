@@ -10,6 +10,7 @@ from falcon_api.auth.delivery import (
     AuthenticationDeliveryCipher,
     EmailVerificationDelivery,
     EncryptedDeliveryPayload,
+    PasswordResetDelivery,
 )
 from falcon_api.auth.errors import (
     AuthenticationError,
@@ -27,6 +28,7 @@ from falcon_api.auth.opaque_tokens import (
     hash_opaque_token,
     verify_opaque_token,
 )
+from falcon_api.auth.password_recovery import PasswordRecoveryService
 from falcon_api.auth.passwords import PasswordService
 from falcon_api.auth.registration import (
     RegistrationCommand,
@@ -59,6 +61,8 @@ __all__ = [
     "LoginService",
     "OpaqueToken",
     "PasswordPolicyError",
+    "PasswordRecoveryService",
+    "PasswordResetDelivery",
     "PasswordService",
     "RegistrationCommand",
     "RegistrationResult",
