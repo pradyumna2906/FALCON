@@ -116,9 +116,10 @@ messages.
 
 ## 8. Checkpoints
 
-- **Checkpoint 4.1:** define the API contract, schemas, validation boundaries,
-  completion rules, and contract tests.
-- **Checkpoint 4.2:** implement the user-scoped persistence repository.
+- **Checkpoint 4.1 (complete):** define the API contract, schemas, validation
+  boundaries, completion rules, and contract tests.
+- **Checkpoint 4.2 (complete):** implement the user-scoped persistence
+  repository.
 - **Checkpoint 4.3:** implement the application service and server-derived
   completion logic.
 - **Checkpoint 4.4:** expose the authenticated GET and PUT operations and add
@@ -136,3 +137,16 @@ Phase 4 does not implement:
 - household sharing;
 - partial `PATCH` updates;
 - Phase 5 through Phase 7 behavior.
+
+## 10. Persistence boundary
+
+The financial-profile repository provides three operations:
+
+- retrieve a profile by its owning user identifier, with an optional row lock;
+- create one user-owned profile;
+- replace mutable planning values on an already user-owned profile.
+
+Every read includes `financial_profiles.user_id` in its query. Replacement
+also requires the trusted user identifier and rejects a profile belonging to
+another user. Repository operations flush pending changes but never commit;
+the application transaction boundary retains commit and rollback ownership.
