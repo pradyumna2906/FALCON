@@ -12,6 +12,7 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from falcon_api.auth.login import LoginCommand, LoginService
+from falcon_api.auth.password_recovery import PasswordRecoveryService
 from falcon_api.auth.registration import (
     RegistrationCommand,
     RegistrationService,
@@ -26,6 +27,8 @@ from falcon_api.schemas.auth import (
     GenericAcceptedResponse,
     LoginRequest,
     LoginResponse,
+    PasswordResetConfirmation,
+    PasswordResetRequest,
     RegisteredUserResponse,
     RegistrationRequest,
 )
@@ -63,6 +66,16 @@ def login_service_from(request: Request) -> LoginService:
     )
 
 
+def password_recovery_service_from(
+    request: Request,
+) -> PasswordRecoveryService:
+    """Return the process-scoped password-recovery service."""
+    return cast(
+        PasswordRecoveryService,
+        request.app.state.password_recovery_service,
+    )
+
+
 def session_lifecycle_service_from(
     request: Request,
 ) -> SessionLifecycleService:
@@ -85,6 +98,10 @@ RegistrationServiceDependency = Annotated[
 LoginServiceDependency = Annotated[
     LoginService,
     Depends(login_service_from),
+]
+PasswordRecoveryServiceDependency = Annotated[
+    PasswordRecoveryService,
+    Depends(password_recovery_service_from),
 ]
 SessionLifecycleServiceDependency = Annotated[
     SessionLifecycleService,
@@ -319,6 +336,51 @@ async def confirm_email_verification(
     await service.confirm_email_verification(
         session,
         token=request.token,
+    )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@auth_router.post(
+    "/password-reset/request",
+    response_model=GenericAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="request_password_reset",
+    summary="Request a password-reset message",
+)
+async def request_password_reset(
+    payload: PasswordResetRequest,
+    session: DatabaseSession,
+    service: PasswordRecoveryServiceDependency,
+) -> GenericAcceptedResponse:
+    """Queue an eligible reset without revealing account existence."""
+    await service.request_password_reset(
+        session,
+        email=payload.email,
+    )
+
+    return GenericAcceptedResponse()
+
+
+@auth_router.post(
+    "/password-reset/confirm",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    operation_id="confirm_password_reset",
+    summary="Confirm a password reset",
+)
+async def confirm_password_reset(
+    payload: PasswordResetConfirmation,
+    request: Request,
+    session: DatabaseSession,
+    service: PasswordRecoveryServiceDependency,
+    settings: SettingsDependency,
+) -> Response:
+    """Replace a credential and revoke every active refresh session."""
+    _require_trusted_origin(request, settings=settings)
+    await service.confirm_password_reset(
+        session,
+        token=payload.token,
+        new_password=payload.new_password,
     )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
