@@ -3,14 +3,17 @@
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import timedelta
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from falcon_api.auth.registration import RegistrationService
-from falcon_api.auth.services import create_authentication_cryptography
+
 from falcon_api import __version__
 from falcon_api.api.errors import register_exception_handlers
 from falcon_api.api.router import api_v1_router
 from falcon_api.api.routes.health import health_router
+from falcon_api.auth.login import LoginService
+from falcon_api.auth.registration import RegistrationService
+from falcon_api.auth.services import create_authentication_cryptography
 from falcon_api.core.config import Settings, get_settings
 from falcon_api.core.logging import configure_logging
 from falcon_api.core.request_context import REQUEST_ID_HEADER
@@ -32,6 +35,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     database_factory: DatabaseFactory = application.state.database_factory
     database = database_factory(application.state.settings)
     application.state.database = database
+
     try:
         yield
     finally:
@@ -67,6 +71,7 @@ def create_app(
         allow_headers=_CORS_ALLOWED_HEADERS,
         expose_headers=(REQUEST_ID_HEADER,),
     )
+
     authentication_cryptography = create_authentication_cryptography(
         app_settings,
     )
@@ -77,11 +82,17 @@ def create_app(
         cryptography=authentication_cryptography,
         verification_lifetime=timedelta(
             minutes=(
-                app_settings
-                .auth_email_verification_lifetime_minutes
+                app_settings.auth_email_verification_lifetime_minutes
             )
         ),
     )
+    application.state.login_service = LoginService(
+        cryptography=authentication_cryptography,
+        refresh_lifetime=timedelta(
+            days=app_settings.auth_refresh_token_lifetime_days,
+        ),
+    )
+
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)
     application.include_router(health_router)

@@ -1,6 +1,6 @@
-"""Registration and email-verification API routes."""
+"""Registration, verification, and login API routes."""
 
-from typing import Annotated, cast
+from typing import Annotated, Final, cast
 
 from fastapi import (
     APIRouter,
@@ -11,19 +11,29 @@ from fastapi import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from falcon_api.auth.login import (
+    LoginCommand,
+    LoginService,
+)
 from falcon_api.auth.registration import (
     RegistrationCommand,
     RegistrationService,
 )
+from falcon_api.core.config import AppEnvironment, Settings
 from falcon_api.infrastructure.database import get_database_session
 from falcon_api.schemas.auth import (
     EmailVerificationConfirmation,
     EmailVerificationRequest,
     GenericAcceptedResponse,
+    LoginRequest,
+    LoginResponse,
     RegisteredUserResponse,
     RegistrationRequest,
 )
 
+
+_REFRESH_COOKIE_NAME: Final = "falcon_refresh_token"
+_REFRESH_COOKIE_PATH: Final = "/api/v1/auth"
 
 auth_router = APIRouter(
     prefix="/auth",
@@ -46,9 +56,30 @@ def registration_service_from(
     )
 
 
+def login_service_from(request: Request) -> LoginService:
+    """Return the process-scoped login service."""
+    return cast(
+        LoginService,
+        request.app.state.login_service,
+    )
+
+
+def settings_from(request: Request) -> Settings:
+    """Return the application's validated settings."""
+    return cast(Settings, request.app.state.settings)
+
+
 RegistrationServiceDependency = Annotated[
     RegistrationService,
     Depends(registration_service_from),
+]
+LoginServiceDependency = Annotated[
+    LoginService,
+    Depends(login_service_from),
+]
+SettingsDependency = Annotated[
+    Settings,
+    Depends(settings_from),
 ]
 
 
@@ -79,6 +110,46 @@ async def register_user(
     return RegisteredUserResponse(
         id=result.user_id,
         email=result.email,
+    )
+
+
+@auth_router.post(
+    "/login",
+    response_model=LoginResponse,
+    status_code=status.HTTP_200_OK,
+    operation_id="login_user",
+    summary="Authenticate and create a refresh session",
+)
+async def login_user(
+    request: LoginRequest,
+    response: Response,
+    session: DatabaseSession,
+    service: LoginServiceDependency,
+    settings: SettingsDependency,
+) -> LoginResponse:
+    """Issue a short-lived access token and protected refresh cookie."""
+    result = await service.login(
+        session,
+        LoginCommand(
+            email=request.email,
+            password=request.password,
+        ),
+    )
+
+    response.set_cookie(
+        key=_REFRESH_COOKIE_NAME,
+        value=result.refresh_token,
+        max_age=settings.auth_refresh_token_lifetime_days * 86_400,
+        expires=result.refresh_token_expires_at,
+        path=_REFRESH_COOKIE_PATH,
+        secure=settings.env is not AppEnvironment.DEVELOPMENT,
+        httponly=True,
+        samesite="lax",
+    )
+
+    return LoginResponse(
+        access_token=result.access_token,
+        expires_at=result.access_token_expires_at,
     )
 
 

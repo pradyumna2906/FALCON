@@ -1,5 +1,6 @@
 """Public authentication request and response schemas."""
 
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -88,6 +89,27 @@ class RegisteredUserResponse(AuthenticationSchema):
     id: UUID
     email: str
     email_verified: Literal[False] = False
+
+
+class LoginRequest(AuthenticationSchema):
+    """Authenticate one normalized email/password identity."""
+
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        """Normalize login lookups identically to registration."""
+        return normalize_email_address(value)
+
+
+class LoginResponse(AuthenticationSchema):
+    """Return a short-lived access credential and expiry metadata."""
+
+    access_token: str = Field(min_length=1)
+    token_type: Literal["bearer"] = "bearer"
+    expires_at: datetime
 
 
 class EmailVerificationRequest(AuthenticationSchema):

@@ -16,6 +16,11 @@ from falcon_api.auth.errors import (
     InvalidAccessTokenError,
     PasswordPolicyError,
 )
+from falcon_api.auth.login import (
+    LoginCommand,
+    LoginResult,
+    LoginService,
+)
 from falcon_api.auth.opaque_tokens import (
     OpaqueToken,
     generate_opaque_token,
@@ -23,15 +28,16 @@ from falcon_api.auth.opaque_tokens import (
     verify_opaque_token,
 )
 from falcon_api.auth.passwords import PasswordService
-from falcon_api.auth.services import (
-    AuthenticationCryptography,
-    create_authentication_cryptography,
-)
 from falcon_api.auth.registration import (
     RegistrationCommand,
     RegistrationResult,
     RegistrationService,
 )
+from falcon_api.auth.services import (
+    AuthenticationCryptography,
+    create_authentication_cryptography,
+)
+
 
 __all__ = [
     "AccessTokenClaims",
@@ -44,15 +50,18 @@ __all__ = [
     "EncodedAccessToken",
     "EncryptedDeliveryPayload",
     "InvalidAccessTokenError",
+    "LoginCommand",
+    "LoginResult",
+    "LoginService",
     "OpaqueToken",
     "PasswordPolicyError",
     "PasswordService",
+    "RegistrationCommand",
+    "RegistrationResult",
+    "RegistrationService",
     "SystemClock",
     "create_authentication_cryptography",
     "generate_opaque_token",
     "hash_opaque_token",
     "verify_opaque_token",
-    "RegistrationCommand",
-    "RegistrationResult",
-    "RegistrationService",
 ]
