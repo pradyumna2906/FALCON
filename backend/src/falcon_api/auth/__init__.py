@@ -6,6 +6,11 @@ from falcon_api.auth.access_tokens import (
     EncodedAccessToken,
 )
 from falcon_api.auth.clock import Clock, SystemClock
+from falcon_api.auth.delivery import (
+    AuthenticationDeliveryCipher,
+    EmailVerificationDelivery,
+    EncryptedDeliveryPayload,
+)
 from falcon_api.auth.errors import (
     AuthenticationError,
     InvalidAccessTokenError,
@@ -22,15 +27,22 @@ from falcon_api.auth.services import (
     AuthenticationCryptography,
     create_authentication_cryptography,
 )
-
+from falcon_api.auth.registration import (
+    RegistrationCommand,
+    RegistrationResult,
+    RegistrationService,
+)
 
 __all__ = [
     "AccessTokenClaims",
     "AccessTokenService",
     "AuthenticationCryptography",
+    "AuthenticationDeliveryCipher",
     "AuthenticationError",
     "Clock",
+    "EmailVerificationDelivery",
     "EncodedAccessToken",
+    "EncryptedDeliveryPayload",
     "InvalidAccessTokenError",
     "OpaqueToken",
     "PasswordPolicyError",
@@ -40,4 +52,7 @@ __all__ = [
     "generate_opaque_token",
     "hash_opaque_token",
     "verify_opaque_token",
+    "RegistrationCommand",
+    "RegistrationResult",
+    "RegistrationService",
 ]

@@ -3,7 +3,7 @@
 from enum import StrEnum
 from functools import lru_cache
 from typing import Literal, Self
-
+from cryptography.fernet import Fernet
 from pydantic import (
     AnyHttpUrl,
     Field,
@@ -21,7 +21,9 @@ _HTTP_URL_ADAPTER = TypeAdapter(AnyHttpUrl)
 _AUTH_SECRET_PLACEHOLDER = (
     "replace_with_a_random_secret_of_at_least_32_characters"
 )
-
+_AUTH_DELIVERY_KEY_PLACEHOLDER = (
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+)
 class AppEnvironment(StrEnum):
     """Supported deployment environments."""
 
@@ -86,6 +88,14 @@ class Settings(BaseSettings):
         default=32,
         ge=32,
         le=64,
+    )
+    auth_delivery_encryption_key: SecretStr = SecretStr(
+        _AUTH_DELIVERY_KEY_PLACEHOLDER,
+    )
+    auth_delivery_encryption_key_id: str = Field(
+        default="local-development-v1",
+        min_length=1,
+        max_length=64,
     )
     auth_password_min_length: int = Field(
         default=12,
@@ -174,6 +184,32 @@ class Settings(BaseSettings):
                 "Authentication identifiers must not be blank.",
             )
         return value
+    @field_validator("auth_delivery_encryption_key")
+    @classmethod
+    def validate_authentication_delivery_key(
+        cls,
+        value: SecretStr,
+    ) -> SecretStr:
+        """Require a valid URL-safe 32-byte Fernet key."""
+        try:
+            Fernet(value.get_secret_value().encode("ascii"))
+        except (UnicodeEncodeError, ValueError):
+            raise ValueError(
+                "Authentication delivery encryption key is invalid.",
+            ) from None
+
+        return value
+
+    @field_validator("auth_delivery_encryption_key_id")
+    @classmethod
+    def reject_blank_delivery_key_id(cls, value: str) -> str:
+        """Require a stable nonblank delivery encryption-key identifier."""
+        if not value.strip():
+            raise ValueError(
+                "Authentication delivery encryption key ID must not be blank.",
+            )
+
+        return value
     @model_validator(mode="after")
     def validate_cross_field_security(self) -> Self:
         """Reject unsafe production and authentication combinations."""
@@ -197,6 +233,15 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "Production requires a strong authentication "
                     "signing secret.",
+                )
+            delivery_key = (
+                self.auth_delivery_encryption_key.get_secret_value()
+            )
+
+            if delivery_key == _AUTH_DELIVERY_KEY_PLACEHOLDER:
+                raise ValueError(
+                    "Production requires an independent authentication "
+                    "delivery encryption key.",
                 )
 
         return self

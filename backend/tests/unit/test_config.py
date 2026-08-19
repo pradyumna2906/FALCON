@@ -258,6 +258,9 @@ def test_production_accepts_strong_authentication_secret() -> None:
         env=AppEnvironment.PRODUCTION,
         debug=False,
         auth_signing_secret="x" * 48,
+        auth_delivery_encryption_key=(
+            "YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI="
+        ),
     )
 
     assert settings.env is AppEnvironment.PRODUCTION
