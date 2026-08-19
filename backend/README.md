@@ -67,7 +67,13 @@ finally {
 }
 ```
 
-This test uses the PostgreSQL address and credentials from `.env`. It runs the production Psycopg async driver and the public readiness route; it does not create tables or modify persisted application data. Stop the service when it is no longer needed with `docker compose --env-file .env stop postgres`.
+This suite uses the PostgreSQL address and credentials from `.env`. It runs the
+production Psycopg async driver, migration lifecycle, public readiness route,
+and application lifecycle tests. Tests create isolated records and remove
+them when their lifecycle finishes. Run the suite only against a dedicated
+development or test database. Stop the service when it is no longer needed
+with `docker compose --env-file .env stop postgres`.
+
 ## Database migrations
 
 FALCON uses Alembic as the only mechanism for creating or changing persistent
