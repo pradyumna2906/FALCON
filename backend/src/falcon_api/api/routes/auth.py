@@ -1,4 +1,4 @@
-"""Registration, verification, and login API routes."""
+"""Registration, verification, login, and session-lifecycle routes."""
 
 from typing import Annotated, Final, cast
 
@@ -11,15 +11,14 @@ from fastapi import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from falcon_api.auth.login import (
-    LoginCommand,
-    LoginService,
-)
+from falcon_api.auth.login import LoginCommand, LoginService
 from falcon_api.auth.registration import (
     RegistrationCommand,
     RegistrationService,
 )
+from falcon_api.auth.session_lifecycle import SessionLifecycleService
 from falcon_api.core.config import AppEnvironment, Settings
+from falcon_api.core.errors import ApplicationError
 from falcon_api.infrastructure.database import get_database_session
 from falcon_api.schemas.auth import (
     EmailVerificationConfirmation,
@@ -64,6 +63,16 @@ def login_service_from(request: Request) -> LoginService:
     )
 
 
+def session_lifecycle_service_from(
+    request: Request,
+) -> SessionLifecycleService:
+    """Return the process-scoped refresh-session service."""
+    return cast(
+        SessionLifecycleService,
+        request.app.state.session_lifecycle_service,
+    )
+
+
 def settings_from(request: Request) -> Settings:
     """Return the application's validated settings."""
     return cast(Settings, request.app.state.settings)
@@ -77,10 +86,68 @@ LoginServiceDependency = Annotated[
     LoginService,
     Depends(login_service_from),
 ]
+SessionLifecycleServiceDependency = Annotated[
+    SessionLifecycleService,
+    Depends(session_lifecycle_service_from),
+]
 SettingsDependency = Annotated[
     Settings,
     Depends(settings_from),
 ]
+
+
+def _set_refresh_cookie(
+    response: Response,
+    *,
+    token: str,
+    expires_at,
+    settings: Settings,
+) -> None:
+    """Set the narrowly scoped protected refresh cookie."""
+    response.set_cookie(
+        key=_REFRESH_COOKIE_NAME,
+        value=token,
+        max_age=settings.auth_refresh_token_lifetime_days * 86_400,
+        expires=expires_at,
+        path=_REFRESH_COOKIE_PATH,
+        secure=settings.env is not AppEnvironment.DEVELOPMENT,
+        httponly=True,
+        samesite="lax",
+    )
+
+
+def _clear_refresh_cookie(
+    response: Response,
+    *,
+    settings: Settings,
+) -> None:
+    """Expire the protected refresh cookie with matching attributes."""
+    response.delete_cookie(
+        key=_REFRESH_COOKIE_NAME,
+        path=_REFRESH_COOKIE_PATH,
+        secure=settings.env is not AppEnvironment.DEVELOPMENT,
+        httponly=True,
+        samesite="lax",
+    )
+
+
+def _require_trusted_origin(
+    request: Request,
+    *,
+    settings: Settings,
+) -> None:
+    """Reject an explicitly supplied untrusted browser origin."""
+    origin = request.headers.get("origin")
+
+    if origin is None:
+        return
+
+    if origin not in settings.cors_allowed_origins:
+        raise ApplicationError(
+            code="origin_not_allowed",
+            message="The request origin is not allowed.",
+            status_code=403,
+        )
 
 
 @auth_router.post(
@@ -135,22 +202,84 @@ async def login_user(
             password=request.password,
         ),
     )
-
-    response.set_cookie(
-        key=_REFRESH_COOKIE_NAME,
-        value=result.refresh_token,
-        max_age=settings.auth_refresh_token_lifetime_days * 86_400,
-        expires=result.refresh_token_expires_at,
-        path=_REFRESH_COOKIE_PATH,
-        secure=settings.env is not AppEnvironment.DEVELOPMENT,
-        httponly=True,
-        samesite="lax",
+    _set_refresh_cookie(
+        response,
+        token=result.refresh_token,
+        expires_at=result.refresh_token_expires_at,
+        settings=settings,
     )
 
     return LoginResponse(
         access_token=result.access_token,
         expires_at=result.access_token_expires_at,
     )
+
+
+@auth_router.post(
+    "/refresh",
+    response_model=LoginResponse,
+    status_code=status.HTTP_200_OK,
+    operation_id="refresh_session",
+    summary="Rotate the refresh token and issue access",
+)
+async def refresh_session(
+    request: Request,
+    response: Response,
+    session: DatabaseSession,
+    service: SessionLifecycleServiceDependency,
+    settings: SettingsDependency,
+) -> LoginResponse:
+    """Rotate one valid refresh credential exactly once."""
+    _require_trusted_origin(request, settings=settings)
+    raw_token = request.cookies.get(_REFRESH_COOKIE_NAME)
+
+    if raw_token is None:
+        raise ApplicationError(
+            code="invalid_refresh_session",
+            message="The refresh session is invalid or expired.",
+            status_code=401,
+        )
+
+    result = await service.refresh(
+        session,
+        token=raw_token,
+    )
+    _set_refresh_cookie(
+        response,
+        token=result.refresh_token,
+        expires_at=result.refresh_token_expires_at,
+        settings=settings,
+    )
+
+    return LoginResponse(
+        access_token=result.access_token,
+        expires_at=result.access_token_expires_at,
+    )
+
+
+@auth_router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    operation_id="logout_session",
+    summary="Revoke the current refresh session",
+)
+async def logout_session(
+    request: Request,
+    response: Response,
+    session: DatabaseSession,
+    service: SessionLifecycleServiceDependency,
+    settings: SettingsDependency,
+) -> Response:
+    """Revoke a resolvable session and always clear the cookie."""
+    _require_trusted_origin(request, settings=settings)
+    await service.logout(
+        session,
+        token=request.cookies.get(_REFRESH_COOKIE_NAME),
+    )
+    _clear_refresh_cookie(response, settings=settings)
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response
 
 
 @auth_router.post(

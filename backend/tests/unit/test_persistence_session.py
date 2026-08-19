@@ -5,6 +5,7 @@ from typing import Any, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from falcon_api.core.errors import CommittedApplicationError
 from falcon_api.infrastructure.persistence import (
     create_session_factory,
     transaction_scope,
@@ -84,4 +85,24 @@ def test_transaction_scope_closes_when_transaction_entry_fails() -> None:
     with pytest.raises(RuntimeError, match="begin failed"):
         asyncio.run(use_scope())
 
+    session.close.assert_awaited_once_with()
+
+def test_transaction_scope_commits_marked_security_failure() -> None:
+    session, transaction = _session_with_transaction()
+    factory = Mock(return_value=session)
+    failure = CommittedApplicationError(
+        code="invalid_refresh_session",
+        message="The refresh session is invalid or expired.",
+        status_code=401,
+    )
+
+    async def use_scope() -> None:
+        async with transaction_scope(cast(Any, factory)):
+            raise failure
+
+    with pytest.raises(CommittedApplicationError) as exc_info:
+        asyncio.run(use_scope())
+
+    assert exc_info.value is failure
+    transaction.commit.assert_awaited_once_with()
     session.close.assert_awaited_once_with()

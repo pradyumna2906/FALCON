@@ -22,7 +22,7 @@ def test_trusted_origin_receives_explicit_cors_headers(
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == TRUSTED_ORIGIN
     assert response.headers["access-control-expose-headers"] == "X-Request-ID"
-    assert "access-control-allow-credentials" not in response.headers
+    assert response.headers["access-control-allow-credentials"] == "true"
     assert response.headers["vary"] == "Origin"
 
 
@@ -36,7 +36,7 @@ def test_untrusted_origin_is_not_authorized_or_blocked_by_application(
 
     assert response.status_code == 200
     assert "access-control-allow-origin" not in response.headers
-    assert "access-control-allow-credentials" not in response.headers
+    assert response.headers["access-control-allow-credentials"] == "true"
     assert "X-Request-ID" in response.headers
 
 
@@ -75,7 +75,7 @@ def test_trusted_preflight_is_limited_correlated_and_logged(
         "content-type",
         "x-request-id",
     }
-    assert "access-control-allow-credentials" not in response.headers
+    assert response.headers["access-control-allow-credentials"] == "true"
     assert response.headers["X-Request-ID"] == request_id
 
     record = next(
@@ -117,5 +117,5 @@ def test_disallowed_preflight_is_rejected_without_origin_authorization(
     assert response.status_code == 400
     if preflight_headers["Origin"] == UNTRUSTED_ORIGIN:
         assert "access-control-allow-origin" not in response.headers
-    assert "access-control-allow-credentials" not in response.headers
+    assert response.headers["access-control-allow-credentials"] == "true"
     assert "X-Request-ID" in response.headers
