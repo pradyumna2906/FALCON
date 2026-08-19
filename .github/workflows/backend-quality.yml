@@ -92,7 +92,7 @@ jobs:
           --disable-pip-version-check
           --no-cache-dir
           -e "backend[dev]"
-      - name: Run PostgreSQL schema and integrity tests
+      - name: Run all PostgreSQL integration tests
         run: >-
           python -m pytest
           backend/tests/integration
