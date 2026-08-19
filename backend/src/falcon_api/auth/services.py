@@ -5,6 +5,7 @@ from datetime import timedelta
 
 from falcon_api.auth.access_tokens import AccessTokenService
 from falcon_api.auth.clock import Clock
+from falcon_api.auth.delivery import AuthenticationDeliveryCipher
 from falcon_api.auth.opaque_tokens import OpaqueToken, generate_opaque_token
 from falcon_api.auth.passwords import PasswordService
 from falcon_api.core.config import Settings
@@ -16,6 +17,7 @@ class AuthenticationCryptography:
 
     passwords: PasswordService
     access_tokens: AccessTokenService
+    deliveries: AuthenticationDeliveryCipher
     opaque_token_bytes: int
 
     def generate_opaque_token(self) -> OpaqueToken:
@@ -45,6 +47,12 @@ def create_authentication_cryptography(
                 minutes=settings.auth_access_token_lifetime_minutes
             ),
             clock=clock,
+        ),
+        deliveries=AuthenticationDeliveryCipher(
+            encryption_key=(
+                settings.auth_delivery_encryption_key.get_secret_value()
+            ),
+            key_id=settings.auth_delivery_encryption_key_id,
         ),
         opaque_token_bytes=settings.auth_opaque_token_bytes,
     )

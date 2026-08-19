@@ -2,10 +2,11 @@
 
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-
+from datetime import timedelta
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from falcon_api.auth.registration import RegistrationService
+from falcon_api.auth.services import create_authentication_cryptography
 from falcon_api import __version__
 from falcon_api.api.errors import register_exception_handlers
 from falcon_api.api.router import api_v1_router
@@ -20,7 +21,7 @@ from falcon_api.infrastructure.database import (
 from falcon_api.middleware.request_context import RequestContextMiddleware
 
 
-_CORS_ALLOWED_METHODS = ("GET",)
+_CORS_ALLOWED_METHODS = ("GET", "POST")
 _CORS_ALLOWED_HEADERS = ("Accept", "Content-Type", REQUEST_ID_HEADER)
 DatabaseFactory = Callable[[Settings], DatabaseResources]
 
@@ -65,6 +66,21 @@ def create_app(
         allow_methods=_CORS_ALLOWED_METHODS,
         allow_headers=_CORS_ALLOWED_HEADERS,
         expose_headers=(REQUEST_ID_HEADER,),
+    )
+    authentication_cryptography = create_authentication_cryptography(
+        app_settings,
+    )
+    application.state.authentication_cryptography = (
+        authentication_cryptography
+    )
+    application.state.registration_service = RegistrationService(
+        cryptography=authentication_cryptography,
+        verification_lifetime=timedelta(
+            minutes=(
+                app_settings
+                .auth_email_verification_lifetime_minutes
+            )
+        ),
     )
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)

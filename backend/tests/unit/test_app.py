@@ -58,6 +58,9 @@ def test_production_documentation_is_disabled_by_default() -> None:
         debug=False,
         docs_enabled=None,
         auth_signing_secret="x" * 48,
+        auth_delivery_encryption_key=(
+            "YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI="
+        ),
     )
 
     with TestClient(create_app(settings)) as client:
@@ -73,6 +76,9 @@ def test_production_documentation_requires_explicit_enablement() -> None:
         debug=False,
         docs_enabled=True,
         auth_signing_secret="x" * 48,
+        auth_delivery_encryption_key=(
+            "YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI="
+        ),
     )
 
     with TestClient(create_app(settings)) as client:
