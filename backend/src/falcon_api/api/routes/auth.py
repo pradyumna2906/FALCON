@@ -9,9 +9,14 @@ from fastapi import (
     Response,
     status,
 )
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from falcon_api.auth.login import LoginCommand, LoginService
+from falcon_api.auth.principal import (
+    AuthenticatedPrincipal,
+    CurrentPrincipalService,
+)
 from falcon_api.auth.password_recovery import PasswordRecoveryService
 from falcon_api.auth.registration import (
     RegistrationCommand,
@@ -22,6 +27,7 @@ from falcon_api.core.config import AppEnvironment, Settings
 from falcon_api.core.errors import ApplicationError
 from falcon_api.infrastructure.database import get_database_session
 from falcon_api.schemas.auth import (
+    CurrentUserResponse,
     EmailVerificationConfirmation,
     EmailVerificationRequest,
     GenericAcceptedResponse,
@@ -41,6 +47,7 @@ auth_router = APIRouter(
     prefix="/auth",
     tags=["authentication"],
 )
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 DatabaseSession = Annotated[
     AsyncSession,
@@ -63,6 +70,16 @@ def login_service_from(request: Request) -> LoginService:
     return cast(
         LoginService,
         request.app.state.login_service,
+    )
+
+
+def current_principal_service_from(
+    request: Request,
+) -> CurrentPrincipalService:
+    """Return the process-scoped current-principal service."""
+    return cast(
+        CurrentPrincipalService,
+        request.app.state.current_principal_service,
     )
 
 
@@ -99,6 +116,10 @@ LoginServiceDependency = Annotated[
     LoginService,
     Depends(login_service_from),
 ]
+CurrentPrincipalServiceDependency = Annotated[
+    CurrentPrincipalService,
+    Depends(current_principal_service_from),
+]
 PasswordRecoveryServiceDependency = Annotated[
     PasswordRecoveryService,
     Depends(password_recovery_service_from),
@@ -110,6 +131,36 @@ SessionLifecycleServiceDependency = Annotated[
 SettingsDependency = Annotated[
     Settings,
     Depends(settings_from),
+]
+BearerCredentialsDependency = Annotated[
+    HTTPAuthorizationCredentials | None,
+    Depends(_bearer_scheme),
+]
+
+
+async def current_principal(
+    credentials: BearerCredentialsDependency,
+    session: DatabaseSession,
+    service: CurrentPrincipalServiceDependency,
+) -> AuthenticatedPrincipal:
+    """Resolve the current principal from a bearer credential."""
+    token = ""
+
+    if (
+        credentials is not None
+        and credentials.scheme.lower() == "bearer"
+    ):
+        token = credentials.credentials
+
+    return await service.authenticate(
+        session,
+        token=token,
+    )
+
+
+CurrentPrincipalDependency = Annotated[
+    AuthenticatedPrincipal,
+    Depends(current_principal),
 ]
 
 
@@ -384,3 +435,23 @@ async def confirm_password_reset(
     )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@auth_router.get(
+    "/me",
+    response_model=CurrentUserResponse,
+    status_code=status.HTTP_200_OK,
+    operation_id="get_current_user",
+    summary="Return the authenticated account identity",
+)
+async def get_current_user(
+    principal: CurrentPrincipalDependency,
+) -> CurrentUserResponse:
+    """Return the authenticated user's non-sensitive identity."""
+    return CurrentUserResponse(
+        id=principal.user_id,
+        email=principal.email,
+        display_name=principal.display_name,
+        timezone=principal.timezone,
+        default_currency=principal.default_currency,
+        email_verified=principal.email_verified_at is not None,
+    )

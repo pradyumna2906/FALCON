@@ -157,6 +157,17 @@ class PasswordResetConfirmation(AuthenticationSchema):
         min_length=12,
         max_length=128,
     )
+class CurrentUserResponse(AuthenticationSchema):
+    """Return the authenticated user's non-sensitive account identity."""
+
+    id: UUID
+    email: str
+    display_name: str | None
+    timezone: str
+    default_currency: str
+    email_verified: bool
+
+
 class GenericAcceptedResponse(AuthenticationSchema):
     """Enumeration-resistant response for message requests."""
 

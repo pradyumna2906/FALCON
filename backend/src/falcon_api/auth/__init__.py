@@ -30,6 +30,10 @@ from falcon_api.auth.opaque_tokens import (
 )
 from falcon_api.auth.password_recovery import PasswordRecoveryService
 from falcon_api.auth.passwords import PasswordService
+from falcon_api.auth.principal import (
+    AuthenticatedPrincipal,
+    CurrentPrincipalService,
+)
 from falcon_api.auth.registration import (
     RegistrationCommand,
     RegistrationResult,
@@ -51,7 +55,9 @@ __all__ = [
     "AuthenticationCryptography",
     "AuthenticationDeliveryCipher",
     "AuthenticationError",
+    "AuthenticatedPrincipal",
     "Clock",
+    "CurrentPrincipalService",
     "EmailVerificationDelivery",
     "EncodedAccessToken",
     "EncryptedDeliveryPayload",
