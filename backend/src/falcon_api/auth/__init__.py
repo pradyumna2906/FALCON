@@ -37,6 +37,10 @@ from falcon_api.auth.services import (
     AuthenticationCryptography,
     create_authentication_cryptography,
 )
+from falcon_api.auth.session_lifecycle import (
+    RefreshResult,
+    SessionLifecycleService,
+)
 
 
 __all__ = [
@@ -58,7 +62,9 @@ __all__ = [
     "PasswordService",
     "RegistrationCommand",
     "RegistrationResult",
+    "RefreshResult",
     "RegistrationService",
+    "SessionLifecycleService",
     "SystemClock",
     "create_authentication_cryptography",
     "generate_opaque_token",

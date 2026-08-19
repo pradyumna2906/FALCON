@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
+from falcon_api.core.errors import CommittedApplicationError
+
 
 SessionFactory = async_sessionmaker[AsyncSession]
 
@@ -26,11 +28,15 @@ def create_session_factory(engine: AsyncEngine) -> SessionFactory:
 async def transaction_scope(
     session_factory: SessionFactory,
 ) -> AsyncIterator[AsyncSession]:
-    """Commit one successful unit of work and roll back failed work."""
+    """Commit successful work and explicitly marked security failures."""
     session = session_factory()
 
     try:
-        async with session.begin():
-            yield session
+        async with session.begin() as transaction:
+            try:
+                yield session
+            except CommittedApplicationError:
+                await transaction.commit()
+                raise
     finally:
         await session.close()

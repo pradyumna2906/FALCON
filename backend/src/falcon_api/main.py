@@ -14,6 +14,7 @@ from falcon_api.api.routes.health import health_router
 from falcon_api.auth.login import LoginService
 from falcon_api.auth.registration import RegistrationService
 from falcon_api.auth.services import create_authentication_cryptography
+from falcon_api.auth.session_lifecycle import SessionLifecycleService
 from falcon_api.core.config import Settings, get_settings
 from falcon_api.core.logging import configure_logging
 from falcon_api.core.request_context import REQUEST_ID_HEADER
@@ -66,7 +67,7 @@ def create_app(
     application.add_middleware(
         CORSMiddleware,
         allow_origins=app_settings.cors_allowed_origins,
-        allow_credentials=False,
+        allow_credentials=True,
         allow_methods=_CORS_ALLOWED_METHODS,
         allow_headers=_CORS_ALLOWED_HEADERS,
         expose_headers=(REQUEST_ID_HEADER,),
@@ -91,6 +92,11 @@ def create_app(
         refresh_lifetime=timedelta(
             days=app_settings.auth_refresh_token_lifetime_days,
         ),
+    )
+    application.state.session_lifecycle_service = (
+        SessionLifecycleService(
+            cryptography=authentication_cryptography,
+        )
     )
 
     application.add_middleware(RequestContextMiddleware)

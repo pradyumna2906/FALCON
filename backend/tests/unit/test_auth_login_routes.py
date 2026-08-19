@@ -170,12 +170,12 @@ def test_login_rejects_unknown_request_fields(
     assert response.status_code == 422
 
 
-def test_openapi_exposes_login_without_future_session_routes(
+def test_openapi_exposes_session_lifecycle_routes(
     client: TestClient,
 ) -> None:
     paths = client.get("/openapi.json").json()["paths"]
 
     assert "/api/v1/auth/login" in paths
-    assert "/api/v1/auth/refresh" not in paths
-    assert "/api/v1/auth/logout" not in paths
+    assert "/api/v1/auth/refresh" in paths
+    assert "/api/v1/auth/logout" in paths
     assert "/api/v1/auth/me" not in paths
