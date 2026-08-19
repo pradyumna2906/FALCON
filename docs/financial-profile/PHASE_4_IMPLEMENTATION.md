@@ -120,8 +120,8 @@ messages.
   boundaries, completion rules, and contract tests.
 - **Checkpoint 4.2 (complete):** implement the user-scoped persistence
   repository.
-- **Checkpoint 4.3:** implement the application service and server-derived
-  completion logic.
+- **Checkpoint 4.3 (complete):** implement the application service and
+  server-derived completion logic.
 - **Checkpoint 4.4:** expose the authenticated GET and PUT operations and add
   OpenAPI and route tests.
 - **Checkpoint 4.5:** add real PostgreSQL lifecycle tests, security hardening,
@@ -150,3 +150,17 @@ Every read includes `financial_profiles.user_id` in its query. Replacement
 also requires the trusted user identifier and rejects a profile belonging to
 another user. Repository operations flush pending changes but never commit;
 the application transaction boundary retains commit and rollback ownership.
+
+## 11. Application service
+
+The service derives profile completion from validated planning values. Both an
+income pattern and an income-stability assessment are required for `complete`;
+otherwise the persisted state is `draft`.
+
+Reads translate an absent user-scoped profile into `profile_not_found`.
+Replacement first locks an existing profile. Creation runs inside a nested
+transaction so a concurrent first update can be handled without invalidating
+the outer request transaction. If another request creates the same user's
+profile first, the service locks that row and applies the latest complete
+replacement. Unrelated integrity failures remain internal failures and are not
+translated into public profile errors.
