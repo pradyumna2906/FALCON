@@ -220,8 +220,8 @@ async def _exercise_profile_lifecycle() -> None:
 
         async with transaction_scope(resources.session_factory) as session:
             after_rollback = await service.get(session, user_id=owner.id)
-        assert after_rollback.income_pattern is IncomePattern.MIXED
-        assert after_rollback.completion_status is (
+        assert after_rollback.income_pattern == IncomePattern.MIXED
+        assert after_rollback.completion_status == (
             ProfileCompletionStatus.COMPLETE
         )
 
@@ -308,7 +308,7 @@ async def _exercise_concurrent_first_update() -> None:
                 )
             ).all()
         assert len(profiles) == 1
-        assert profiles[0].completion_status is (
+        assert profiles[0].completion_status == (
             ProfileCompletionStatus.COMPLETE
         )
         assert profiles[0].income_pattern in {
@@ -324,8 +324,8 @@ def test_authenticated_profile_api_isolates_users_in_postgresql() -> None:
     """Exercise registration, login, profile PUT, and isolated GET."""
     settings = integration_settings()
     emails = (
-        f"profile-api-a-{uuid4().hex}@falcon.test",
-        f"profile-api-b-{uuid4().hex}@falcon.test",
+        f"profile-api-a-{uuid4().hex}@example.com",
+        f"profile-api-b-{uuid4().hex}@example.com",
     )
     user_ids: list[UUID] = []
 
@@ -339,7 +339,7 @@ def test_authenticated_profile_api_isolates_users_in_postgresql() -> None:
                 "default_currency": "INR",
             },
         )
-        assert registration.status_code == 201
+        assert registration.status_code == 201, registration.text
         user_ids.append(UUID(registration.json()["id"]))
         login = client.post(
             "/api/v1/auth/login",
