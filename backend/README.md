@@ -2,7 +2,7 @@
 
 The FALCON backend is a FastAPI application organized as a layered modular monolith. It is authoritative for validation, financial calculations, persistence, authentication and authorization as those capabilities are introduced in later phases.
 
-The current foundation provides:
+The current backend provides:
 
 - A testable `create_app()` factory and Uvicorn entrypoint.
 - Typed, immutable settings using `FALCON_` environment variables.
@@ -15,8 +15,9 @@ The current foundation provides:
 - Body-free structured JSON request logs written to standard output.
 - One typed error envelope for validation, HTTP, application and unexpected errors.
 - Automated API, configuration, database, request-context and error-contract tests.
-
-Database tables, models, migrations, business modules and authentication remain intentionally deferred to their dedicated checkpoints.
+- Reviewed PostgreSQL models and Alembic migrations for the current domains.
+- Email/password authentication, session lifecycle, verification and recovery.
+- An authenticated, user-isolated financial-profile API.
 
 ## Requirements
 
@@ -134,13 +135,24 @@ migration history before Phase 2.5 introduces domain tables.
 
 The explicit loop factory selects an asyncio selector loop. Psycopg async connections require this on Windows because they are incompatible with the default proactor loop; the same factory keeps integration tests and local API execution on one verified event-loop contract.
 
-The initial endpoints are:
+The current endpoints are:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/v1` | Identifies the public API compatibility boundary |
 | `GET` | `/health/live` | Confirms the API process is responsive without querying dependencies |
 | `GET` | `/health/ready` | Confirms PostgreSQL can accept a bounded `SELECT 1` probe |
+| `POST` | `/api/v1/auth/register` | Registers a user account |
+| `POST` | `/api/v1/auth/login` | Issues an authenticated session |
+| `POST` | `/api/v1/auth/refresh` | Rotates a refresh token |
+| `POST` | `/api/v1/auth/logout` | Revokes the current refresh session |
+| `POST` | `/api/v1/auth/email-verification/request` | Requests email verification |
+| `POST` | `/api/v1/auth/email-verification/confirm` | Confirms email verification |
+| `POST` | `/api/v1/auth/password-reset/request` | Requests password recovery |
+| `POST` | `/api/v1/auth/password-reset/confirm` | Confirms a password reset |
+| `GET` | `/api/v1/auth/me` | Returns the bearer-authenticated user |
+| `GET` | `/api/v1/profile` | Returns the authenticated user's profile |
+| `PUT` | `/api/v1/profile` | Creates or replaces the authenticated user's profile |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |
@@ -174,7 +186,7 @@ The default API container has no source bind mount and no reload process. It run
 
 FALCON creates one lazy async SQLAlchemy engine and one `async_sessionmaker` when each application process enters its lifespan. Engine creation does not open a database connection, so the API can start and continue serving `/health/live` while PostgreSQL is temporarily unavailable. Shutdown always disposes the engine and its connection pool.
 
-Application code receives one `AsyncSession` per request or explicit unit of work. The session dependency never commits automatically, rolls back failed work and always closes the session. Service-layer code will own commit boundaries when persistence operations are introduced.
+Application code receives one `AsyncSession` per request or explicit unit of work. The session dependency never commits automatically, rolls back failed work and always closes the session. Explicit `transaction_scope()` boundaries own commit and rollback; services and repositories never hide commits.
 
 The initial pool permits five persistent connections plus five overflow connections per API process. Pool checkout, recycling, driver connection and readiness timeouts are configured through the `FALCON_DB_*` settings in `.env.example`. `pool_pre_ping` checks reused connections before application work.
 
@@ -190,7 +202,11 @@ FALCON_CORS_ALLOWED_ORIGINS=["http://localhost:5173","https://app.example.com"]
 
 The setting defaults to an empty list, so browser cross-origin access is denied unless explicitly configured. Each entry must be a unique HTTP(S) origin containing only a scheme, host and optional non-default port. Wildcards, credentials, paths, query strings and fragments are rejected during startup.
 
-The current policy permits only `GET` requests and the `Accept`, `Content-Type` and `X-Request-ID` request headers. It exposes `X-Request-ID` to trusted browser clients. Credentialed cross-origin requests, `Authorization` and mutating methods remain disabled until their owning API and authentication checkpoints define them deliberately.
+The current policy permits `GET`, `POST`, and `PUT` requests and the `Accept`,
+`Authorization`, `Content-Type`, and `X-Request-ID` request headers. It exposes
+`X-Request-ID` to trusted browser clients and permits credentialed requests
+only for explicitly configured origins. Other methods and headers remain
+denied until their owning capability requires and tests them.
 
 An untrusted simple request is still processed by the API but receives no `Access-Control-Allow-Origin` response header, so the browser denies cross-origin access. A rejected preflight receives a CORS `400` response rather than an application authorization response.
 
@@ -261,9 +277,9 @@ must not:
 SQLAlchemy relationships help Python code navigate models. PostgreSQL foreign
 keys and constraints remain authoritative for persistent integrity.
 
-No concrete FALCON domain tables are introduced by the persistence foundation.
-Domain models will be added only after Alembic migration infrastructure is
-established and reviewed.
+The persistence foundation itself introduced no domain tables. Current domain
+models were added later through reviewed Alembic migrations; future models
+must follow the same migration-only workflow.
 
 ### Running persistence tests
 
@@ -314,4 +330,12 @@ Remove-Item Env:FALCON_RUN_DATABASE_INTEGRATION
 ```
 
 The private root `.env` must remain outside Git.
-`` Git.
+
+## Financial profile implementation
+
+Phase 4 provides strict financial-profile validation, server-derived
+completion state, user-scoped persistence, concurrent first-update recovery,
+and authenticated `GET` and `PUT` operations at `/api/v1/profile`.
+
+The authoritative contract and validation record is documented in
+[`docs/financial-profile/PHASE_4_IMPLEMENTATION.md`](../docs/financial-profile/PHASE_4_IMPLEMENTATION.md).
