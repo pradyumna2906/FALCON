@@ -20,6 +20,7 @@ from falcon_api.models.import_job import ImportJob
 from falcon_api.schemas.imports import StatementImportOptions
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import set_committed_value
 
 
 _IMPORT_FINGERPRINT_CONSTRAINT: Final = "uq_import_jobs_user_fingerprint"
@@ -162,7 +163,7 @@ class ImportService:
                 failure_summary="ledger_write_failed",
                 now=self._clock.now(),
             )
-            job.issues = []
+            set_committed_value(job, "issues", [])
             return job
 
         status = _completion_status(
@@ -180,7 +181,7 @@ class ImportService:
             failure_summary=None,
             now=self._clock.now(),
         )
-        job.issues = list(issues)
+        set_committed_value(job, "issues", list(issues))
         return job
 
     async def get_job(
