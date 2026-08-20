@@ -1,13 +1,13 @@
 # FALCON Phase 6 Statement Import and ETL Implementation
 
-Phase 6 status: in progress.
+Phase 6 status: complete.
 
 ## 1. Purpose and boundary
 
 Phase 6 converts authenticated user-provided transaction statements into the
 Phase 5 ledger through a deterministic extract, validate, normalize, deduplicate,
-and load pipeline. Checkpoint 6.1 defines the contract before parsers,
-persistence workflows, or routes are implemented.
+and load pipeline. Checkpoint 6.1 established the contract before parsers,
+persistence workflows, and routes were implemented.
 
 The first release supports CSV and modern Excel `.xlsx` workbooks. PDF, legacy
 `.xls`, scanned statements, credit-card-specific adapters, Paytm, PhonePe, and
@@ -21,9 +21,9 @@ Every import is owned by the trusted user identifier from the authenticated
 principal. The request selects one user-owned account that must be active, but
 never accepts
 `user_id`, job identifiers, fingerprints, lifecycle status, counts, or processing
-timestamps. The service verifies account ownership before reading the uploaded
-content. Cross-user accounts and jobs return the same bounded not-found response
-as absent resources.
+timestamps. The service verifies account ownership before parsing the statement
+structure or normalizing any row. Cross-user accounts and jobs return the same
+bounded not-found response as absent resources.
 
 One file import targets one account and inherits that account's currency. Phase 6
 does not perform foreign-exchange conversion or permit statement content to
@@ -125,20 +125,21 @@ exactly one terminal state before its database transaction commits:
 
 - `completed`: at least one row accepted and no row rejected;
 - `partial`: at least one row accepted and at least one row rejected;
-- `failed`: no row accepted because the file or every data row was invalid.
+- `failed`: no row accepted because every data row was invalid or the accepted
+  batch could not be committed.
 
 Accepted and rejected counts cover non-blank data rows and must reconcile with
 the number processed. Start and completion timestamps are server-owned UTC values.
 Public job reads expose bounded row issues but not raw file data, fingerprints, or
 internal failure details.
 
-Checkpoint 6.5 will return the committed reconciliation result and expose a
-separate owner-scoped status read; no background worker receives raw statement
-bytes. The raw file is processed as an ephemeral request resource and is not retained
-after the job reaches a terminal state. Durable storage contains the sanitized
-filename, fingerprint, mapping/reconciliation metadata, bounded issue codes, and
-accepted ledger rows. Future raw-file retention requires a separate encrypted
-storage, deletion, access-control, and privacy review.
+The upload endpoint returns the committed reconciliation result and a separate
+owner-scoped status route returns it later; no background worker receives raw
+statement bytes. The raw file is processed as an ephemeral request resource and
+is not retained after the job reaches a terminal state. Durable storage contains
+the sanitized filename, fingerprint, mapping/reconciliation metadata, bounded
+issue codes, and accepted ledger rows. Future raw-file retention requires a
+separate encrypted storage, deletion, access-control, and privacy review.
 
 ## 8. Public error contract
 
@@ -167,7 +168,7 @@ parser internals, SQL, formulas, source content, or library exception details.
   deterministic hashes, and duplicate handling.
 - **Checkpoint 6.4 (complete):** implement user-scoped job/reconciliation
   persistence and atomic ledger loading.
-- **Checkpoint 6.5 (pending):** expose authenticated upload/status routes and run
+- **Checkpoint 6.5 (complete):** expose authenticated upload/status routes and run
   PostgreSQL, security, rollback, container, and full regression validation.
 
 ## 10. Completion criteria
@@ -176,3 +177,28 @@ Phase 6 is complete only when Checkpoints 6.1 through 6.5 are implemented, the
 full backend regression remains above the repository coverage threshold, real
 PostgreSQL tests prove ownership, retry, reconciliation, and rollback behavior,
 and all required PR quality jobs pass.
+
+## 11. Delivered API and validation record
+
+`POST /api/v1/imports` accepts one authenticated multipart CSV or XLSX upload,
+strictly validates its metadata, reads at most 10 MiB, derives the current date
+from the trusted principal timezone, and returns the committed terminal
+reconciliation with `201`. `GET /api/v1/imports/{job_id}` returns the same
+bounded result only to its owner.
+
+Unit tests cover authentication, server-owned field rejection, metadata bounds,
+file-size enforcement, response privacy, timezone propagation, duplicate
+handling, lifecycle transitions, and rollback orchestration. The complete unit
+suite remains above the repository's 90% coverage gate.
+
+PostgreSQL integration tests exercise real migrations and prove:
+
+- cross-user accounts and jobs remain indistinguishable from absent resources;
+- accepted rows retain import provenance and reconcile with their job;
+- exact file retries return `409` without adding a second transaction;
+- a forced failure after an accepted batch is flushed rolls back every ledger
+  row while committing a sanitized terminal `failed` job.
+
+The required PR workflow runs the complete PostgreSQL integration directory,
+validates Compose configuration, builds the non-root API image, and performs
+live API/PostgreSQL readiness smoke tests before Phase 6 can be merged.

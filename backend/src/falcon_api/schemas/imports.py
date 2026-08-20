@@ -123,10 +123,3 @@ class ImportJobResponse(ImportSchema):
         ):
             raise ValueError("original_filename must be a safe base name.")
         return value
-
-
-class ImportJobAcceptedResponse(ImportSchema):
-    """Acknowledge an accepted upload without returning raw file content."""
-
-    id: UUID
-    status: Literal[ImportStatus.PENDING]

@@ -91,7 +91,6 @@ def _command(account_id: UUID, *, content: bytes | None = None) -> StatementImpo
             account_id=account_id,
             source_type="csv",
         ),
-        today=date(2026, 8, 20),
     )
 
 
@@ -127,6 +126,7 @@ def test_process_authorizes_normalizes_and_finalizes_partial_job() -> None:
         _service(repository).process(
             _session(),
             user_id=user_id,
+            timezone="Asia/Kolkata",
             command=_command(account.id),
         )
     )
@@ -154,6 +154,7 @@ def test_process_rejects_missing_or_cross_user_account() -> None:
             _service(repository).process(
                 _session(),
                 user_id=uuid4(),
+                timezone="Asia/Kolkata",
                 command=_command(uuid4()),
             )
         )
@@ -172,6 +173,7 @@ def test_process_rejects_preexisting_file_fingerprint() -> None:
             _service(repository).process(
                 _session(),
                 user_id=user_id,
+                timezone="Asia/Kolkata",
                 command=_command(account.id),
             )
         )
@@ -192,7 +194,14 @@ def test_process_filters_account_scoped_existing_transaction_hashes() -> None:
         ),
     )
 
-    asyncio.run(_service(repository).process(_session(), user_id=user_id, command=first))
+    asyncio.run(
+        _service(repository).process(
+            _session(),
+            user_id=user_id,
+            timezone="Asia/Kolkata",
+            command=first,
+        )
+    )
     candidates = repository.find_existing_hashes.await_args.kwargs["hashes"]
     repository.reset_mock()
     repository.get_active_account.return_value = account
@@ -201,7 +210,14 @@ def test_process_filters_account_scoped_existing_transaction_hashes() -> None:
     repository.create_job.return_value = _job(user_id, account.id)
     repository.create_issues.return_value = ()
 
-    asyncio.run(_service(repository).process(_session(), user_id=user_id, command=first))
+    asyncio.run(
+        _service(repository).process(
+            _session(),
+            user_id=user_id,
+            timezone="Asia/Kolkata",
+            command=first,
+        )
+    )
 
     assert repository.create_transactions.await_args.kwargs["rows"] == ()
     finalized = repository.finalize_job.await_args.kwargs
@@ -218,6 +234,7 @@ def test_ledger_failure_rolls_back_savepoint_and_finalizes_failed_job() -> None:
         _service(repository).process(
             _session(),
             user_id=user_id,
+            timezone="Asia/Kolkata",
             command=_command(account.id),
         )
     )
@@ -243,6 +260,7 @@ def test_fingerprint_race_maps_only_known_unique_constraint() -> None:
             _service(repository).process(
                 _session(),
                 user_id=user_id,
+                timezone="Asia/Kolkata",
                 command=_command(account.id),
             )
         )
@@ -254,6 +272,7 @@ def test_fingerprint_race_maps_only_known_unique_constraint() -> None:
             _service(repository).process(
                 _session(),
                 user_id=user_id,
+                timezone="Asia/Kolkata",
                 command=_command(account.id),
             )
         )
@@ -290,7 +309,6 @@ def test_process_rejects_unsafe_filename(filename: str) -> None:
         content_type=command.content_type,
         content=command.content,
         options=command.options,
-        today=command.today,
     )
 
     with pytest.raises(ApplicationError) as info:
@@ -298,6 +316,7 @@ def test_process_rejects_unsafe_filename(filename: str) -> None:
             _service(repository).process(
                 _session(),
                 user_id=user_id,
+                timezone="Asia/Kolkata",
                 command=command,
             )
         )

@@ -24,6 +24,7 @@ from falcon_api.infrastructure.database import (
     DatabaseResources,
     create_database_resources,
 )
+from falcon_api.imports import ImportService
 from falcon_api.ledger import LedgerService
 from falcon_api.middleware.request_context import RequestContextMiddleware
 from falcon_api.profile import FinancialProfileService
@@ -134,6 +135,7 @@ def create_app(
             ),
         )
     )
+    application.state.import_service = ImportService()
 
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)

@@ -53,27 +53,27 @@ def upgrade() -> None:
         ondelete="RESTRICT",
     )
     op.create_check_constraint(
-        "ck_import_jobs_date_order_allowed",
+        op.f("ck_import_jobs_date_order_allowed"),
         "import_jobs",
         "date_order IN ('day_first', 'month_first', 'year_first')",
     )
     op.create_check_constraint(
-        "ck_import_jobs_header_row_bounded",
+        op.f("ck_import_jobs_header_row_bounded"),
         "import_jobs",
         "header_row BETWEEN 1 AND 50",
     )
     op.create_check_constraint(
-        "ck_import_jobs_sheet_name_not_blank",
+        op.f("ck_import_jobs_sheet_name_not_blank"),
         "import_jobs",
         "sheet_name IS NULL OR length(trim(sheet_name)) > 0",
     )
     op.create_check_constraint(
-        "ck_import_jobs_file_fingerprint_sha256_hex",
+        op.f("ck_import_jobs_file_fingerprint_sha256_hex"),
         "import_jobs",
         "file_fingerprint ~ '^[0-9a-f]{64}$'",
     )
     op.create_check_constraint(
-        "ck_import_jobs_lifecycle_consistent",
+        op.f("ck_import_jobs_lifecycle_consistent"),
         "import_jobs",
         "(status = 'pending' AND started_at IS NULL "
         "AND completed_at IS NULL) OR "
@@ -83,7 +83,7 @@ def upgrade() -> None:
         "AND started_at IS NOT NULL AND completed_at IS NOT NULL)",
     )
     op.create_check_constraint(
-        "ck_import_jobs_reconciliation_consistent",
+        op.f("ck_import_jobs_reconciliation_consistent"),
         "import_jobs",
         "(status IN ('pending', 'processing') "
         "AND accepted_count = 0 AND rejected_count = 0) OR "
@@ -139,32 +139,32 @@ def downgrade() -> None:
     )
     op.drop_table("import_job_issues")
     op.drop_constraint(
-        "ck_import_jobs_reconciliation_consistent",
+        op.f("ck_import_jobs_reconciliation_consistent"),
         "import_jobs",
         type_="check",
     )
     op.drop_constraint(
-        "ck_import_jobs_lifecycle_consistent",
+        op.f("ck_import_jobs_lifecycle_consistent"),
         "import_jobs",
         type_="check",
     )
     op.drop_constraint(
-        "ck_import_jobs_file_fingerprint_sha256_hex",
+        op.f("ck_import_jobs_file_fingerprint_sha256_hex"),
         "import_jobs",
         type_="check",
     )
     op.drop_constraint(
-        "ck_import_jobs_sheet_name_not_blank",
+        op.f("ck_import_jobs_sheet_name_not_blank"),
         "import_jobs",
         type_="check",
     )
     op.drop_constraint(
-        "ck_import_jobs_header_row_bounded",
+        op.f("ck_import_jobs_header_row_bounded"),
         "import_jobs",
         type_="check",
     )
     op.drop_constraint(
-        "ck_import_jobs_date_order_allowed",
+        op.f("ck_import_jobs_date_order_allowed"),
         "import_jobs",
         type_="check",
     )

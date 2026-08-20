@@ -54,6 +54,27 @@ def test_import_persistence_revision_is_the_single_head() -> None:
     assert callable(import_revision.module.downgrade)
 
 
+def test_import_migration_freezes_convention_qualified_check_names() -> None:
+    """Prevent Alembic from applying the check-name prefix twice."""
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+    revision = scripts.get_revision(_IMPORT_PERSISTENCE_REVISION)
+
+    assert revision is not None
+    source = Path(revision.path).read_text(encoding="utf-8")
+    check_names = (
+        "date_order_allowed",
+        "header_row_bounded",
+        "sheet_name_not_blank",
+        "file_fingerprint_sha256_hex",
+        "lifecycle_consistent",
+        "reconciliation_consistent",
+    )
+
+    for suffix in check_names:
+        expected = f'op.f("ck_import_jobs_{suffix}")'
+        assert source.count(expected) == 2
+
+
 def test_authentication_persistence_precedes_import_persistence() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 

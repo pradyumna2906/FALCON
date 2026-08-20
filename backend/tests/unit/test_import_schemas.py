@@ -7,7 +7,6 @@ import pytest
 from falcon_api.models.enums import ImportSourceType, ImportStatus
 from falcon_api.schemas.imports import (
     ImportIssueCode,
-    ImportJobAcceptedResponse,
     ImportJobResponse,
     ImportRowIssue,
     StatementImportOptions,
@@ -142,10 +141,6 @@ def test_job_response_enforces_issue_and_count_bounds() -> None:
 
     assert response.accepted_count == 10
     assert response.issues[0].code is ImportIssueCode.MISSING_DATE
-
-    with pytest.raises(ValidationError):
-        ImportJobAcceptedResponse(id=uuid4(), status="processing")
-
 
 @pytest.mark.parametrize(
     "filename",

@@ -1,10 +1,10 @@
 """Application workflow for atomic authenticated statement imports."""
 
 from dataclasses import dataclass
-from datetime import date
 from pathlib import PurePath
 from typing import Final
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from falcon_api.auth.clock import Clock, SystemClock
 from falcon_api.core.errors import ApplicationError
@@ -33,7 +33,6 @@ class StatementImportCommand:
     content_type: str
     content: bytes
     options: StatementImportOptions
-    today: date
 
 
 class ImportService:
@@ -53,6 +52,7 @@ class ImportService:
         session: AsyncSession,
         *,
         user_id: UUID,
+        timezone: str,
         command: StatementImportCommand,
     ) -> ImportJob:
         """Process one ephemeral statement and atomically load accepted rows."""
@@ -87,7 +87,7 @@ class ImportService:
             statement,
             date_order=command.options.date_order,
             account_currency=account.currency,
-            today=command.today,
+            today=self._clock.now().astimezone(ZoneInfo(timezone)).date(),
         )
         candidates = frozenset(
             row.external_source_hash for row in normalized.rows
