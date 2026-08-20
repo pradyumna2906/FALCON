@@ -18,6 +18,8 @@ The current backend provides:
 - Reviewed PostgreSQL models and Alembic migrations for the current domains.
 - Email/password authentication, session lifecycle, verification and recovery.
 - An authenticated, user-isolated financial-profile API.
+- Authenticated account provisioning and category discovery.
+- User-isolated manual transaction and internal-transfer APIs.
 
 ## Requirements
 
@@ -153,6 +155,9 @@ The current endpoints are:
 | `GET` | `/api/v1/auth/me` | Returns the bearer-authenticated user |
 | `GET` | `/api/v1/profile` | Returns the authenticated user's profile |
 | `PUT` | `/api/v1/profile` | Creates or replaces the authenticated user's profile |
+| `POST` | `/api/v1/accounts` | Provisions an account for transaction entry |
+| `GET` | `/api/v1/accounts` | Lists the authenticated user's active accounts |
+| `GET` | `/api/v1/categories` | Lists available system and private categories |
 | `POST` | `/api/v1/transactions` | Creates a manual income or expense |
 | `GET` | `/api/v1/transactions` | Lists the authenticated user's transactions |
 | `GET` | `/api/v1/transactions/{transaction_id}` | Returns one owned transaction |
@@ -345,3 +350,12 @@ and authenticated `GET` and `PUT` operations at `/api/v1/profile`.
 
 The authoritative contract and validation record is documented in
 [`docs/financial-profile/PHASE_4_IMPLEMENTATION.md`](../docs/financial-profile/PHASE_4_IMPLEMENTATION.md).
+
+## Transaction management implementation
+
+Phase 5 provides account setup, category discovery, strict signed-ledger
+semantics, user-scoped persistence, manual transaction lifecycle operations,
+and atomic internal transfers.
+
+The authoritative contract and checkpoint record is documented in
+[`docs/transactions/PHASE_5_IMPLEMENTATION.md`](../docs/transactions/PHASE_5_IMPLEMENTATION.md).

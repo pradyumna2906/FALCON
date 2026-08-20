@@ -24,6 +24,7 @@ from falcon_api.infrastructure.database import (
     DatabaseResources,
     create_database_resources,
 )
+from falcon_api.ledger import LedgerService
 from falcon_api.middleware.request_context import RequestContextMiddleware
 from falcon_api.profile import FinancialProfileService
 from falcon_api.transactions import TransactionCursorCodec, TransactionService
@@ -125,6 +126,7 @@ def create_app(
     application.state.financial_profile_service = (
         FinancialProfileService()
     )
+    application.state.ledger_service = LedgerService()
     application.state.transaction_service = TransactionService(
         cursor_codec=TransactionCursorCodec(
             signing_secret=(

@@ -31,6 +31,9 @@ not-found result as an absent resource.
 
 | Method | Path | Purpose |
 |---|---|---|
+| `POST` | `/api/v1/accounts` | Provision an owned account for transaction entry |
+| `GET` | `/api/v1/accounts` | List the current user's active accounts |
+| `GET` | `/api/v1/categories` | List active system and same-user categories |
 | `POST` | `/api/v1/transactions` | Create a manual income or expense |
 | `GET` | `/api/v1/transactions` | List the current user's timeline |
 | `GET` | `/api/v1/transactions/{transaction_id}` | Get one owned entry |
@@ -158,6 +161,8 @@ included in public errors.
   invariants.
 - **Checkpoint 5.4 (complete):** expose authenticated transaction and transfer
   routes with OpenAPI coverage.
+- **Checkpoint 5.4A (complete):** provision user-owned accounts and expose
+  active account and category discovery required for usable transaction entry.
 - **Checkpoint 5.5 (pending):** add PostgreSQL lifecycle, concurrency, security,
   regression, and completion validation.
 
@@ -230,3 +235,20 @@ security, success responses, validation, not-found, and immutable-provenance
 conflicts. Browser preflight permits `DELETE` in addition to the previously
 reviewed methods while retaining the explicit trusted-origin allowlist and
 `Authorization` header boundary.
+
+## 16. Ledger setup extension
+
+Authenticated users can provision accounts before creating transactions and
+can list every active account they own. Account requests never accept an owner,
+identifier, archive state, or timestamps. When currency is omitted, the
+service uses the authenticated principal's verified default currency; an
+explicit three-letter currency is normalized to uppercase. Account names are
+unique inside one user's active and archived namespace, and conflicts return
+the stable `409 account_name_conflict` contract without exposing a database
+constraint.
+
+Category discovery is intentionally read-only in Phase 5. It returns active
+system categories plus active private categories owned by the authenticated
+user, excluding normalized names, ownership identifiers, archive state, and
+timestamps. Category authoring and automated classification remain outside
+this extension so Phase 7 retains ownership of classification behavior.
