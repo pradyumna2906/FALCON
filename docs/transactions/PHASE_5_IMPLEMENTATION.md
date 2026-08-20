@@ -1,6 +1,6 @@
 # FALCON Phase 5 Transaction Management Implementation
 
-Phase 5 status: in progress.
+Phase 5 status: complete.
 
 ## 1. Purpose
 
@@ -163,7 +163,7 @@ included in public errors.
   routes with OpenAPI coverage.
 - **Checkpoint 5.4A (complete):** provision user-owned accounts and expose
   active account and category discovery required for usable transaction entry.
-- **Checkpoint 5.5 (implemented; CI execution pending):** add PostgreSQL
+- **Checkpoint 5.5 (complete):** add PostgreSQL
   lifecycle, concurrency, security, rollback, regression, and completion
   validation.
 
@@ -270,9 +270,10 @@ accounts with a zero signed sum. A forced application failure after a flushed
 manual entry verifies that the request transaction rolls back without leaving
 partial ledger state.
 
-The local environment validates collection, compilation, all unit regressions,
-coverage, formatting, and repository hygiene. The repository's existing
-`migration-tests` CI job supplies PostgreSQL 18.4, upgrades Alembic to `head`,
-and executes every integration test with
-`FALCON_RUN_DATABASE_INTEGRATION=1`. Phase 5 becomes complete only when that
-required CI job and the remaining backend quality jobs pass on the Phase 5 PR.
+Final validation on Phase 5 PR #53 passed after correcting persisted enum-value
+comparison and test-fixture persistence ordering. The validated result includes
+493 passing unit tests at 98.78% coverage, 29 passing PostgreSQL integration
+tests against PostgreSQL 18.4 after upgrading Alembic to `head`, a successful
+API container build, a successful Compose smoke test, and successful Backend
+quality and Repository quality workflows. These results close Checkpoint 5.5
+and Phase 5.
