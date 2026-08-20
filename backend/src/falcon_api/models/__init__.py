@@ -9,7 +9,7 @@ from falcon_api.models.auth import (
     UserCredential,
 )
 from falcon_api.models.category import Category
-from falcon_api.models.import_job import ImportJob
+from falcon_api.models.import_job import ImportJob, ImportJobIssue
 from falcon_api.models.ledger import Transaction, TransferGroup
 from falcon_api.models.planning import (
     Budget,
@@ -35,6 +35,7 @@ __all__ = [
     "Goal",
     "GoalContribution",
     "ImportJob",
+    "ImportJobIssue",
     "LiabilityDetail",
     "RefreshSession",
     "RefreshToken",

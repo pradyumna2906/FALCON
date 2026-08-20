@@ -83,6 +83,14 @@ class ImportStatus(StrEnum):
     FAILED = "failed"
 
 
+class ImportDateOrder(StrEnum):
+    """Persistent interpretation for ambiguous numeric statement dates."""
+
+    DAY_FIRST = "day_first"
+    MONTH_FIRST = "month_first"
+    YEAR_FIRST = "year_first"
+
+
 class TransactionType(StrEnum):
     """Supported transaction meanings."""
 

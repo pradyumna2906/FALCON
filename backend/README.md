@@ -20,6 +20,7 @@ The current backend provides:
 - An authenticated, user-isolated financial-profile API.
 - Authenticated account provisioning and category discovery.
 - User-isolated manual transaction and internal-transfer APIs.
+- Authenticated, bounded CSV/XLSX statement import and reconciliation APIs.
 
 ## Requirements
 
@@ -164,6 +165,8 @@ The current endpoints are:
 | `PUT` | `/api/v1/transactions/{transaction_id}` | Replaces an eligible manual transaction |
 | `DELETE` | `/api/v1/transactions/{transaction_id}` | Deletes an eligible manual transaction |
 | `POST` | `/api/v1/transfers` | Creates an atomic internal transfer |
+| `POST` | `/api/v1/imports` | Imports one bounded CSV/XLSX statement into an owned account |
+| `GET` | `/api/v1/imports/{job_id}` | Returns one owned import reconciliation result |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |
@@ -359,3 +362,14 @@ and atomic internal transfers.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/transactions/PHASE_5_IMPLEMENTATION.md`](../docs/transactions/PHASE_5_IMPLEMENTATION.md).
+
+## Statement import implementation
+
+Phase 6 provides strict multipart upload metadata, secure bounded CSV/XLSX
+extraction, deterministic normalization and deduplication, atomic ledger
+loading, persisted reconciliation issues, and owner-isolated upload/status
+operations at `/api/v1/imports`.
+
+Raw statement bytes are processed only within the request and are not retained.
+The authoritative contract and checkpoint record is documented in
+[`docs/imports/PHASE_6_IMPLEMENTATION.md`](../docs/imports/PHASE_6_IMPLEMENTATION.md).
