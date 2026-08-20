@@ -136,7 +136,7 @@ class TransactionListQuery(TransactionSchema):
             strip_whitespace=True,
             min_length=1,
             max_length=512,
-            pattern=r"^[A-Za-z0-9_-]+$",
+            pattern=r"^[A-Za-z0-9_.-]+$",
         ),
     ] = None
     limit: int = Field(default=50, ge=1, le=100)

@@ -154,7 +154,7 @@ included in public errors.
   mapping, transfer semantics, filtering, pagination, duplicate boundaries,
   errors, and contract tests.
 - **Checkpoint 5.2 (complete):** implement user-scoped transaction persistence.
-- **Checkpoint 5.3 (pending):** implement application workflows and business
+- **Checkpoint 5.3 (complete):** implement application workflows and business
   invariants.
 - **Checkpoint 5.4 (pending):** expose authenticated transaction and transfer
   routes with OpenAPI coverage.
@@ -192,3 +192,26 @@ Transfer-group and ledger-entry creation are separate repository primitives so
 the application service can create the group, debit, and credit inside one
 explicit outer transaction. Repository operations add, delete, and flush but
 never commit, roll back, or open independent sessions.
+
+## 14. Application service boundary
+
+The transaction service converts validated public positive magnitudes into
+signed ledger values and converts persisted signed values back into positive
+public views. It authorizes active accounts and categories before persistence,
+rejects future posted dates using the authenticated principal's trusted IANA
+timezone, and maps absent or immutable resources into stable public errors.
+
+Manual replacement and deletion lock the owned row and accept only ordinary
+manual income or expense entries. Imported entries, transfers, and adjustments
+retain immutable provenance through these operations. A successful manual
+replacement marks the entry as user modified without changing its source.
+
+Transfer creation locks both owned accounts in canonical UUID order to avoid
+opposite-direction lock-order deadlocks, verifies different identities and
+equal currencies, creates one transfer group, and persists equal negative and
+positive entries through the same caller-owned database transaction.
+
+Timeline cursors contain only a signed keyset payload. Separate HMAC-derived
+keys bind each cursor to the user and normalized filter set without exposing a
+raw user identifier. Modified, malformed, cross-user, and cross-filter cursors
+all map to the same bounded `invalid_transaction_cursor` response.
