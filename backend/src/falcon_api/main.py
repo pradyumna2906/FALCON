@@ -26,9 +26,10 @@ from falcon_api.infrastructure.database import (
 )
 from falcon_api.middleware.request_context import RequestContextMiddleware
 from falcon_api.profile import FinancialProfileService
+from falcon_api.transactions import TransactionCursorCodec, TransactionService
 
 
-_CORS_ALLOWED_METHODS = ("GET", "POST", "PUT")
+_CORS_ALLOWED_METHODS = ("DELETE", "GET", "POST", "PUT")
 _CORS_ALLOWED_HEADERS = (
     "Accept",
     "Authorization",
@@ -123,6 +124,13 @@ def create_app(
     )
     application.state.financial_profile_service = (
         FinancialProfileService()
+    )
+    application.state.transaction_service = TransactionService(
+        cursor_codec=TransactionCursorCodec(
+            signing_secret=(
+                app_settings.auth_signing_secret.get_secret_value()
+            ),
+        )
     )
 
     application.add_middleware(RequestContextMiddleware)

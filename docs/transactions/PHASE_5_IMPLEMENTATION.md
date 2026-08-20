@@ -156,7 +156,7 @@ included in public errors.
 - **Checkpoint 5.2 (complete):** implement user-scoped transaction persistence.
 - **Checkpoint 5.3 (complete):** implement application workflows and business
   invariants.
-- **Checkpoint 5.4 (pending):** expose authenticated transaction and transfer
+- **Checkpoint 5.4 (complete):** expose authenticated transaction and transfer
   routes with OpenAPI coverage.
 - **Checkpoint 5.5 (pending):** add PostgreSQL lifecycle, concurrency, security,
   regression, and completion validation.
@@ -215,3 +215,18 @@ Timeline cursors contain only a signed keyset payload. Separate HMAC-derived
 keys bind each cursor to the user and normalized filter set without exposing a
 raw user identifier. Modified, malformed, cross-user, and cross-filter cursors
 all map to the same bounded `invalid_transaction_cursor` response.
+
+## 15. Authenticated API boundary
+
+The versioned API exposes manual transaction create, list, get, replace, and
+delete operations plus atomic transfer creation. Every route requires the
+existing bearer principal and passes only its trusted user identifier and IANA
+timezone to the application service. Request bodies and query parameters never
+select an owner.
+
+Routes translate strict request and query schemas into application commands
+and serialize only public transaction views. OpenAPI documents bearer
+security, success responses, validation, not-found, and immutable-provenance
+conflicts. Browser preflight permits `DELETE` in addition to the previously
+reviewed methods while retaining the explicit trusted-origin allowlist and
+`Authorization` header boundary.

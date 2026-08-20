@@ -64,7 +64,7 @@ def test_trusted_preflight_is_limited_correlated_and_logged(
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == TRUSTED_ORIGIN
     assert response.headers["access-control-allow-methods"] == (
-        "GET, POST, PUT"
+        "DELETE, GET, POST, PUT"
     )
     allowed_headers = {
         header.strip().lower()
@@ -98,10 +98,6 @@ def test_trusted_preflight_is_limited_correlated_and_logged(
 @pytest.mark.parametrize(
     "preflight_headers",
     [
-        {
-            "Origin": TRUSTED_ORIGIN,
-            "Access-Control-Request-Method": "DELETE",
-        },
         {
             "Origin": TRUSTED_ORIGIN,
             "Access-Control-Request-Method": "PATCH",
@@ -151,3 +147,20 @@ def test_trusted_profile_preflight_allows_put_and_bearer_auth(
     assert "authorization" in allowed_headers
     assert "content-type" in allowed_headers
     assert "x-request-id" in allowed_headers
+
+
+def test_trusted_transaction_preflight_allows_delete_and_bearer_auth(
+    client: TestClient,
+) -> None:
+    response = client.options(
+        f"/api/v1/transactions/{'0' * 32}",
+        headers={
+            "Origin": TRUSTED_ORIGIN,
+            "Access-Control-Request-Method": "DELETE",
+            "Access-Control-Request-Headers": "Authorization, X-Request-ID",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == TRUSTED_ORIGIN
+    assert "DELETE" in response.headers["access-control-allow-methods"]

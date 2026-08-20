@@ -153,6 +153,12 @@ The current endpoints are:
 | `GET` | `/api/v1/auth/me` | Returns the bearer-authenticated user |
 | `GET` | `/api/v1/profile` | Returns the authenticated user's profile |
 | `PUT` | `/api/v1/profile` | Creates or replaces the authenticated user's profile |
+| `POST` | `/api/v1/transactions` | Creates a manual income or expense |
+| `GET` | `/api/v1/transactions` | Lists the authenticated user's transactions |
+| `GET` | `/api/v1/transactions/{transaction_id}` | Returns one owned transaction |
+| `PUT` | `/api/v1/transactions/{transaction_id}` | Replaces an eligible manual transaction |
+| `DELETE` | `/api/v1/transactions/{transaction_id}` | Deletes an eligible manual transaction |
+| `POST` | `/api/v1/transfers` | Creates an atomic internal transfer |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |
@@ -202,7 +208,7 @@ FALCON_CORS_ALLOWED_ORIGINS=["http://localhost:5173","https://app.example.com"]
 
 The setting defaults to an empty list, so browser cross-origin access is denied unless explicitly configured. Each entry must be a unique HTTP(S) origin containing only a scheme, host and optional non-default port. Wildcards, credentials, paths, query strings and fragments are rejected during startup.
 
-The current policy permits `GET`, `POST`, and `PUT` requests and the `Accept`,
+The current policy permits `DELETE`, `GET`, `POST`, and `PUT` requests and the `Accept`,
 `Authorization`, `Content-Type`, and `X-Request-ID` request headers. It exposes
 `X-Request-ID` to trusted browser clients and permits credentialed requests
 only for explicitly configured origins. Other methods and headers remain
