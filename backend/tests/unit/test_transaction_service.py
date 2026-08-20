@@ -371,6 +371,31 @@ def test_replace_manual_locks_authorizes_and_preserves_provenance() -> None:
     assert result.id == transaction.id
 
 
+def test_replace_accepts_string_values_loaded_from_database() -> None:
+    """Treat string-backed persisted enums by value, not object identity."""
+    user_id = uuid4()
+    transaction = _transaction(user_id)
+    transaction.source_type = "manual"  # type: ignore[assignment]
+    transaction.transaction_type = "expense"  # type: ignore[assignment]
+    repository = _repository()
+    repository.get_by_id.return_value = transaction
+    repository.get_active_account.return_value = _account(user_id)
+    repository.replace.return_value = transaction
+
+    result = asyncio.run(
+        _service(repository).replace_manual(
+            Mock(),
+            user_id=user_id,
+            timezone="UTC",
+            transaction_id=transaction.id,
+            command=_command(),
+        )
+    )
+
+    assert result.id == transaction.id
+    repository.replace.assert_awaited_once()
+
+
 @pytest.mark.parametrize(
     "transaction",
     [

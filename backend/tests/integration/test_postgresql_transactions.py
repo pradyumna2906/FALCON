@@ -322,7 +322,9 @@ async def _exercise_transaction_rollback() -> None:
 
     try:
         async with transaction_scope(resources.session_factory) as session:
-            session.add_all([owner, account])
+            session.add(owner)
+        async with transaction_scope(resources.session_factory) as session:
+            session.add(account)
 
         with pytest.raises(RuntimeError, match="force transaction rollback"):
             async with transaction_scope(
@@ -395,7 +397,9 @@ async def _exercise_opposite_transfers() -> None:
 
     try:
         async with transaction_scope(resources.session_factory) as session:
-            session.add_all([owner, first, second])
+            session.add(owner)
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([first, second])
 
         group_ids = await asyncio.wait_for(
             asyncio.gather(

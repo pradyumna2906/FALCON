@@ -527,7 +527,7 @@ def _view(transaction: Transaction) -> TransactionView:
 
 def _require_manual_mutation(transaction: Transaction) -> None:
     if (
-        transaction.source_type is not TransactionSourceType.MANUAL
+        transaction.source_type != TransactionSourceType.MANUAL
         or transaction.transaction_type
         not in {TransactionType.INCOME, TransactionType.EXPENSE}
         or transaction.transfer_group_id is not None
