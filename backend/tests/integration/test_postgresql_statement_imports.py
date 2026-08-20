@@ -181,7 +181,7 @@ def test_database_write_failure_rolls_back_rows_but_commits_failed_job() -> None
         )
         assert transaction_count == 0
         assert job is not None
-        assert job.status is ImportStatus.FAILED
+        assert job.status == ImportStatus.FAILED
         assert job.failure_summary == "ledger_write_failed"
     finally:
         if user_ids:
