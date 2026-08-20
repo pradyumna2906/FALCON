@@ -153,7 +153,7 @@ included in public errors.
 - **Checkpoint 5.1 (complete):** define ownership, public schemas, signed-money
   mapping, transfer semantics, filtering, pagination, duplicate boundaries,
   errors, and contract tests.
-- **Checkpoint 5.2 (pending):** implement user-scoped transaction persistence.
+- **Checkpoint 5.2 (complete):** implement user-scoped transaction persistence.
 - **Checkpoint 5.3 (pending):** implement application workflows and business
   invariants.
 - **Checkpoint 5.4 (pending):** expose authenticated transaction and transfer
@@ -167,3 +167,28 @@ Phase 5 does not implement CSV or Excel parsing, statement imports,
 classification models, analytics, forecasting, budgets, goals, currency
 conversion, recurring-transaction generation, or fuzzy duplicate detection.
 Those capabilities remain in their owning phases.
+
+## 13. Persistence boundary
+
+The transaction repository resolves only active accounts owned by the trusted
+user. Category resolution accepts active system categories and active private
+categories owned by that same user. Transaction reads and mutations always
+include the trusted user identifier; cross-user rows are indistinguishable
+from absent rows at the application boundary.
+
+Timeline retrieval applies ownership before every optional filter. It uses the
+reviewed descending `(transaction_date, id)` keyset and fetches at most one row
+beyond the requested limit to determine whether another page exists. Cursor
+decoding and integrity verification remain application-service concerns.
+
+Creation persists complete validated ledger values. Replacement changes only
+the reviewed mutable fields and preserves identifier, owner, provenance,
+import linkage, transfer linkage, and creation time. Deletion requires an
+already owner-validated entity. The application service remains responsible
+for deciding whether a manual, imported, transfer, or adjustment entry may be
+mutated.
+
+Transfer-group and ledger-entry creation are separate repository primitives so
+the application service can create the group, debit, and credit inside one
+explicit outer transaction. Repository operations add, delete, and flush but
+never commit, roll back, or open independent sessions.
