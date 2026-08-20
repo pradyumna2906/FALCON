@@ -1,6 +1,6 @@
 # FALCON Phase 4 Financial Profile Implementation
 
-Phase 4 status: in progress.
+Phase 4 status: complete.
 
 ## 1. Purpose
 
@@ -124,7 +124,7 @@ messages.
   server-derived completion logic.
 - **Checkpoint 4.4 (complete):** expose the authenticated GET and PUT
   operations and add OpenAPI and route tests.
-- **Checkpoint 4.5 (validation pending):** add real PostgreSQL lifecycle tests,
+- **Checkpoint 4.5 (complete):** add real PostgreSQL lifecycle tests,
   security hardening, completion documentation, and full-project validation.
 
 ## 9. Deferred scope
@@ -197,5 +197,7 @@ PostgreSQL schema rather than an in-memory substitute. It verifies:
 - registration, login, authenticated profile creation, retrieval, and
   cross-user isolation through the public API.
 
-Phase 4 remains in progress until these tests pass against PostgreSQL together
-with the complete unit suite.
+The PostgreSQL lifecycle suite and complete unit suite passed before PR #51
+was merged into `develop`. Final validation recorded 392 passing unit tests,
+98.54% coverage against the 90% quality threshold, and successful Repository
+quality and Backend quality GitHub Actions workflows.
