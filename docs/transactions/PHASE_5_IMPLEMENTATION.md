@@ -163,8 +163,9 @@ included in public errors.
   routes with OpenAPI coverage.
 - **Checkpoint 5.4A (complete):** provision user-owned accounts and expose
   active account and category discovery required for usable transaction entry.
-- **Checkpoint 5.5 (pending):** add PostgreSQL lifecycle, concurrency, security,
-  regression, and completion validation.
+- **Checkpoint 5.5 (implemented; CI execution pending):** add PostgreSQL
+  lifecycle, concurrency, security, rollback, regression, and completion
+  validation.
 
 ## 12. Deferred scope
 
@@ -252,3 +253,26 @@ system categories plus active private categories owned by the authenticated
 user, excluding normalized names, ownership identifiers, archive state, and
 timestamps. Category authoring and automated classification remain outside
 this extension so Phase 7 retains ownership of classification behavior.
+
+## 17. Completion validation
+
+Checkpoint 5.5 adds real PostgreSQL coverage for the complete authenticated
+ledger lifecycle. The suite registers and authenticates two users, provisions
+isolated accounts, verifies duplicate-name conflicts, creates and paginates
+manual transactions, rejects cross-user reads and stolen cursors, replaces and
+deletes eligible entries, creates an atomic transfer, and rejects mutation of
+either transfer half.
+
+Separate database scenarios execute opposite-direction transfers concurrently
+and require both operations to complete within a bounded timeout. The resulting
+two transfer groups must each contain exactly two entries on different
+accounts with a zero signed sum. A forced application failure after a flushed
+manual entry verifies that the request transaction rolls back without leaving
+partial ledger state.
+
+The local environment validates collection, compilation, all unit regressions,
+coverage, formatting, and repository hygiene. The repository's existing
+`migration-tests` CI job supplies PostgreSQL 18.4, upgrades Alembic to `head`,
+and executes every integration test with
+`FALCON_RUN_DATABASE_INTEGRATION=1`. Phase 5 becomes complete only when that
+required CI job and the remaining backend quality jobs pass on the Phase 5 PR.
