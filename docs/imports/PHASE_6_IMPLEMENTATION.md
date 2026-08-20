@@ -119,8 +119,9 @@ fingerprints; it cannot create a second ledger transaction.
 
 ## 7. Job lifecycle and reconciliation
 
-An accepted upload creates a `pending` job and returns `202`. Processing moves it
-to `processing` and then exactly one terminal state:
+An accepted upload first creates a `pending` job. Because raw files are not
+retained, the bounded request workflow moves the job to `processing` and then
+exactly one terminal state before its database transaction commits:
 
 - `completed`: at least one row accepted and no row rejected;
 - `partial`: at least one row accepted and at least one row rejected;
@@ -131,7 +132,9 @@ the number processed. Start and completion timestamps are server-owned UTC value
 Public job reads expose bounded row issues but not raw file data, fingerprints, or
 internal failure details.
 
-The raw file is processed as an ephemeral request resource and is not retained
+Checkpoint 6.5 will return the committed reconciliation result and expose a
+separate owner-scoped status read; no background worker receives raw statement
+bytes. The raw file is processed as an ephemeral request resource and is not retained
 after the job reaches a terminal state. Durable storage contains the sanitized
 filename, fingerprint, mapping/reconciliation metadata, bounded issue codes, and
 accepted ledger rows. Future raw-file retention requires a separate encrypted
@@ -162,7 +165,7 @@ parser internals, SQL, formulas, source content, or library exception details.
   extraction.
 - **Checkpoint 6.3 (complete):** implement mapping, row normalization, validation,
   deterministic hashes, and duplicate handling.
-- **Checkpoint 6.4 (pending):** implement user-scoped job/reconciliation
+- **Checkpoint 6.4 (complete):** implement user-scoped job/reconciliation
   persistence and atomic ledger loading.
 - **Checkpoint 6.5 (pending):** expose authenticated upload/status routes and run
   PostgreSQL, security, rollback, container, and full regression validation.

@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
 
-from falcon_api.models.enums import ImportSourceType, ImportStatus
+from falcon_api.models.enums import ImportDateOrder, ImportSourceType, ImportStatus
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -28,14 +28,6 @@ SheetName = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1, max_length=31),
 ]
-
-
-class ImportDateOrder(StrEnum):
-    """Resolve otherwise ambiguous numeric statement dates."""
-
-    DAY_FIRST = "day_first"
-    MONTH_FIRST = "month_first"
-    YEAR_FIRST = "year_first"
 
 
 class ImportIssueCode(StrEnum):

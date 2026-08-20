@@ -19,6 +19,7 @@ from falcon_api.models import (
     Goal,
     GoalContribution,
     ImportJob,
+    ImportJobIssue,
     LiabilityDetail,
     Transaction,
     TransferGroup,
@@ -45,6 +46,7 @@ _EXPECTED_TABLES = {
     "goal_contributions",
     "goals",
     "import_jobs",
+    "import_job_issues",
     "liability_details",
     "refresh_sessions",
     "refresh_tokens",
@@ -161,6 +163,14 @@ def test_controlled_value_checks_are_present() -> None:
         in check_names("transactions")
     )
     assert "ck_goals_status_allowed" in check_names("goals")
+    assert (
+        "ck_import_jobs_lifecycle_consistent"
+        in check_names("import_jobs")
+    )
+    assert (
+        "ck_import_jobs_reconciliation_consistent"
+        in check_names("import_jobs")
+    )
 
     assert "'bank'" in enum_sql_values(AccountType)
     assert "'expense'" in enum_sql_values(CategoryKind)
@@ -169,6 +179,14 @@ def test_controlled_value_checks_are_present() -> None:
 
 
 def test_composite_ownership_foreign_keys_are_present() -> None:
+    assert (
+        "fk_import_jobs_owner_account"
+        in foreign_key_names("import_jobs")
+    )
+    assert (
+        "fk_import_job_issues_owner_job"
+        in foreign_key_names("import_job_issues")
+    )
     assert (
         "fk_liability_details_owner_account"
         in foreign_key_names("liability_details")
@@ -206,6 +224,10 @@ def test_query_driven_indexes_are_present() -> None:
     assert "ix_transactions_category_date" in index_names("transactions")
     assert "ix_budgets_user_active_period" in index_names("budgets")
     assert "ix_goals_user_status_deadline" in index_names("goals")
+    assert (
+        "ix_import_job_issues_job_row"
+        in index_names("import_job_issues")
+    )
 
 
 def test_relationship_cardinalities_are_configured() -> None:
@@ -220,3 +242,5 @@ def test_unique_single_child_boundaries_are_present() -> None:
     assert FinancialProfile.__table__.c.user_id.unique is True
     assert ImportJob.__table__.c.file_fingerprint.nullable is False
     assert Category.__table__.c.is_system.nullable is False
+    assert ImportJob.__table__.c.account_id.nullable is False
+    assert ImportJobIssue.__table__.c.message.type.length == 200

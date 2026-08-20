@@ -49,9 +49,11 @@ def test_cursor_rejects_modified_or_malformed_tokens(mutation: str) -> None:
         cursor=TransactionCursor(date(2026, 8, 20), uuid4()),
     )
     payload, signature = token.split(".")
+    mutated_payload_suffix = "B" if payload.endswith("A") else "A"
+    mutated_signature_suffix = "B" if signature.endswith("A") else "A"
     candidates = {
-        "payload": f"{payload[:-1]}A.{signature}",
-        "signature": f"{payload}.{signature[:-1]}A",
+        "payload": f"{payload[:-1]}{mutated_payload_suffix}.{signature}",
+        "signature": f"{payload}.{signature[:-1]}{mutated_signature_suffix}",
         "format": "not-a-valid-cursor",
     }
 

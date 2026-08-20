@@ -264,6 +264,43 @@ def normalize_statement(
     )
 
 
+def reject_existing_duplicates(
+    result: NormalizationResult,
+    *,
+    existing_hashes: frozenset[str],
+    max_issues: int = MAX_PUBLIC_ISSUES,
+) -> NormalizationResult:
+    """Remove rows whose account-scoped hashes already exist in the ledger."""
+    rows: list[NormalizedImportRow] = []
+    issues = list(result.issues)
+    rejected = result.rejected_count
+    truncated = result.issues_truncated
+    for row in result.rows:
+        if row.external_source_hash not in existing_hashes:
+            rows.append(row)
+            continue
+        rejected += 1
+        if len(issues) < max_issues:
+            issues.append(
+                ImportRowIssue(
+                    row_number=row.row_number,
+                    code=ImportIssueCode.DUPLICATE_TRANSACTION,
+                    message=(
+                        "The transaction duplicates an existing imported entry."
+                    ),
+                )
+            )
+        else:
+            truncated = True
+    return NormalizationResult(
+        rows=tuple(rows),
+        issues=tuple(issues),
+        accepted_count=len(rows),
+        rejected_count=rejected,
+        issues_truncated=truncated,
+    )
+
+
 def _normalize_row(
     row: ExtractedRow,
     *,
