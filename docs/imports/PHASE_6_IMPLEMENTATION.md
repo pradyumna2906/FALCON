@@ -158,7 +158,8 @@ parser internals, SQL, formulas, source content, or library exception details.
 - **Checkpoint 6.1 (complete):** define ownership, supported files, strict API
   schemas, canonical mapping, normalization, deduplication, job lifecycle,
   privacy, errors, and contract tests.
-- **Checkpoint 6.2 (pending):** implement bounded secure CSV and `.xlsx` extraction.
+- **Checkpoint 6.2 (complete):** implement bounded secure CSV and `.xlsx`
+  extraction.
 - **Checkpoint 6.3 (pending):** implement mapping, row normalization, validation,
   deterministic hashes, and duplicate handling.
 - **Checkpoint 6.4 (pending):** implement user-scoped job/reconciliation
