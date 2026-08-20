@@ -160,7 +160,7 @@ parser internals, SQL, formulas, source content, or library exception details.
   privacy, errors, and contract tests.
 - **Checkpoint 6.2 (complete):** implement bounded secure CSV and `.xlsx`
   extraction.
-- **Checkpoint 6.3 (pending):** implement mapping, row normalization, validation,
+- **Checkpoint 6.3 (complete):** implement mapping, row normalization, validation,
   deterministic hashes, and duplicate handling.
 - **Checkpoint 6.4 (pending):** implement user-scoped job/reconciliation
   persistence and atomic ledger loading.

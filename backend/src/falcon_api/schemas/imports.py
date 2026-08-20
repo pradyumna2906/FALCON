@@ -43,12 +43,16 @@ class ImportIssueCode(StrEnum):
 
     MISSING_DATE = "missing_date"
     INVALID_DATE = "invalid_date"
+    FUTURE_DATE = "future_date"
     MISSING_AMOUNT = "missing_amount"
     INVALID_AMOUNT = "invalid_amount"
+    INVALID_CURRENCY = "invalid_currency"
     ZERO_AMOUNT = "zero_amount"
     AMBIGUOUS_AMOUNT = "ambiguous_amount"
     MISSING_DESCRIPTION = "missing_description"
+    INVALID_DESCRIPTION = "invalid_description"
     DESCRIPTION_TOO_LONG = "description_too_long"
+    UNCACHED_FORMULA = "uncached_formula"
     DUPLICATE_TRANSACTION = "duplicate_transaction"
 
 
