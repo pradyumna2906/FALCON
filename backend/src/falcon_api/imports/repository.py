@@ -32,6 +32,8 @@ class ImportJobValues:
     date_order: ImportDateOrder
     header_row: int
     sheet_name: str | None
+    adapter_name: str | None = None
+    balance_reconciled: bool | None = None
 
 
 class ImportRepository:
@@ -105,6 +107,8 @@ class ImportRepository:
             date_order=values.date_order,
             header_row=values.header_row,
             sheet_name=values.sheet_name,
+            adapter_name=values.adapter_name,
+            balance_reconciled=values.balance_reconciled,
             status=ImportStatus.PENDING,
             started_at=None,
             completed_at=None,

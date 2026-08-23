@@ -1,4 +1,4 @@
-"""Bounded, non-evaluating CSV and XLSX statement extraction."""
+"""Bounded, non-evaluating CSV, XLSX, and PDF statement extraction."""
 
 from __future__ import annotations
 
@@ -77,6 +77,7 @@ class ExtractedStatement:
     header: ExtractedRow
     rows: tuple[ExtractedRow, ...]
     worksheet_name: str | None = None
+    adapter_name: str | None = None
 
 
 async def read_bounded_upload(
@@ -103,6 +104,7 @@ def extract_statement(
     filename: str,
     content_type: str,
     options: StatementImportOptions,
+    password: str | None = None,
     max_rows: int = MAX_DATA_ROWS,
 ) -> ExtractedStatement:
     """Validate source metadata and dispatch to the reviewed extractor."""
@@ -112,6 +114,20 @@ def extract_statement(
             raise _unsupported_file()
         return extract_csv(
             content,
+            header_row=options.header_row,
+            max_rows=max_rows,
+        )
+    if options.source_type == ImportSourceType.BANK_STATEMENT:
+        from falcon_api.imports.pdf_extraction import (
+            PDF_MEDIA_TYPES,
+            extract_pdf_statement,
+        )
+
+        if not filename.lower().endswith(".pdf") or media_type not in PDF_MEDIA_TYPES:
+            raise _unsupported_file()
+        return extract_pdf_statement(
+            content,
+            password=password,
             header_row=options.header_row,
             max_rows=max_rows,
         )

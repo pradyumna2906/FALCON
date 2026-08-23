@@ -1,6 +1,7 @@
 """Real PostgreSQL statement-import ownership and rollback tests."""
 
 import asyncio
+import io
 import os
 from collections.abc import Iterator
 from datetime import date, datetime
@@ -22,6 +23,8 @@ from falcon_api.models.import_job import ImportJob
 from falcon_api.models.ledger import Transaction
 from falcon_api.models.user import User
 from fastapi.testclient import TestClient
+from pypdf import PdfWriter
+from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 from sqlalchemy import delete, func, select
 
 
@@ -191,6 +194,61 @@ def test_database_write_failure_rolls_back_rows_but_commits_failed_job() -> None
             )
 
 
+def test_digital_pdf_import_persists_adapter_and_balance_reconciliation() -> None:
+    """Prove a real digital PDF reaches the same owned PostgreSQL ledger."""
+    settings = integration_settings()
+    user_ids: list[UUID] = []
+
+    try:
+        with TestClient(
+            create_app(settings),
+            backend_options={
+                "loop_factory": create_psycopg_compatible_event_loop,
+            },
+        ) as client:
+            token, user_id = _register_and_login(client, "pdf")
+            user_ids.append(user_id)
+            account_id = _create_account(client, token)
+
+            response = client.post(
+                "/api/v1/imports",
+                headers={"Authorization": f"Bearer {token}"},
+                data={
+                    "account_id": str(account_id),
+                    "source_type": "bank_statement",
+                    "date_order": "day_first",
+                },
+                files={
+                    "file": (
+                        "statement.pdf",
+                        _digital_pdf_statement(),
+                        "application/pdf",
+                    )
+                },
+            )
+
+            assert response.status_code == 201, response.text
+            body = response.json()
+            assert body["status"] == "completed"
+            assert body["accepted_count"] == 2
+            assert body["rejected_count"] == 0
+            assert body["adapter_name"] == "generic_digital_pdf_v1"
+            assert body["balance_reconciled"] is True
+
+        imported_count, import_job_id = asyncio.run(
+            _imported_transaction_summary(settings, user_id),
+            loop_factory=asyncio.SelectorEventLoop,
+        )
+        assert imported_count == 2
+        assert str(import_job_id) == body["id"]
+    finally:
+        if user_ids:
+            asyncio.run(
+                _delete_users(settings, *user_ids),
+                loop_factory=asyncio.SelectorEventLoop,
+            )
+
+
 class _FailAfterFlushRepository(ImportRepository):
     """Inject a failure after PostgreSQL has flushed the accepted batch."""
 
@@ -267,6 +325,53 @@ def _partial_statement() -> bytes:
         f"{current},Salary,50000,SALARY-1\n"
         f"{current},Invalid zero,0,ZERO-1\n"
     ).encode()
+
+
+def _digital_pdf_statement() -> bytes:
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=612, height=792)
+    font = DictionaryObject(
+        {
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        }
+    )
+    font_reference = writer._add_object(font)
+    page[NameObject("/Resources")] = DictionaryObject(
+        {
+            NameObject("/Font"): DictionaryObject(
+                {NameObject("/F1"): font_reference}
+            )
+        }
+    )
+    current = _today()
+    previous = current.fromordinal(current.toordinal() - 1)
+    values = (
+        ("Date", 50, 740),
+        ("Description", 160, 740),
+        ("Debit", 350, 740),
+        ("Credit", 430, 740),
+        ("Balance", 510, 740),
+        (previous.strftime("%d/%m/%Y"), 50, 710),
+        ("Groceries", 160, 710),
+        ("100", 350, 710),
+        ("900", 510, 710),
+        (current.strftime("%d/%m/%Y"), 50, 680),
+        ("Salary", 160, 680),
+        ("500", 430, 680),
+        ("1400", 510, 680),
+    )
+    stream = "\n".join(
+        f"BT /F1 10 Tf {x} {y} Td ({text}) Tj ET"
+        for text, x, y in values
+    ).encode()
+    content = DecodedStreamObject()
+    content.set_data(stream)
+    page[NameObject("/Contents")] = writer._add_object(content)
+    output = io.BytesIO()
+    writer.write(output)
+    return output.getvalue()
 
 
 def _today() -> date:

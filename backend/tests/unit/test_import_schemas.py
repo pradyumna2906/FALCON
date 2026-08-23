@@ -57,16 +57,28 @@ def test_csv_options_reject_excel_only_sheet_selection() -> None:
         )
 
 
+def test_pdf_options_accept_bank_statement_without_a_worksheet() -> None:
+    options = StatementImportOptions(
+        account_id=uuid4(),
+        source_type="bank_statement",
+        header_row=2,
+    )
+
+    assert options.source_type is ImportSourceType.BANK_STATEMENT
+    assert options.header_row == 2
+    assert options.sheet_name is None
+
+
 @pytest.mark.parametrize(
     "payload",
     [
-        {"source_type": "bank_statement"},
         {"source_type": "pdf"},
+        {"source_type": "bank_statement", "sheet_name": "Transactions"},
         {"source_type": "csv", "header_row": 0},
         {"source_type": "excel", "header_row": 51},
     ],
 )
-def test_options_reject_deferred_sources_and_unsafe_bounds(
+def test_options_reject_unknown_sources_and_unsafe_bounds(
     payload: dict[str, object],
 ) -> None:
     with pytest.raises(ValidationError):
@@ -141,6 +153,16 @@ def test_job_response_enforces_issue_and_count_bounds() -> None:
 
     assert response.accepted_count == 10
     assert response.issues[0].code is ImportIssueCode.MISSING_DATE
+
+    pdf_response = response.model_copy(
+        update={
+            "source_type": ImportSourceType.BANK_STATEMENT,
+            "adapter_name": "generic_digital_pdf_v1",
+            "balance_reconciled": True,
+        }
+    )
+    assert pdf_response.adapter_name == "generic_digital_pdf_v1"
+    assert pdf_response.balance_reconciled is True
 
 @pytest.mark.parametrize(
     "filename",

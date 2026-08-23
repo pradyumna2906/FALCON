@@ -13,7 +13,12 @@ from falcon_api.core.errors import ApplicationError
 from falcon_api.imports.repository import ImportRepository
 from falcon_api.imports.service import ImportService, StatementImportCommand
 from falcon_api.models.account import Account
-from falcon_api.models.enums import AccountType, ImportDateOrder, ImportStatus
+from falcon_api.models.enums import (
+    AccountType,
+    ImportDateOrder,
+    ImportSourceType,
+    ImportStatus,
+)
 from falcon_api.models.import_job import ImportJob
 from falcon_api.schemas.imports import StatementImportOptions
 from sqlalchemy.exc import IntegrityError
@@ -180,6 +185,70 @@ def test_process_rejects_preexisting_file_fingerprint() -> None:
 
     assert info.value.code == "duplicate_import"
     assert info.value.status_code == 409
+    repository.create_job.assert_not_awaited()
+
+
+def test_process_rejects_password_for_non_pdf_source() -> None:
+    user_id = uuid4()
+    repository, account, _ = _repository(user_id)
+    command = _command(account.id)
+    command = StatementImportCommand(
+        filename=command.filename,
+        content_type=command.content_type,
+        content=command.content,
+        options=command.options,
+        file_password="must-not-be-retained",
+    )
+
+    with pytest.raises(ApplicationError) as info:
+        asyncio.run(
+            _service(repository).process(
+                _session(),
+                user_id=user_id,
+                timezone="Asia/Kolkata",
+                command=command,
+            )
+        )
+
+    assert info.value.code == "validation_error"
+    repository.find_by_fingerprint.assert_not_awaited()
+
+
+def test_pdf_balance_mismatch_stops_before_job_creation(monkeypatch) -> None:
+    user_id = uuid4()
+    repository, account, _ = _repository(user_id)
+    options = StatementImportOptions(
+        account_id=account.id,
+        source_type=ImportSourceType.BANK_STATEMENT,
+    )
+    command = StatementImportCommand(
+        filename="statement.pdf",
+        content_type="application/pdf",
+        content=b"%PDF-test",
+        options=options,
+    )
+    extracted = SimpleNamespace(adapter_name="generic_digital_pdf_v1")
+    normalized = SimpleNamespace(balance_reconciled=False)
+    monkeypatch.setattr(
+        "falcon_api.imports.service.extract_statement",
+        Mock(return_value=extracted),
+    )
+    monkeypatch.setattr(
+        "falcon_api.imports.service.normalize_statement",
+        Mock(return_value=normalized),
+    )
+
+    with pytest.raises(ApplicationError) as info:
+        asyncio.run(
+            _service(repository).process(
+                _session(),
+                user_id=user_id,
+                timezone="Asia/Kolkata",
+                command=command,
+            )
+        )
+
+    assert info.value.code == "statement_balance_mismatch"
     repository.create_job.assert_not_awaited()
 
 

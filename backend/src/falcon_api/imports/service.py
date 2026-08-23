@@ -15,7 +15,7 @@ from falcon_api.imports.normalization import (
     reject_existing_duplicates,
 )
 from falcon_api.imports.repository import ImportJobValues, ImportRepository
-from falcon_api.models.enums import ImportStatus
+from falcon_api.models.enums import ImportSourceType, ImportStatus
 from falcon_api.models.import_job import ImportJob
 from falcon_api.schemas.imports import StatementImportOptions
 from sqlalchemy.exc import IntegrityError
@@ -34,6 +34,7 @@ class StatementImportCommand:
     content_type: str
     content: bytes
     options: StatementImportOptions
+    file_password: str | None = None
 
 
 class ImportService:
@@ -68,6 +69,15 @@ class ImportService:
                 message="The requested account was not found.",
                 status_code=404,
             )
+        if (
+            command.file_password is not None
+            and command.options.source_type != ImportSourceType.BANK_STATEMENT
+        ):
+            raise ApplicationError(
+                code="validation_error",
+                message="A file password is supported only for PDF statements.",
+                status_code=422,
+            )
 
         fingerprint = file_fingerprint(command.content)
         if await self._repository.find_by_fingerprint(
@@ -83,6 +93,7 @@ class ImportService:
             filename=safe_filename,
             content_type=command.content_type,
             options=command.options,
+            password=command.file_password,
         )
         normalized = normalize_statement(
             statement,
@@ -90,6 +101,15 @@ class ImportService:
             account_currency=account.currency,
             today=self._clock.now().astimezone(ZoneInfo(timezone)).date(),
         )
+        if (
+            command.options.source_type == ImportSourceType.BANK_STATEMENT
+            and normalized.balance_reconciled is False
+        ):
+            raise ApplicationError(
+                code="statement_balance_mismatch",
+                message="The PDF statement running balances do not reconcile.",
+                status_code=422,
+            )
         candidates = frozenset(
             row.external_source_hash for row in normalized.rows
         )
@@ -118,6 +138,8 @@ class ImportService:
                         date_order=command.options.date_order,
                         header_row=command.options.header_row,
                         sheet_name=command.options.sheet_name,
+                        adapter_name=statement.adapter_name,
+                        balance_reconciled=normalized.balance_reconciled,
                     ),
                     now=now,
                 )

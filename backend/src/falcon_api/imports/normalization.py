@@ -53,6 +53,7 @@ class CanonicalColumn(StrEnum):
     CREDIT = "credit"
     MERCHANT_NAME = "merchant_name"
     REFERENCE = "reference"
+    BALANCE = "balance"
 
 
 _HEADER_ALIASES = {
@@ -101,6 +102,12 @@ _HEADER_ALIASES = {
         "utr",
         "rrn",
     ),
+    CanonicalColumn.BALANCE: (
+        "balance",
+        "running balance",
+        "closing balance",
+        "available balance",
+    ),
 }
 _ALIAS_LOOKUP = {
     alias: column
@@ -132,6 +139,7 @@ class NormalizedImportRow:
     merchant_name: str | None
     source_reference: str | None
     external_source_hash: str
+    source_balance: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +151,7 @@ class NormalizationResult:
     accepted_count: int
     rejected_count: int
     issues_truncated: bool
+    balance_reconciled: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -261,6 +270,11 @@ def normalize_statement(
         accepted_count=len(accepted),
         rejected_count=rejected_count,
         issues_truncated=issues_truncated,
+        balance_reconciled=(
+            _reconcile_running_balances(accepted)
+            if rejected_count == 0
+            else None
+        ),
     )
 
 
@@ -298,6 +312,7 @@ def reject_existing_duplicates(
         accepted_count=len(rows),
         rejected_count=rejected,
         issues_truncated=truncated,
+        balance_reconciled=result.balance_reconciled,
     )
 
 
@@ -336,6 +351,10 @@ def _normalize_row(
         _mapped_cell(row, mapping, CanonicalColumn.REFERENCE),
         max_length=255,
     )
+    source_balance = _parse_optional_balance(
+        _mapped_cell(row, mapping, CanonicalColumn.BALANCE),
+        account_currency=account_currency,
+    )
     transaction_type = (
         TransactionType.INCOME
         if signed_amount > 0
@@ -358,7 +377,40 @@ def _normalize_row(
         merchant_name=merchant,
         source_reference=reference,
         external_source_hash=hash_value,
+        source_balance=source_balance,
     )
+
+
+def _parse_optional_balance(
+    cell: ExtractedCell,
+    *,
+    account_currency: str,
+) -> Decimal | None:
+    if _cell_is_blank(cell):
+        return None
+    return _parse_amount(
+        cell,
+        account_currency=account_currency,
+        allow_negative=True,
+        allow_zero=True,
+    )
+
+
+def _reconcile_running_balances(
+    rows: list[NormalizedImportRow],
+) -> bool | None:
+    if len(rows) < 2 or any(row.source_balance is None for row in rows):
+        return None
+    balanced = rows
+    ascending_matches = all(
+        previous.source_balance + current.signed_amount == current.source_balance
+        for previous, current in zip(balanced, balanced[1:])
+    )
+    descending_matches = all(
+        current.source_balance + previous.signed_amount == previous.source_balance
+        for previous, current in zip(balanced, balanced[1:])
+    )
+    return ascending_matches or descending_matches
 
 
 def _parse_mapped_amount(

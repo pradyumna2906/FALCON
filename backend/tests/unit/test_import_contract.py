@@ -47,6 +47,10 @@ def test_phase_document_defines_the_approved_etl_contract() -> None:
         "10,000",
         "csv",
         ".xlsx",
+        ".pdf",
+        "file_password",
+        "100 pages",
+        "balance_reconciled",
         "formula",
         "one user-owned account",
         "sha-256",
@@ -54,6 +58,7 @@ def test_phase_document_defines_the_approved_etl_contract() -> None:
         "cross-user",
         "raw file",
         "checkpoint 6.1",
+        "checkpoint 6.6",
         "phase 7",
     )
 

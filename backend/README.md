@@ -20,7 +20,7 @@ The current backend provides:
 - An authenticated, user-isolated financial-profile API.
 - Authenticated account provisioning and category discovery.
 - User-isolated manual transaction and internal-transfer APIs.
-- Authenticated, bounded CSV/XLSX statement import and reconciliation APIs.
+- Authenticated, bounded CSV/XLSX/digital-PDF statement import and reconciliation APIs.
 
 ## Requirements
 
@@ -165,7 +165,7 @@ The current endpoints are:
 | `PUT` | `/api/v1/transactions/{transaction_id}` | Replaces an eligible manual transaction |
 | `DELETE` | `/api/v1/transactions/{transaction_id}` | Deletes an eligible manual transaction |
 | `POST` | `/api/v1/transfers` | Creates an atomic internal transfer |
-| `POST` | `/api/v1/imports` | Imports one bounded CSV/XLSX statement into an owned account |
+| `POST` | `/api/v1/imports` | Imports one bounded CSV/XLSX/digital-PDF statement into an owned account |
 | `GET` | `/api/v1/imports/{job_id}` | Returns one owned import reconciliation result |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
@@ -365,10 +365,17 @@ The authoritative contract and checkpoint record is documented in
 
 ## Statement import implementation
 
-Phase 6 provides strict multipart upload metadata, secure bounded CSV/XLSX
-extraction, deterministic normalization and deduplication, atomic ledger
-loading, persisted reconciliation issues, and owner-isolated upload/status
-operations at `/api/v1/imports`.
+Phase 6 provides strict multipart upload metadata, secure bounded CSV/XLSX and
+digital-PDF extraction, deterministic normalization and deduplication, atomic
+ledger loading, persisted reconciliation issues, and owner-isolated
+upload/status operations at `/api/v1/imports`.
+
+Digital PDF statements use `source_type=bank_statement`. They may supply an
+ephemeral `file_password`, are limited to 100 pages as well as the shared
+10 MiB/10,000-row limits, and reject scanned, active-content, embedded-file, or
+unsupported layouts. Successful jobs expose the selected adapter and, when a
+complete running-balance column is present, its reconciliation result. PDF
+passwords and raw statement bytes are never persisted or returned.
 
 Raw statement bytes are processed only within the request and are not retained.
 The authoritative contract and checkpoint record is documented in

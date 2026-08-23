@@ -171,6 +171,11 @@ def test_controlled_value_checks_are_present() -> None:
         "ck_import_jobs_reconciliation_consistent"
         in check_names("import_jobs")
     )
+    assert "ck_import_jobs_adapter_matches_source" in check_names("import_jobs")
+    assert (
+        "ck_import_jobs_balance_reconciliation_matches_source"
+        in check_names("import_jobs")
+    )
 
     assert "'bank'" in enum_sql_values(AccountType)
     assert "'expense'" in enum_sql_values(CategoryKind)
@@ -243,4 +248,6 @@ def test_unique_single_child_boundaries_are_present() -> None:
     assert ImportJob.__table__.c.file_fingerprint.nullable is False
     assert Category.__table__.c.is_system.nullable is False
     assert ImportJob.__table__.c.account_id.nullable is False
+    assert ImportJob.__table__.c.adapter_name.type.length == 64
+    assert ImportJob.__table__.c.balance_reconciled.nullable is True
     assert ImportJobIssue.__table__.c.message.type.length == 200
