@@ -9,7 +9,11 @@ from falcon_api.models.auth import (
     UserCredential,
 )
 from falcon_api.models.category import Category
-from falcon_api.models.classification import TransactionClassification
+from falcon_api.models.classification import (
+    TransactionCategoryCorrection,
+    TransactionClassification,
+    UserMerchantMemory,
+)
 from falcon_api.models.import_job import ImportJob, ImportJobIssue
 from falcon_api.models.ledger import Transaction, TransferGroup
 from falcon_api.models.planning import (
@@ -41,9 +45,11 @@ __all__ = [
     "RefreshSession",
     "RefreshToken",
     "Transaction",
+    "TransactionCategoryCorrection",
     "TransactionClassification",
     "TransferGroup",
     "User",
     "UserCredential",
+    "UserMerchantMemory",
     "register_models",
 ]

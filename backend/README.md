@@ -405,8 +405,10 @@ thread-safe lazy artifact provider, and rules-first hybrid orchestration.
 Provisional synthetic models can suggest but never automatically assign a
 category. Phase 7.6 adds stable system taxonomy-category mappings, owner-scoped
 classification provenance, atomic automatic category assignment, protected
-idempotence, and authenticated single and bounded-batch routes. User correction
-events and adaptive merchant memory remain Phase 7.7.
+idempotence, and authenticated single and bounded-batch routes. Phase 7.7 adds
+append-only correction snapshots, owner-isolated exact merchant memory,
+memory-aware batch inference, and authenticated create/replace/list/delete
+personalization operations without automatic global-model retraining.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).

@@ -38,6 +38,7 @@ from falcon_api.classification.features import (
 from falcon_api.classification.hybrid import (
     HybridClassificationOutcome,
     HybridClassificationService,
+    MerchantMemoryMatch,
 )
 from falcon_api.classification.inference import (
     ClassifierMetadata,
@@ -119,6 +120,7 @@ __all__ = [
     "MERCHANT_KNOWLEDGE_VERSION",
     "MerchantDefinition",
     "MerchantKnowledgeBase",
+    "MerchantMemoryMatch",
     "LazyClassifierProvider",
     "LibraryVersion",
     "ModelArtifactManifest",

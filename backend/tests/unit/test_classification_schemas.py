@@ -1,9 +1,12 @@
 """Tests for strict Phase 7 classification schemas."""
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
+
 from falcon_api.classification.taxonomy import (
     ClassificationCategoryCode,
     ClassificationSubcategoryCode,
@@ -14,9 +17,11 @@ from falcon_api.schemas.classification import (
     ClassificationReasonCode,
     ClassificationResult,
     ClassificationSource,
+    MerchantMemoryListQuery,
+    MerchantMemoryResult,
+    MerchantMemoryWriteRequest,
     TransactionCategoryCorrectionRequest,
 )
-from pydantic import ValidationError
 
 
 def test_batch_request_is_bounded_unique_and_frozen() -> None:
@@ -25,15 +30,11 @@ def test_batch_request_is_bounded_unique_and_frozen() -> None:
 
     assert request.transaction_ids == identifiers
     with pytest.raises(ValidationError):
-        ClassificationBatchRequest(
-            transaction_ids=(identifiers[0], identifiers[0])
-        )
+        ClassificationBatchRequest(transaction_ids=(identifiers[0], identifiers[0]))
     with pytest.raises(ValidationError):
         ClassificationBatchRequest(transaction_ids=())
     with pytest.raises(ValidationError):
-        ClassificationBatchRequest(
-            transaction_ids=tuple(uuid4() for _ in range(101))
-        )
+        ClassificationBatchRequest(transaction_ids=tuple(uuid4() for _ in range(101)))
     with pytest.raises(ValidationError):
         ClassificationBatchRequest(transaction_ids=identifiers, user_id=uuid4())
 
@@ -51,6 +52,48 @@ def test_category_correction_accepts_only_the_reviewed_category() -> None:
         )
 
 
+def test_merchant_memory_contract_is_bounded_and_taxonomy_consistent() -> None:
+    category_id = uuid4()
+    request = MerchantMemoryWriteRequest(
+        merchant_name=" Local Cafe ", category_id=category_id
+    )
+    result = MerchantMemoryResult(
+        id=uuid4(),
+        normalized_merchant="local cafe",
+        category_id=category_id,
+        category_code=ClassificationCategoryCode.FOOD_DINING,
+        subcategory_code=ClassificationSubcategoryCode.RESTAURANTS,
+        created_at=datetime(2026, 8, 23, tzinfo=UTC),
+        updated_at=datetime(2026, 8, 23, tzinfo=UTC),
+    )
+
+    assert request.merchant_name == "Local Cafe"
+    assert result.taxonomy_version == "2026.1"
+    assert MerchantMemoryListQuery(limit=100).limit == 100
+    with pytest.raises(ValidationError):
+        MerchantMemoryWriteRequest(
+            merchant_name="Local Cafe",
+            category_id=category_id,
+            confidence="1",
+        )
+    with pytest.raises(ValidationError):
+        MerchantMemoryResult(
+            **{
+                **result.model_dump(),
+                "category_code": ClassificationCategoryCode.SHOPPING,
+            }
+        )
+    with pytest.raises(ValidationError):
+        MerchantMemoryResult(
+            **{
+                **result.model_dump(),
+                "taxonomy_version": "2025.1",
+            }
+        )
+    with pytest.raises(ValidationError):
+        MerchantMemoryListQuery(limit=101)
+
+
 def test_rule_result_requires_consistent_target_and_provenance() -> None:
     result = ClassificationResult(
         transaction_id=uuid4(),
@@ -58,7 +101,7 @@ def test_rule_result_requires_consistent_target_and_provenance() -> None:
         source=ClassificationSource.RULE,
         category_code=ClassificationCategoryCode.FOOD_DINING,
         subcategory_code=ClassificationSubcategoryCode.FOOD_DELIVERY,
-        confidence=Decimal("1"),
+        confidence=Decimal(1),
         reason_codes=(ClassificationReasonCode.KNOWN_MERCHANT,),
         ruleset_version="2026.1",
     )

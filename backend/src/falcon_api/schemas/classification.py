@@ -1,8 +1,11 @@
 """Strict public contracts for transaction classification."""
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from falcon_api.classification.taxonomy import (
     CLASSIFICATION_TAXONOMY_VERSION,
@@ -15,8 +18,6 @@ from falcon_api.classification.types import (
     ClassificationReasonCode,
     ClassificationSource,
 )
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
-
 
 VersionIdentifier = Annotated[
     str,
@@ -29,7 +30,11 @@ VersionIdentifier = Annotated[
 ]
 ConfidenceScore = Annotated[
     Decimal,
-    Field(ge=Decimal("0"), le=Decimal("1"), max_digits=5, decimal_places=4),
+    Field(ge=Decimal(0), le=Decimal(1), max_digits=5, decimal_places=4),
+]
+MerchantName = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
 ]
 
 
@@ -56,6 +61,23 @@ class TransactionCategoryCorrectionRequest(ClassificationSchema):
     """Record one reviewed category selection without accepting provenance."""
 
     category_id: UUID
+
+
+class MerchantMemoryWriteRequest(ClassificationSchema):
+    """Create or replace one exact personal merchant mapping."""
+
+    merchant_name: MerchantName
+    category_id: UUID
+
+
+class MerchantMemoryListQuery(ClassificationSchema):
+    """Select one bounded page of the principal's exact mappings."""
+
+    cursor: Annotated[
+        str | None,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+    ] = None
+    limit: int = Field(default=50, ge=1, le=100)
 
 
 class ClassificationResult(ClassificationSchema):
@@ -112,3 +134,46 @@ class ClassificationBatchResponse(ClassificationSchema):
     """Return results in the same order as the requested transaction IDs."""
 
     items: tuple[ClassificationResult, ...] = Field(min_length=1, max_length=100)
+
+
+class MerchantMemoryResult(ClassificationSchema):
+    """Expose one same-user mapping without returning its owner key."""
+
+    id: UUID
+    normalized_merchant: MerchantName
+    category_id: UUID
+    category_code: ClassificationCategoryCode
+    subcategory_code: ClassificationSubcategoryCode
+    taxonomy_version: VersionIdentifier = CLASSIFICATION_TAXONOMY_VERSION
+    created_at: datetime
+    updated_at: datetime
+
+    @model_validator(mode="after")
+    def validate_memory_target(self) -> "MerchantMemoryResult":
+        """Require the stored parent and leaf to remain taxonomy-compatible."""
+        if self.taxonomy_version != CLASSIFICATION_TAXONOMY_VERSION:
+            raise ValueError("Merchant memory uses an incompatible taxonomy version.")
+        validate_classification_target(
+            category=self.category_code,
+            subcategory=self.subcategory_code,
+        )
+        return self
+
+
+class MerchantMemoryPageResponse(ClassificationSchema):
+    """Return a bounded lexicographic page of exact mappings."""
+
+    items: tuple[MerchantMemoryResult, ...]
+    next_cursor: MerchantName | None
+
+
+class ClassificationCorrectionResult(ClassificationSchema):
+    """Return the immutable correction identity and bounded source snapshot."""
+
+    id: UUID
+    transaction_id: UUID
+    selected_category_id: UUID
+    selected_category_code: ClassificationSubcategoryCode | None
+    merchant_memory_id: UUID | None
+    original: ClassificationResult
+    occurred_at: datetime

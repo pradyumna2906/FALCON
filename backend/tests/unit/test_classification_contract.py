@@ -19,6 +19,7 @@ from falcon_api.models.enums import TransactionType
 from falcon_api.schemas.classification import (
     ClassificationBatchRequest,
     ClassificationResult,
+    MerchantMemoryWriteRequest,
     TransactionCategoryCorrectionRequest,
 )
 
@@ -46,9 +47,11 @@ def test_public_writes_exclude_server_owned_prediction_fields() -> None:
     correction = set(
         TransactionCategoryCorrectionRequest.model_json_schema()["properties"]
     )
+    memory = set(MerchantMemoryWriteRequest.model_json_schema()["properties"])
 
     assert batch == {"transaction_ids"}
     assert correction == {"category_id"}
+    assert memory == {"merchant_name", "category_id"}
     for private_field in {
         "user_id",
         "confidence",
@@ -60,6 +63,7 @@ def test_public_writes_exclude_server_owned_prediction_fields() -> None:
     }:
         assert private_field not in batch
         assert private_field not in correction
+        assert private_field not in memory
 
 
 def test_prediction_response_excludes_features_and_ownership() -> None:

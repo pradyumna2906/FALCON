@@ -7,6 +7,9 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from falcon_api.classification.hybrid import HybridClassificationOutcome
 from falcon_api.classification.repository import (
     ClassificationRepository,
@@ -23,6 +26,10 @@ from falcon_api.classification.types import (
     ClassificationSource,
 )
 from falcon_api.models.category import Category
+from falcon_api.models.classification import (
+    TransactionClassification,
+    UserMerchantMemory,
+)
 from falcon_api.models.enums import (
     CategoryKind,
     TransactionSourceType,
@@ -30,9 +37,6 @@ from falcon_api.models.enums import (
     TransactionType,
 )
 from falcon_api.models.ledger import Transaction
-from sqlalchemy.dialects import postgresql
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 _NOW = datetime(2026, 8, 23, 14, 0, tzinfo=UTC)
 
@@ -149,6 +153,27 @@ def test_existing_results_are_selected_under_owner_predicate() -> None:
     assert "transaction_classifications.transaction_id IN" in query
 
 
+def test_latest_correction_is_owner_scoped_and_deterministically_ordered() -> None:
+    session = AsyncMock(spec=AsyncSession)
+    session.scalar.return_value = None
+
+    result = asyncio.run(
+        ClassificationRepository().get_latest_correction(
+            session,
+            user_id=uuid4(),
+            transaction_id=uuid4(),
+        )
+    )
+
+    assert result is None
+    query = str(session.scalar.await_args.args[0])
+    assert "transaction_category_corrections.user_id =" in query
+    assert "transaction_category_corrections.transaction_id =" in query
+    assert "transaction_category_corrections.occurred_at DESC" in query
+    assert "transaction_category_corrections.id DESC" in query
+    assert "LIMIT" in query
+
+
 def test_system_category_lookup_is_active_global_and_taxonomy_scoped() -> None:
     session = AsyncMock(spec=AsyncSession)
     category = _category()
@@ -157,9 +182,7 @@ def test_system_category_lookup_is_active_global_and_taxonomy_scoped() -> None:
     result = asyncio.run(
         ClassificationRepository().get_system_categories(
             session,
-            subcategory_codes=frozenset(
-                {ClassificationSubcategoryCode.FOOD_DELIVERY}
-            ),
+            subcategory_codes=frozenset({ClassificationSubcategoryCode.FOOD_DELIVERY}),
         )
     )
 
@@ -268,3 +291,125 @@ def test_persist_rejects_a_mismatched_owner_before_flush() -> None:
         )
 
     session.flush.assert_not_awaited()
+
+
+def _memory(*, user_id, category: Category) -> UserMerchantMemory:
+    return UserMerchantMemory(
+        id=uuid4(),
+        user_id=user_id,
+        normalized_merchant="local cafe",
+        category_id=category.id,
+        category_code=ClassificationCategoryCode.FOOD_DINING,
+        subcategory_code=ClassificationSubcategoryCode.RESTAURANTS,
+        taxonomy_version="2026.1",
+        created_at=_NOW,
+        updated_at=_NOW,
+    )
+
+
+def test_merchant_memory_lookup_is_exact_versioned_and_owner_scoped() -> None:
+    session = AsyncMock(spec=AsyncSession)
+    session.scalars.return_value = _Rows([])
+    user_id = uuid4()
+
+    result = asyncio.run(
+        ClassificationRepository().get_merchant_memories(
+            session,
+            user_id=user_id,
+            normalized_merchants=frozenset({"local cafe"}),
+        )
+    )
+
+    assert result == ()
+    query = str(session.scalars.await_args.args[0])
+    assert "user_merchant_memories.user_id =" in query
+    assert "user_merchant_memories.normalized_merchant IN" in query
+    assert "user_merchant_memories.taxonomy_version =" in query
+
+
+def test_upsert_memory_serializes_key_and_replaces_existing_mapping() -> None:
+    user_id = uuid4()
+    category = _category()
+    memory = _memory(user_id=user_id, category=category)
+    session = AsyncMock(spec=AsyncSession)
+    session.scalar.return_value = memory
+
+    result = asyncio.run(
+        ClassificationRepository().upsert_merchant_memory(
+            session,
+            user_id=user_id,
+            normalized_merchant="local cafe",
+            category_id=category.id,
+            category_code=ClassificationCategoryCode.FOOD_DINING,
+            subcategory_code=ClassificationSubcategoryCode.FOOD_DELIVERY,
+            now=_NOW,
+        )
+    )
+
+    assert result is memory
+    assert memory.subcategory_code is ClassificationSubcategoryCode.FOOD_DELIVERY
+    assert session.execute.await_count == 1
+    advisory_query = str(session.execute.await_args.args[0])
+    assert "pg_advisory_xact_lock" in advisory_query
+    session.flush.assert_awaited_once_with()
+
+
+def test_correction_persistence_snapshots_original_and_marks_user_reviewed() -> None:
+    user_id = uuid4()
+    transaction = _transaction(user_id=user_id)
+    selected = _category()
+    original = TransactionClassification(
+        id=uuid4(),
+        user_id=user_id,
+        transaction_id=transaction.id,
+        assigned_category_id=None,
+        decision=ClassificationDecision.SUGGESTED,
+        source=ClassificationSource.ML,
+        category_code=ClassificationCategoryCode.FOOD_DINING,
+        subcategory_code=ClassificationSubcategoryCode.FOOD_DELIVERY,
+        confidence=Decimal("0.7100"),
+        reason_codes=[ClassificationReasonCode.MODEL_PREDICTION.value],
+        taxonomy_version="2026.1",
+        ruleset_version=None,
+        model_version="classification_test.1",
+        created_at=_NOW,
+        updated_at=_NOW,
+    )
+    session = AsyncMock(spec=AsyncSession)
+
+    correction = asyncio.run(
+        ClassificationRepository().persist_correction(
+            session,
+            user_id=user_id,
+            target=ClassificationTarget(transaction, "INR"),
+            original=original,
+            selected_category=selected,
+            merchant_memory_id=uuid4(),
+            now=_NOW,
+        )
+    )
+
+    assert transaction.category_id == selected.id
+    assert transaction.is_user_modified is True
+    assert correction.classification_id == original.id
+    assert correction.original_confidence == Decimal("0.7100")
+    assert correction.selected_category_code == "food_delivery"
+    session.add.assert_called_once_with(correction)
+    session.flush.assert_awaited_once_with()
+
+
+def test_memory_delete_rejects_mismatched_owner() -> None:
+    category = _category()
+    memory = _memory(user_id=uuid4(), category=category)
+    session = AsyncMock(spec=AsyncSession)
+
+    with pytest.raises(ValueError, match="does not belong"):
+        asyncio.run(
+            ClassificationRepository().delete_merchant_memory(
+                session,
+                user_id=uuid4(),
+                memory=memory,
+            )
+        )
+
+    session.delete.assert_not_awaited()

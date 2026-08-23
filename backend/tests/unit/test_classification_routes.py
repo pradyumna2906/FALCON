@@ -7,6 +7,9 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from falcon_api.api.routes.auth import current_principal_service_from
 from falcon_api.api.routes.classification import classification_service_from
 from falcon_api.auth.principal import (
@@ -27,10 +30,12 @@ from falcon_api.classification.types import (
 )
 from falcon_api.core.errors import ApplicationError
 from falcon_api.infrastructure.database import get_database_session
-from falcon_api.schemas.classification import ClassificationResult
-from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from falcon_api.schemas.classification import (
+    ClassificationCorrectionResult,
+    ClassificationResult,
+    MerchantMemoryPageResponse,
+    MerchantMemoryResult,
+)
 
 _TOKEN = "signed-classification-access-token"
 _NOW = datetime(2026, 8, 23, 15, 0, tzinfo=UTC)
@@ -58,12 +63,12 @@ def classification_dependencies(
         yield session
 
     client.app.dependency_overrides[get_database_session] = session_override
-    client.app.dependency_overrides[
-        current_principal_service_from
-    ] = lambda: principal_service
-    client.app.dependency_overrides[
-        classification_service_from
-    ] = lambda: classification_service
+    client.app.dependency_overrides[current_principal_service_from] = lambda: (
+        principal_service
+    )
+    client.app.dependency_overrides[classification_service_from] = lambda: (
+        classification_service
+    )
 
     try:
         yield classification_service, principal_service, session, principal
@@ -110,9 +115,7 @@ def test_single_route_uses_authenticated_owner_and_returns_safe_result(
         "ruleset_version": "2026.1",
         "model_version": None,
     }
-    principal_service.authenticate.assert_awaited_once_with(
-        session, token=_TOKEN
-    )
+    principal_service.authenticate.assert_awaited_once_with(session, token=_TOKEN)
     service.classify_one.assert_awaited_once_with(
         session,
         user_id=principal.user_id,
@@ -220,9 +223,7 @@ def test_classification_routes_require_authentication(
         status_code=401,
     )
 
-    response = client.post(
-        f"/api/v1/transactions/{uuid4()}/classification"
-    )
+    response = client.post(f"/api/v1/transactions/{uuid4()}/classification")
 
     assert response.status_code == 401
     principal_service.authenticate.assert_awaited_once_with(session, token="")
@@ -234,10 +235,127 @@ def test_openapi_documents_single_and_batch_classification(
 ) -> None:
     document = client.get("/openapi.json").json()
 
-    assert "post" in document["paths"][
-        "/api/v1/transactions/{transaction_id}/classification"
-    ]
+    assert (
+        "post"
+        in document["paths"]["/api/v1/transactions/{transaction_id}/classification"]
+    )
     assert "post" in document["paths"]["/api/v1/classifications/batch"]
-    assert document["paths"]["/api/v1/classifications/batch"]["post"][
-        "operationId"
-    ] == "classify_transaction_batch"
+    assert (
+        document["paths"]["/api/v1/classifications/batch"]["post"]["operationId"]
+        == "classify_transaction_batch"
+    )
+
+
+def _memory_result() -> MerchantMemoryResult:
+    return MerchantMemoryResult(
+        id=uuid4(),
+        normalized_merchant="local cafe",
+        category_id=uuid4(),
+        category_code=ClassificationCategoryCode.FOOD_DINING,
+        subcategory_code=ClassificationSubcategoryCode.RESTAURANTS,
+        created_at=_NOW,
+        updated_at=_NOW,
+    )
+
+
+def test_correction_route_accepts_only_category_and_authenticated_owner(
+    client: TestClient,
+    classification_dependencies,
+) -> None:
+    service, _, session, principal = classification_dependencies
+    original = _result()
+    category_id = uuid4()
+    correction = ClassificationCorrectionResult(
+        id=uuid4(),
+        transaction_id=original.transaction_id,
+        selected_category_id=category_id,
+        selected_category_code=ClassificationSubcategoryCode.RESTAURANTS,
+        merchant_memory_id=uuid4(),
+        original=original,
+        occurred_at=_NOW,
+    )
+    service.correct_category.return_value = correction
+
+    response = client.post(
+        f"/api/v1/transactions/{original.transaction_id}/classification/correction",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+        json={"category_id": str(category_id)},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["original"]["confidence"] == "0.9900"
+    assert "user_id" not in response.json()
+    service.correct_category.assert_awaited_once_with(
+        session,
+        user_id=principal.user_id,
+        transaction_id=original.transaction_id,
+        category_id=category_id,
+    )
+
+
+def test_merchant_memory_routes_upsert_list_and_delete_under_owner(
+    client: TestClient,
+    classification_dependencies,
+) -> None:
+    service, _, session, principal = classification_dependencies
+    memory = _memory_result()
+    service.set_merchant_memory.return_value = memory
+    service.list_merchant_memories.return_value = MerchantMemoryPageResponse(
+        items=(memory,),
+        next_cursor=None,
+    )
+
+    saved = client.put(
+        "/api/v1/classification/merchant-memories",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+        json={
+            "merchant_name": "Local Cafe",
+            "category_id": str(memory.category_id),
+        },
+    )
+    listed = client.get(
+        "/api/v1/classification/merchant-memories?limit=25",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+    )
+    deleted = client.delete(
+        f"/api/v1/classification/merchant-memories/{memory.id}",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+    )
+
+    assert saved.status_code == 200
+    assert saved.json()["normalized_merchant"] == "local cafe"
+    assert listed.status_code == 200
+    assert listed.json()["items"][0]["id"] == str(memory.id)
+    assert deleted.status_code == 204
+    service.set_merchant_memory.assert_awaited_once_with(
+        session,
+        user_id=principal.user_id,
+        merchant_name="Local Cafe",
+        category_id=memory.category_id,
+    )
+    service.list_merchant_memories.assert_awaited_once_with(
+        session,
+        user_id=principal.user_id,
+        after=None,
+        limit=25,
+    )
+    service.delete_merchant_memory.assert_awaited_once_with(
+        session,
+        user_id=principal.user_id,
+        memory_id=memory.id,
+    )
+
+
+def test_openapi_documents_correction_and_memory_management(
+    client: TestClient,
+) -> None:
+    document = client.get("/openapi.json").json()
+
+    correction = document["paths"][
+        "/api/v1/transactions/{transaction_id}/classification/correction"
+    ]
+    memories = document["paths"]["/api/v1/classification/merchant-memories"]
+    memory = document["paths"]["/api/v1/classification/merchant-memories/{memory_id}"]
+    assert correction["post"]["operationId"] == ("correct_transaction_classification")
+    assert {"get", "put"} <= memories.keys()
+    assert "delete" in memory

@@ -52,9 +52,11 @@ _EXPECTED_TABLES = {
     "refresh_sessions",
     "refresh_tokens",
     "transactions",
+    "transaction_category_corrections",
     "transaction_classifications",
     "transfer_groups",
     "user_credentials",
+    "user_merchant_memories",
     "users",
 }
 
@@ -237,6 +239,41 @@ def test_composite_ownership_foreign_keys_are_present() -> None:
     assert (
         "fk_transaction_classifications_taxonomy_category"
         in foreign_key_names("transaction_classifications")
+    )
+    correction_foreign_keys = foreign_key_names(
+        "transaction_category_corrections"
+    )
+    assert "fk_transaction_category_corrections_owner_transaction" in (
+        correction_foreign_keys
+    )
+    assert "fk_transaction_category_corrections_original_classification" in (
+        correction_foreign_keys
+    )
+    assert "fk_user_merchant_memories_taxonomy_category" in foreign_key_names(
+        "user_merchant_memories"
+    )
+
+
+def test_classification_personalization_checks_and_indexes_are_registered() -> None:
+    memory_checks = check_names("user_merchant_memories")
+    correction_checks = check_names("transaction_category_corrections")
+
+    assert "ck_user_merchant_memories_normalized_merchant_lowercase" in (
+        memory_checks
+    )
+    assert "ck_user_merchant_memories_subcategory_code_allowed" in memory_checks
+    assert "ck_transaction_category_corrections_original_target_consistent" in (
+        correction_checks
+    )
+    assert (
+        "ck_transaction_category_corrections_original_source_version_consistent"
+        in correction_checks
+    )
+    assert "ix_user_merchant_memories_user_updated" in index_names(
+        "user_merchant_memories"
+    )
+    assert "ix_transaction_category_corrections_user_occurred" in index_names(
+        "transaction_category_corrections"
     )
 
 

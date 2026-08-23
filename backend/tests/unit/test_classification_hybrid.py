@@ -5,6 +5,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+
 from falcon_api.classification.artifacts import (
     ClassifierArtifactUnavailableError,
 )
@@ -13,8 +14,8 @@ from falcon_api.classification.features import (
     build_classification_features,
 )
 from falcon_api.classification.hybrid import (
-    HybridClassificationOutcome,
     HybridClassificationService,
+    MerchantMemoryMatch,
 )
 from falcon_api.classification.inference import (
     ClassifierMetadata,
@@ -34,7 +35,6 @@ from falcon_api.classification.types import (
     ClassificationSource,
 )
 from falcon_api.models.enums import TransactionType
-
 
 _MODEL_VERSION = "classification_test.1"
 
@@ -94,7 +94,7 @@ def _features(
     *,
     transaction_type: TransactionType = TransactionType.EXPENSE,
 ):
-    amount = Decimal("500")
+    amount = Decimal(500)
     if transaction_type is TransactionType.EXPENSE:
         amount = -amount
     return build_classification_features(
@@ -167,6 +167,51 @@ def test_high_precision_rule_returns_automatic_without_loading_model() -> None:
     assert provider.calls == 0
 
 
+def test_exact_user_memory_runs_after_rules_and_before_model() -> None:
+    provider = FakeProvider(None)
+    service = HybridClassificationService(classifier_provider=provider)
+    memory = MerchantMemoryMatch(
+        category=ClassificationCategoryCode.FOOD_DINING,
+        subcategory=ClassificationSubcategoryCode.RESTAURANTS,
+    )
+
+    outcome = service.classify(_features(), merchant_memory=memory)
+
+    assert outcome.decision is ClassificationDecision.AUTOMATIC
+    assert outcome.source is ClassificationSource.MERCHANT_MEMORY
+    assert outcome.confidence == Decimal("1.0000")
+    assert outcome.reason_codes == (ClassificationReasonCode.USER_MERCHANT_MEMORY,)
+    assert outcome.ruleset_version is None
+    assert outcome.model_version is None
+    assert provider.calls == 0
+
+
+def test_global_rule_precedes_memory_and_incompatible_memory_is_ignored() -> None:
+    provider = FakeProvider(None)
+    service = HybridClassificationService(classifier_provider=provider)
+    restaurant = MerchantMemoryMatch(
+        category=ClassificationCategoryCode.FOOD_DINING,
+        subcategory=ClassificationSubcategoryCode.RESTAURANTS,
+    )
+    salary = MerchantMemoryMatch(
+        category=ClassificationCategoryCode.INCOME,
+        subcategory=ClassificationSubcategoryCode.SALARY,
+    )
+
+    ruled = service.classify(
+        _features("monthly apartment rent"), merchant_memory=restaurant
+    )
+    incompatible = service.classify(_features(), merchant_memory=salary)
+
+    assert ruled.source is ClassificationSource.RULE
+    assert ruled.subcategory is ClassificationSubcategoryCode.RENT
+    assert incompatible.decision is ClassificationDecision.ABSTAINED
+    assert incompatible.reason_codes == (
+        ClassificationReasonCode.CLASSIFIER_UNAVAILABLE,
+    )
+    assert provider.calls == 1
+
+
 def test_production_model_uses_automatic_and_suggestion_thresholds() -> None:
     automatic_service, _, _ = _service(_prediction(confidence="0.90"))
     suggested_service, _, _ = _service(_prediction(confidence="0.65"))
@@ -183,9 +228,7 @@ def test_production_model_uses_automatic_and_suggestion_thresholds() -> None:
 
 def test_low_confidence_and_small_margin_force_safe_abstention() -> None:
     low_service, _, _ = _service(_prediction(confidence="0.40"))
-    ambiguous_service, _, _ = _service(
-        _prediction(confidence="0.90", margin="0.05")
-    )
+    ambiguous_service, _, _ = _service(_prediction(confidence="0.90", margin="0.05"))
 
     low = low_service.classify(_features())
     ambiguous = ambiguous_service.classify(_features())
@@ -193,16 +236,12 @@ def test_low_confidence_and_small_margin_force_safe_abstention() -> None:
     assert low.decision is ClassificationDecision.ABSTAINED
     assert low.reason_codes == (ClassificationReasonCode.LOW_CONFIDENCE,)
     assert ambiguous.decision is ClassificationDecision.ABSTAINED
-    assert ambiguous.reason_codes == (
-        ClassificationReasonCode.AMBIGUOUS_PREDICTION,
-    )
+    assert ambiguous.reason_codes == (ClassificationReasonCode.AMBIGUOUS_PREDICTION,)
     assert low.category is None and low.subcategory is None
 
 
 def test_synthetic_provisional_model_can_suggest_but_never_auto_assign() -> None:
-    service, _, _ = _service(
-        _prediction(confidence="0.99", production_eligible=False)
-    )
+    service, _, _ = _service(_prediction(confidence="0.99", production_eligible=False))
 
     outcome = service.classify(_features())
 
@@ -214,9 +253,7 @@ def test_synthetic_provisional_model_can_suggest_but_never_auto_assign() -> None
 
 
 def test_direction_incompatible_prediction_abstains() -> None:
-    service, _, _ = _service(
-        _prediction(ClassificationSubcategoryCode.SALARY)
-    )
+    service, _, _ = _service(_prediction(ClassificationSubcategoryCode.SALARY))
 
     outcome = service.classify(_features())
 
@@ -277,24 +314,20 @@ def test_model_disagreement_cannot_override_rule_conflict() -> None:
 
     assert outcome.decision is ClassificationDecision.ABSTAINED
     assert outcome.source is ClassificationSource.HYBRID
-    assert outcome.reason_codes == (
-        ClassificationReasonCode.AMBIGUOUS_PREDICTION,
-    )
+    assert outcome.reason_codes == (ClassificationReasonCode.AMBIGUOUS_PREDICTION,)
 
 
 def test_unavailable_or_wrong_identity_model_abstains_without_raw_error() -> None:
     unavailable = HybridClassificationService(
         classifier_provider=FakeProvider(None)
     ).classify(_features())
-    wrong_service, _, _ = _service(
-        _prediction(model_version="different.1")
-    )
+    wrong_service, _, _ = _service(_prediction(model_version="different.1"))
     wrong_identity = wrong_service.classify(_features())
 
     assert unavailable.reason_codes == (
         ClassificationReasonCode.CLASSIFIER_UNAVAILABLE,
     )
-    assert unavailable.confidence == Decimal("0")
+    assert unavailable.confidence == Decimal(0)
     assert wrong_identity.reason_codes == (
         ClassificationReasonCode.CLASSIFIER_UNAVAILABLE,
     )
@@ -302,7 +335,7 @@ def test_unavailable_or_wrong_identity_model_abstains_without_raw_error() -> Non
 
 def test_untrusted_prediction_eligibility_mismatch_abstains() -> None:
     service, _, classifier = _service(_prediction(production_eligible=False))
-    classifier._metadata = replace(  # noqa: SLF001 - explicit trust-boundary test
+    classifier._metadata = replace(
         classifier.metadata,
         production_eligible=True,
     )
@@ -310,9 +343,7 @@ def test_untrusted_prediction_eligibility_mismatch_abstains() -> None:
     outcome = service.classify(_features())
 
     assert outcome.decision is ClassificationDecision.ABSTAINED
-    assert outcome.reason_codes == (
-        ClassificationReasonCode.CLASSIFIER_UNAVAILABLE,
-    )
+    assert outcome.reason_codes == (ClassificationReasonCode.CLASSIFIER_UNAVAILABLE,)
 
 
 def test_unavailable_model_preserves_rule_conflict_provenance() -> None:
@@ -343,10 +374,17 @@ def test_service_and_outcome_reject_invalid_contracts() -> None:
     service, _, _ = _service(_prediction())
     with pytest.raises(TypeError, match="features"):
         service.classify("unsafe")  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="merchant_memory"):
+        service.classify(_features(), merchant_memory=object())  # type: ignore[arg-type]
+    with pytest.raises(ValueError):
+        MerchantMemoryMatch(
+            category=ClassificationCategoryCode.SHOPPING,
+            subcategory=ClassificationSubcategoryCode.RESTAURANTS,
+        )
 
     valid = service.classify(_features())
     with pytest.raises(ValueError, match="confidence"):
-        replace(valid, confidence=Decimal("2"))
+        replace(valid, confidence=Decimal(2))
     with pytest.raises(ValueError, match="reason"):
         replace(valid, reason_codes=())
     with pytest.raises(ValueError, match="target"):

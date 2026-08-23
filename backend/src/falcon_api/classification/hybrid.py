@@ -55,7 +55,7 @@ class HybridClassificationOutcome:
         if (
             not isinstance(self.confidence, Decimal)
             or not self.confidence.is_finite()
-            or not Decimal("0") <= self.confidence <= Decimal("1")
+            or not Decimal(0) <= self.confidence <= Decimal(1)
         ):
             raise ValueError("Outcome confidence must be an exact decimal in [0, 1].")
         if not self.reason_codes or len(self.reason_codes) > 5:
@@ -90,6 +90,20 @@ class HybridClassificationOutcome:
                 raise ValueError("Outcome provenance versions must be bounded.")
 
 
+@dataclass(frozen=True, slots=True)
+class MerchantMemoryMatch:
+    """One same-user exact merchant mapping resolved from trusted storage."""
+
+    category: ClassificationCategoryCode
+    subcategory: ClassificationSubcategoryCode
+
+    def __post_init__(self) -> None:
+        validate_classification_target(
+            category=self.category,
+            subcategory=self.subcategory,
+        )
+
+
 class HybridClassificationService:
     """Apply reviewed rules first, then verified calibrated ML when needed."""
 
@@ -115,10 +129,16 @@ class HybridClassificationService:
     def classify(
         self,
         features: ClassificationFeatures,
+        *,
+        merchant_memory: MerchantMemoryMatch | None = None,
     ) -> HybridClassificationOutcome:
-        """Return a high-precision rule result or calibrated model decision."""
+        """Apply global rules, same-user exact memory, then calibrated ML."""
         if not isinstance(features, ClassificationFeatures):
             raise TypeError("features must use the shared classification schema.")
+        if merchant_memory is not None and not isinstance(
+            merchant_memory, MerchantMemoryMatch
+        ):
+            raise TypeError("merchant_memory must use the trusted match contract.")
         rules = self._rules.evaluate(features)
         if rules.selected is not None:
             selected = rules.selected
@@ -131,6 +151,24 @@ class HybridClassificationService:
                 reason_codes=(selected.reason_code,),
                 ruleset_version=rules.ruleset_version,
             )
+        if merchant_memory is not None:
+            try:
+                validate_classification_target(
+                    category=merchant_memory.category,
+                    subcategory=merchant_memory.subcategory,
+                    transaction_type=features.transaction_type,
+                )
+            except ValueError:
+                pass
+            else:
+                return HybridClassificationOutcome(
+                    decision=ClassificationDecision.AUTOMATIC,
+                    source=ClassificationSource.MERCHANT_MEMORY,
+                    category=merchant_memory.category,
+                    subcategory=merchant_memory.subcategory,
+                    confidence=Decimal("1.0000"),
+                    reason_codes=(ClassificationReasonCode.USER_MERCHANT_MEMORY,),
+                )
         return self._classify_with_model(features, rules)
 
     def _classify_with_model(
@@ -139,9 +177,7 @@ class HybridClassificationService:
         rules: RuleEvaluation,
     ) -> HybridClassificationOutcome:
         source = (
-            ClassificationSource.HYBRID
-            if rules.conflicted
-            else ClassificationSource.ML
+            ClassificationSource.HYBRID if rules.conflicted else ClassificationSource.ML
         )
         try:
             classifier = self._provider.get_classifier()
@@ -164,7 +200,7 @@ class HybridClassificationService:
             )
             return self._abstained(
                 source=source,
-                confidence=Decimal("0"),
+                confidence=Decimal(0),
                 reason_codes=reasons,
                 rules=rules,
             )
@@ -180,9 +216,7 @@ class HybridClassificationService:
             return self._abstained(
                 source=source,
                 confidence=prediction.confidence,
-                reason_codes=(
-                    ClassificationReasonCode.UNSUPPORTED_TRANSACTION_TYPE,
-                ),
+                reason_codes=(ClassificationReasonCode.UNSUPPORTED_TRANSACTION_TYPE,),
                 rules=rules,
                 model_version=prediction.model_version,
             )

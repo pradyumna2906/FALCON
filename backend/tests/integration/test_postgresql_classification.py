@@ -207,3 +207,137 @@ def test_rule_assignment_is_atomic_idempotent_and_owner_isolated() -> None:
                         "DELETE FROM users WHERE id = ANY(%s)",
                         (user_ids,),
                     )
+
+
+def test_corrections_are_immutable_and_merchant_memory_is_user_isolated() -> None:
+    """Exercise trusted correction snapshots and exact memory through the API."""
+    settings = integration_settings()
+    email_a = f"personalization-a-{uuid4().hex}@example.com"
+    email_b = f"personalization-b-{uuid4().hex}@example.com"
+    user_ids: list[UUID] = []
+
+    try:
+        with TestClient(
+            create_app(settings),
+            backend_options={
+                "loop_factory": create_psycopg_compatible_event_loop,
+            },
+        ) as client:
+            user_a, token_a, account_a = _register_login_and_account(
+                client, email=email_a
+            )
+            user_b, token_b, _ = _register_login_and_account(
+                client, email=email_b
+            )
+            user_ids.extend((user_a, user_b))
+            headers_a = {"Authorization": f"Bearer {token_a}"}
+            headers_b = {"Authorization": f"Bearer {token_b}"}
+            categories = client.get(
+                "/api/v1/categories", headers=headers_a
+            ).json()["items"]
+            category_by_code = {
+                item["classification_code"]: item
+                for item in categories
+                if item["classification_code"] is not None
+            }
+
+            saved_memory = client.put(
+                "/api/v1/classification/merchant-memories",
+                headers=headers_a,
+                json={
+                    "merchant_name": "Corner Boutique",
+                    "category_id": category_by_code["groceries"]["id"],
+                },
+            )
+            assert saved_memory.status_code == 200, saved_memory.text
+            memory_id = saved_memory.json()["id"]
+            assert saved_memory.json()["normalized_merchant"] == (
+                "corner boutique"
+            )
+
+            classified_from_memory = _create_transaction(
+                client,
+                token=token_a,
+                account_id=account_a,
+                merchant="Corner Boutique",
+            )
+            classified = client.post(
+                f"/api/v1/transactions/{classified_from_memory}/classification",
+                headers=headers_a,
+            )
+            assert classified.status_code == 200, classified.text
+            assert classified.json()["source"] == "merchant_memory"
+            assert classified.json()["subcategory_code"] == "groceries"
+
+            foreign_list = client.get(
+                "/api/v1/classification/merchant-memories",
+                headers=headers_b,
+            )
+            assert foreign_list.status_code == 200, foreign_list.text
+            assert foreign_list.json()["items"] == []
+            foreign_delete = client.delete(
+                f"/api/v1/classification/merchant-memories/{memory_id}",
+                headers=headers_b,
+            )
+            assert foreign_delete.status_code == 404, foreign_delete.text
+
+            swiggy = _create_transaction(
+                client,
+                token=token_a,
+                account_id=account_a,
+                merchant="Swiggy",
+            )
+            predicted = client.post(
+                f"/api/v1/transactions/{swiggy}/classification",
+                headers=headers_a,
+            )
+            assert predicted.status_code == 200, predicted.text
+            corrected = client.post(
+                f"/api/v1/transactions/{swiggy}/classification/correction",
+                headers=headers_a,
+                json={
+                    "category_id": category_by_code["restaurants"]["id"]
+                },
+            )
+            assert corrected.status_code == 201, corrected.text
+            assert corrected.json()["original"] == predicted.json()
+            transaction = client.get(
+                f"/api/v1/transactions/{swiggy}", headers=headers_a
+            )
+            assert transaction.json()["category_id"] == (
+                category_by_code["restaurants"]["id"]
+            )
+            assert transaction.json()["is_user_modified"] is True
+
+            correction_id = UUID(corrected.json()["id"])
+            with psycopg.connect(
+                host=settings.db_host,
+                port=settings.db_port,
+                dbname=settings.db_name,
+                user=settings.db_user,
+                password=settings.db_password.get_secret_value(),
+                connect_timeout=settings.db_connect_timeout_seconds,
+            ) as connection:
+                with connection.cursor() as cursor:
+                    with pytest.raises(psycopg.errors.RaiseException):
+                        cursor.execute(
+                            "UPDATE transaction_category_corrections "
+                            "SET original_confidence = 0 "
+                            "WHERE id = %s",
+                            (correction_id,),
+                        )
+    finally:
+        if user_ids:
+            with psycopg.connect(
+                host=settings.db_host,
+                port=settings.db_port,
+                dbname=settings.db_name,
+                user=settings.db_user,
+                password=settings.db_password.get_secret_value(),
+                connect_timeout=settings.db_connect_timeout_seconds,
+            ) as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "DELETE FROM users WHERE id = ANY(%s)",
+                        (user_ids,),
+                    )

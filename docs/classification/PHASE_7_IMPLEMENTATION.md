@@ -324,8 +324,10 @@ The future API retains FALCON's unified error envelope.
 | `401` | `invalid_access_token` | Authentication failed |
 | `404` | `transaction_not_found` | An owned eligible transaction is absent |
 | `404` | `category_not_found` | An allowed active category is absent |
+| `404` | `merchant_memory_not_found` | An owner-scoped personal mapping is absent |
 | `409` | `classification_conflict` | Stored state changed or a confirmed result cannot be silently replaced |
 | `422` | `invalid_classification_target` | Category and transaction semantics are incompatible |
+| `422` | `invalid_merchant_memory` | The merchant or category cannot form a stable taxonomy mapping |
 | `422` | `classification_unavailable` | No usable classifier artifact is available |
 | `422` | `validation_error` | Public input violates its strict schema |
 
@@ -350,8 +352,8 @@ existence, and dependency exceptions never enter public messages.
   checksum verification, lazy inference, hybrid orchestration, and abstention.
 - **Checkpoint 7.6 (complete):** add user-scoped persistence, migrations, authenticated
   single/batch APIs, bounded atomic updates, and classification provenance.
-- **Checkpoint 7.7:** add immutable user correction events and isolated adaptive
-  merchant memory without automatic global retraining.
+- **Checkpoint 7.7 (complete):** add immutable user correction events and
+  isolated adaptive merchant memory without automatic global retraining.
 - **Checkpoint 7.8:** add bounded explainability, privacy-safe monitoring,
   PostgreSQL and performance validation, full regression, documentation
   closure, and PR-quality verification.
@@ -509,3 +511,60 @@ suggested and idempotent behavior, batch ordering and bounds, rollback-triggerin
 errors, safe authenticated routes, and the real PostgreSQL API lifecycle. Full
 regression, coverage, compilation, migration lifecycle, and repository-quality
 verification are required before Checkpoint 7.6 is staged.
+
+## 18. Checkpoint 7.7 validation record
+
+Checkpoint 7.7 adds a personalization layer without changing the global rules,
+training data, or model artifact. Migration `f7b2d4e8a901` creates
+`transaction_category_corrections` and `user_merchant_memories`. Correction
+rows copy the original bounded decision, source, taxonomy target, exact
+confidence, reason codes, and applicable taxonomy/ruleset/model versions from
+trusted classification storage. The client still submits only one
+`category_id`. Composite foreign keys bind every correction to the same owner,
+transaction, and original classification, while a database trigger rejects any
+attempt to update an existing event. User and transaction privacy deletion may
+still cascade; ordinary application code exposes no correction update or delete
+operation.
+
+`POST /api/v1/transactions/{transaction_id}/classification/correction` locks
+the owned transaction, requires its stored classification, validates an active
+system or same-user private category against the current transaction direction,
+marks the ledger category as user-modified, and appends the correction in the
+same database transaction. Its response returns the correction identifier,
+selected category, optional merchant-memory identifier, original bounded
+classification, and server timestamp. It does not accept or return an owner
+key, raw text, feature vector, model path, or client-provided prediction
+metadata.
+
+An initial correction rejects a transaction already marked as modified outside
+this workflow. A later correction is accepted only when the transaction's last
+update timestamp matches its latest immutable correction event. This permits
+reviewers to change their selected category again while preventing a stale
+prediction from creating merchant memory after unrelated transaction edits.
+
+Exact personal mappings are keyed by `(user_id, normalized_merchant)` and point
+only to stable active system-taxonomy leaves. The unique owner/key constraint,
+composite taxonomy foreign key, version checks, and owner predicates prevent a
+mapping from crossing users or drifting to a private or unknown classifier
+label. Mapping writes use a transaction-scoped advisory lock so concurrent
+corrections or direct writes for the same owner and merchant serialize without
+lost updates. Selecting a private category still records a valid correction but
+removes any stale taxonomy mapping for that merchant.
+
+The authenticated mapping operations are `PUT` and `GET` on
+`/api/v1/classification/merchant-memories` and `DELETE` on
+`/api/v1/classification/merchant-memories/{memory_id}`. `PUT` creates or
+replaces one exact mapping, `GET` returns a bounded stable page, and `DELETE`
+uses a uniform owner-scoped not-found response. No endpoint can enumerate or
+mutate another user's mapping.
+
+During classification, reviewed global rules remain first. When rules do not
+select a target, the application resolves every normalized merchant in a batch
+with one same-user query and supplies exact matches to the hybrid service.
+Direction-compatible memory produces an automatic `merchant_memory` result at
+exact confidence `1.0000` with reason `user_merchant_memory`; incompatible
+memory is ignored and inference safely continues to ML. There is no fuzzy
+matching, cross-user sharing, training export, background retraining, or global
+model mutation in this checkpoint. Monitoring, performance evidence, bounded
+explainability, final PostgreSQL validation, and Phase 7 closure remain
+Checkpoint 7.8.
