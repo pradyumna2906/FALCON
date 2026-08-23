@@ -17,6 +17,14 @@ from falcon_api.auth.principal import CurrentPrincipalService
 from falcon_api.auth.registration import RegistrationService
 from falcon_api.auth.services import create_authentication_cryptography
 from falcon_api.auth.session_lifecycle import SessionLifecycleService
+from falcon_api.classification.application import (
+    TransactionClassificationService,
+)
+from falcon_api.classification.artifacts import (
+    LazyClassifierProvider,
+    ModelArtifactRegistry,
+)
+from falcon_api.classification.hybrid import HybridClassificationService
 from falcon_api.core.config import Settings, get_settings
 from falcon_api.core.logging import configure_logging
 from falcon_api.core.request_context import REQUEST_ID_HEADER
@@ -133,6 +141,16 @@ def create_app(
             signing_secret=(
                 app_settings.auth_signing_secret.get_secret_value()
             ),
+        )
+    )
+    application.state.classification_service = TransactionClassificationService(
+        hybrid_service=HybridClassificationService(
+            classifier_provider=LazyClassifierProvider(
+                ModelArtifactRegistry(
+                    app_settings.classification_artifact_root,
+                ),
+                model_version=app_settings.classification_model_version,
+            )
         )
     )
     application.state.import_service = ImportService()

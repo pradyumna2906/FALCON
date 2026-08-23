@@ -106,3 +106,9 @@ class ClassificationResult(ClassificationSchema):
         if len(set(self.reason_codes)) != len(self.reason_codes):
             raise ValueError("reason_codes must be unique.")
         return self
+
+
+class ClassificationBatchResponse(ClassificationSchema):
+    """Return results in the same order as the requested transaction IDs."""
+
+    items: tuple[ClassificationResult, ...] = Field(min_length=1, max_length=100)

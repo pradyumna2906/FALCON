@@ -1,6 +1,6 @@
 # FALCON Phase 7 Intelligent Transaction Classification
 
-Phase 7 status: Checkpoints 7.1 through 7.5 complete; later implementation
+Phase 7 status: Checkpoints 7.1 through 7.6 complete; later implementation
 checkpoints pending.
 
 ## 1. Purpose and phase boundary
@@ -348,7 +348,7 @@ existence, and dependency exceptions never enter public messages.
   evidence.
 - **Checkpoint 7.5 (complete):** implement the classifier interface, artifact registry,
   checksum verification, lazy inference, hybrid orchestration, and abstention.
-- **Checkpoint 7.6:** add user-scoped persistence, migrations, authenticated
+- **Checkpoint 7.6 (complete):** add user-scoped persistence, migrations, authenticated
   single/batch APIs, bounded atomic updates, and classification provenance.
 - **Checkpoint 7.7:** add immutable user correction events and isolated adaptive
   merchant memory without automatic global retraining.
@@ -451,3 +451,61 @@ agreement/disagreement, and bounded unavailable outcomes. Completion also
 requires local packaging verification, absence of tracked model binaries, full
 backend regression, coverage, compilation, repository hooks, and documentation
 contract checks.
+
+## 17. Checkpoint 7.6 validation record
+
+Checkpoint 7.6 connects the reviewed hybrid decision boundary to the canonical
+ledger without accepting client-supplied features or prediction metadata. The
+authenticated operations are `POST /api/v1/transactions/{transaction_id}/classification`
+for one transaction and `POST /api/v1/classifications/batch` for 1 through 100
+unique transaction IDs. Batch responses preserve request order, and every
+identifier is resolved under the authenticated owner predicate. A missing or
+cross-user identifier returns the same `transaction_not_found` response.
+
+Migration `e4a7c91d2f63` installs all 48 taxonomy leaves as stable system
+categories. Each leaf has a deterministic UUID and unique `classification_code`;
+private categories cannot claim a classifier code. The public category list now
+exposes this optional stable leaf code so a client can connect a suggestion to
+the corresponding system category without matching localized display text.
+
+The `transaction_classifications` table stores exactly one current result per
+owned transaction. Composite foreign keys bind provenance to the same user and
+transaction, and automatic assignments additionally bind the assigned category
+ID to the stored taxonomy leaf code. Database checks bound decision, source,
+confidence, reason count, taxonomy codes, version presence, and automatic,
+suggested, or abstained target consistency. Raw descriptions, prepared features,
+artifact paths, model exceptions, and user ownership keys are not copied into
+classification provenance.
+
+The application locks the bounded owner-scoped transaction set before checking
+stored provenance, inference, and persistence. This serializes competing writes
+to the same ledger entries while allowing unrelated users and transactions to
+proceed independently. All batch validation and inference completes before the
+single repository flush. Any missing identifier, protected category, changed
+user state, invalid target, unavailable classifier, or missing taxonomy mapping
+raises a bounded application error and causes the request transaction to roll
+back without partial category or provenance writes.
+
+Automatic rule results and future production-eligible model results assign the
+system leaf category and provenance atomically. Suggestions and ordinary
+abstentions store provenance but do not mutate `transactions.category_id`.
+Classifier-unavailable abstentions instead return `classification_unavailable`
+and leave the ledger untouched. Pending and adjustment transactions are
+ineligible. Existing categories and `is_user_modified` transactions are
+protected from silent overwrite.
+
+Repeat classification is idempotent: an unchanged stored result is returned
+without rerunning rules or loading the model. If a user changes a transaction or
+selects a category after a suggestion, the operation returns
+`classification_conflict`. Immutable correction events and personalized
+merchant memory remain exclusively Checkpoint 7.7 work.
+
+The process composition root configures a lazy verified provider from
+`FALCON_CLASSIFICATION_ARTIFACT_ROOT` and
+`FALCON_CLASSIFICATION_MODEL_VERSION`. Startup still does not deserialize or
+import a scikit-learn estimator; rule-only traffic does not load the artifact.
+Focused tests cover owner predicates, row locks, mapping constraints, automatic,
+suggested and idempotent behavior, batch ordering and bounds, rollback-triggering
+errors, safe authenticated routes, and the real PostgreSQL API lifecycle. Full
+regression, coverage, compilation, migration lifecycle, and repository-quality
+verification are required before Checkpoint 7.6 is staged.

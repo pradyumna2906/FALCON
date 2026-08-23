@@ -82,6 +82,7 @@ def _category(*, user_id=None, is_system: bool = True) -> Category:
         user_id=None if is_system else user_id,
         name="Groceries",
         normalized_name="groceries",
+        classification_code="groceries" if is_system else None,
         kind=CategoryKind.EXPENSE,
         parent_id=None,
         is_system=is_system,
@@ -198,6 +199,7 @@ def test_list_categories_returns_system_and_private_public_items(
     assert response.status_code == 200
     assert len(response.json()["items"]) == 2
     assert "normalized_name" not in response.json()["items"][0]
+    assert response.json()["items"][0]["classification_code"] == "groceries"
     assert "user_id" not in response.json()["items"][1]
     service.list_categories.assert_awaited_once_with(
         session, user_id=principal.user_id

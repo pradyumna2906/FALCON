@@ -1,5 +1,7 @@
 """Settings contract tests."""
 
+from pathlib import Path
+
 import pytest
 from falcon_api.core.config import AppEnvironment, Settings, get_settings
 from pydantic import ValidationError
@@ -28,6 +30,14 @@ def test_prefixed_environment_variables_are_loaded(
     monkeypatch.setenv("FALCON_DB_POOL_RECYCLE_SECONDS", "900")
     monkeypatch.setenv("FALCON_DB_CONNECT_TIMEOUT_SECONDS", "6")
     monkeypatch.setenv("FALCON_DB_READINESS_TIMEOUT_SECONDS", "1.5")
+    monkeypatch.setenv(
+        "FALCON_CLASSIFICATION_ARTIFACT_ROOT",
+        "/srv/falcon/classifiers",
+    )
+    monkeypatch.setenv(
+        "FALCON_CLASSIFICATION_MODEL_VERSION",
+        "classification_2026_1_prod.2",
+    )
 
     settings = Settings()
 
@@ -51,6 +61,13 @@ def test_prefixed_environment_variables_are_loaded(
     assert settings.db_pool_recycle_seconds == 900
     assert settings.db_connect_timeout_seconds == 6
     assert settings.db_readiness_timeout_seconds == 1.5
+    assert settings.classification_artifact_root == Path(
+        "/srv/falcon/classifiers"
+    )
+    assert (
+        settings.classification_model_version
+        == "classification_2026_1_prod.2"
+    )
 
 
 def test_database_url_is_structured_and_password_safe() -> None:
@@ -137,6 +154,15 @@ def test_production_rejects_debug_mode() -> None:
 def test_api_port_must_be_valid() -> None:
     with pytest.raises(ValidationError):
         Settings(api_port=0)
+
+
+@pytest.mark.parametrize(
+    "version",
+    ["", "../model", "Model Version", "-leading", "x" * 65],
+)
+def test_classification_model_version_must_be_stable(version: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings(classification_model_version=version)
 
 
 @pytest.mark.parametrize("field", ["db_host", "db_name", "db_user"])

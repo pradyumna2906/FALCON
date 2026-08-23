@@ -403,7 +403,10 @@ Phase 7.5 adds a stable classifier adapter, strict artifact manifest and local
 packaging workflow, checksum/size/library compatibility verification, a
 thread-safe lazy artifact provider, and rules-first hybrid orchestration.
 Provisional synthetic models can suggest but never automatically assign a
-category. Persistence and authenticated classification routes remain Phase 7.6.
+category. Phase 7.6 adds stable system taxonomy-category mappings, owner-scoped
+classification provenance, atomic automatic category assignment, protected
+idempotence, and authenticated single and bounded-batch routes. User correction
+events and adaptive merchant memory remain Phase 7.7.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).

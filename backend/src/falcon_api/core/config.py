@@ -2,6 +2,7 @@
 
 from enum import StrEnum
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal, Self
 from cryptography.fernet import Fernet
 from pydantic import (
@@ -24,6 +25,10 @@ _AUTH_SECRET_PLACEHOLDER = (
 _AUTH_DELIVERY_KEY_PLACEHOLDER = (
     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 )
+_DEFAULT_CLASSIFICATION_ARTIFACT_ROOT = (
+    Path(__file__).resolve().parents[4] / "ml" / "artifacts" / "classification"
+)
+_CLASSIFICATION_VERSION_PATTERN = r"^[a-z0-9][a-z0-9_.-]{0,63}$"
 class AppEnvironment(StrEnum):
     """Supported deployment environments."""
 
@@ -120,6 +125,11 @@ class Settings(BaseSettings):
     db_pool_recycle_seconds: int = Field(default=1800, ge=60, le=86400)
     db_connect_timeout_seconds: int = Field(default=5, ge=1, le=60)
     db_readiness_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
+    classification_artifact_root: Path = _DEFAULT_CLASSIFICATION_ARTIFACT_ROOT
+    classification_model_version: str = Field(
+        default="classification_2026_1_demo.1",
+        pattern=_CLASSIFICATION_VERSION_PATTERN,
+    )
 
     @field_validator("db_host", "db_name", "db_user")
     @classmethod

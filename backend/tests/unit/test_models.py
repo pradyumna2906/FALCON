@@ -22,6 +22,7 @@ from falcon_api.models import (
     ImportJobIssue,
     LiabilityDetail,
     Transaction,
+    TransactionClassification,
     TransferGroup,
     User,
     register_models,
@@ -51,6 +52,7 @@ _EXPECTED_TABLES = {
     "refresh_sessions",
     "refresh_tokens",
     "transactions",
+    "transaction_classifications",
     "transfer_groups",
     "user_credentials",
     "users",
@@ -176,6 +178,14 @@ def test_controlled_value_checks_are_present() -> None:
         "ck_import_jobs_balance_reconciliation_matches_source"
         in check_names("import_jobs")
     )
+    assert (
+        "ck_transaction_classifications_decision_target_consistent"
+        in check_names("transaction_classifications")
+    )
+    assert (
+        "ck_transaction_classifications_reason_codes_allowed"
+        in check_names("transaction_classifications")
+    )
 
     assert "'bank'" in enum_sql_values(AccountType)
     assert "'expense'" in enum_sql_values(CategoryKind)
@@ -220,6 +230,14 @@ def test_composite_ownership_foreign_keys_are_present() -> None:
         "fk_goal_contributions_owner_transaction"
         in foreign_key_names("goal_contributions")
     )
+    assert (
+        "fk_transaction_classifications_owner_transaction"
+        in foreign_key_names("transaction_classifications")
+    )
+    assert (
+        "fk_transaction_classifications_taxonomy_category"
+        in foreign_key_names("transaction_classifications")
+    )
 
 
 def test_query_driven_indexes_are_present() -> None:
@@ -232,6 +250,14 @@ def test_query_driven_indexes_are_present() -> None:
     assert (
         "ix_import_job_issues_job_row"
         in index_names("import_job_issues")
+    )
+    assert (
+        "ix_transaction_classifications_user_created"
+        in index_names("transaction_classifications")
+    )
+    assert (
+        "ix_transaction_classifications_user_decision"
+        in index_names("transaction_classifications")
     )
 
 
@@ -251,3 +277,5 @@ def test_unique_single_child_boundaries_are_present() -> None:
     assert ImportJob.__table__.c.adapter_name.type.length == 64
     assert ImportJob.__table__.c.balance_reconciled.nullable is True
     assert ImportJobIssue.__table__.c.message.type.length == 200
+    assert Category.__table__.c.classification_code.nullable is True
+    assert TransactionClassification.__table__.c.transaction_id.nullable is False

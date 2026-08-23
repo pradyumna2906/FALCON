@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
+from falcon_api.classification.taxonomy import ClassificationSubcategoryCode
 from falcon_api.models.enums import AccountType, CategoryKind
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
@@ -93,6 +94,7 @@ class CategoryResponse(LedgerSchema):
 
     id: UUID
     name: str
+    classification_code: ClassificationSubcategoryCode | None
     kind: CategoryKind
     parent_id: UUID | None
     is_system: bool
