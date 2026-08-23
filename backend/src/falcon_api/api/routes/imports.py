@@ -62,6 +62,7 @@ _IMPORT_FORM_FIELDS = frozenset({
     "date_order",
     "header_row",
     "sheet_name",
+    "file_password",
 })
 
 
@@ -70,7 +71,7 @@ _IMPORT_FORM_FIELDS = frozenset({
     response_model=ImportJobResponse,
     status_code=status.HTTP_201_CREATED,
     operation_id="import_statement",
-    summary="Import a CSV or Excel statement",
+    summary="Import a CSV, Excel, or digital PDF statement",
     responses={
         status.HTTP_401_UNAUTHORIZED: _AUTHENTICATION_ERROR,
         status.HTTP_404_NOT_FOUND: _NOT_FOUND_ERROR,
@@ -82,7 +83,7 @@ _IMPORT_FORM_FIELDS = frozenset({
 )
 async def import_statement(
     request: Request,
-    file: Annotated[UploadFile, File(description="CSV or XLSX statement")],
+    file: Annotated[UploadFile, File(description="CSV, XLSX, or digital PDF statement")],
     account_id: Annotated[UUID, Form()],
     source_type: Annotated[ImportSourceType, Form()],
     session: DatabaseSession,
@@ -91,6 +92,10 @@ async def import_statement(
     date_order: Annotated[ImportDateOrder, Form()] = ImportDateOrder.DAY_FIRST,
     header_row: Annotated[int, Form(ge=1, le=50)] = 1,
     sheet_name: Annotated[str | None, Form(max_length=31)] = None,
+    file_password: Annotated[
+        str | None,
+        Form(min_length=1, max_length=128, description="Ephemeral PDF password"),
+    ] = None,
 ) -> ImportJobResponse:
     """Load one bounded statement into the authenticated user's ledger."""
     form = await request.form()
@@ -140,6 +145,7 @@ async def import_statement(
             content_type=file.content_type or "",
             content=content,
             options=options,
+            file_password=file_password,
         ),
     )
     return ImportJobResponse.model_validate(result)

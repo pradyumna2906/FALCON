@@ -3,12 +3,16 @@
 import asyncio
 import io
 import warnings
+from unittest.mock import Mock
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 from falcon_api.core.errors import ApplicationError
 from falcon_api.imports.extraction import (
     CSV_MEDIA_TYPES,
+    ExtractedCell,
+    ExtractedRow,
+    ExtractedStatement,
     XLSX_MEDIA_TYPES,
     extract_csv,
     extract_statement,
@@ -159,6 +163,43 @@ def test_dispatcher_requires_matching_csv_metadata() -> None:
         extract_statement(
             content,
             filename="statement.xlsx",
+            content_type="text/csv",
+            options=options,
+        )
+    _assert_error(info, "unsupported_import_file")
+
+
+def test_dispatcher_requires_matching_pdf_metadata(monkeypatch) -> None:
+    options = StatementImportOptions(
+        account_id="216f5b26-c821-4a03-a3be-1d6077aed034",
+        source_type="bank_statement",
+    )
+    expected = ExtractedStatement(
+        header=ExtractedRow(1, (ExtractedCell("Date"),)),
+        rows=(ExtractedRow(2, (ExtractedCell("2026-08-20"),)),),
+        adapter_name="test_adapter",
+    )
+    extractor = Mock(return_value=expected)
+    monkeypatch.setattr(
+        "falcon_api.imports.pdf_extraction.extract_pdf_statement",
+        extractor,
+    )
+
+    result = extract_statement(
+        b"%PDF-test",
+        filename="statement.PDF",
+        content_type="application/pdf",
+        options=options,
+        password="ephemeral",
+    )
+
+    assert result is expected
+    assert extractor.call_args.kwargs["password"] == "ephemeral"
+
+    with pytest.raises(ApplicationError) as info:
+        extract_statement(
+            b"%PDF-test",
+            filename="statement.csv",
             content_type="text/csv",
             options=options,
         )

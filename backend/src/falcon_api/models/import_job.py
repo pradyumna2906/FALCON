@@ -77,6 +77,19 @@ class ImportJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="sheet_name_not_blank",
         ),
         CheckConstraint(
+            "adapter_name IS NULL OR length(trim(adapter_name)) > 0",
+            name="adapter_name_not_blank",
+        ),
+        CheckConstraint(
+            "(source_type = 'bank_statement' AND adapter_name IS NOT NULL) OR "
+            "(source_type <> 'bank_statement' AND adapter_name IS NULL)",
+            name="adapter_matches_source",
+        ),
+        CheckConstraint(
+            "balance_reconciled IS NULL OR source_type = 'bank_statement'",
+            name="balance_reconciliation_matches_source",
+        ),
+        CheckConstraint(
             "file_fingerprint ~ '^[0-9a-f]{64}$'",
             name="file_fingerprint_sha256_hex",
         ),
@@ -146,6 +159,8 @@ class ImportJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     header_row: Mapped[int] = mapped_column(Integer, nullable=False)
     sheet_name: Mapped[str | None] = mapped_column(String(31), nullable=True)
+    adapter_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    balance_reconciled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     status: Mapped[ImportStatus] = mapped_column(
         String(16),
         default=ImportStatus.PENDING,

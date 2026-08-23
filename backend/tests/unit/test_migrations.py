@@ -17,6 +17,7 @@ _DOMAIN_SCHEMA_REVISION = "771fa3a74464"
 _HARDENING_REVISION = "a1b1833784e5"
 _AUTH_PERSISTENCE_REVISION = "7fff19ce50be"
 _IMPORT_PERSISTENCE_REVISION = "c5a9e0b2d641"
+_PDF_IMPORT_REVISION = "d8f3a2c7b419"
 
 
 def create_alembic_config() -> Config:
@@ -39,10 +40,21 @@ def test_migrations_share_application_metadata() -> None:
     assert len(model_metadata().tables) == 18
 
 
-def test_import_persistence_revision_is_the_single_head() -> None:
+def test_pdf_import_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_IMPORT_PERSISTENCE_REVISION]
+    assert scripts.get_heads() == [_PDF_IMPORT_REVISION]
+
+    pdf_revision = scripts.get_revision(_PDF_IMPORT_REVISION)
+
+    assert pdf_revision is not None
+    assert pdf_revision.down_revision == _IMPORT_PERSISTENCE_REVISION
+    assert callable(pdf_revision.module.upgrade)
+    assert callable(pdf_revision.module.downgrade)
+
+
+def test_import_persistence_revision_precedes_pdf_import() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
 
     import_revision = scripts.get_revision(_IMPORT_PERSISTENCE_REVISION)
 
@@ -52,6 +64,20 @@ def test_import_persistence_revision_is_the_single_head() -> None:
     assert import_revision.dependencies is None
     assert callable(import_revision.module.upgrade)
     assert callable(import_revision.module.downgrade)
+
+
+def test_pdf_import_migration_freezes_check_constraint_names() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+    revision = scripts.get_revision(_PDF_IMPORT_REVISION)
+
+    assert revision is not None
+    source = Path(revision.path).read_text(encoding="utf-8")
+    for suffix in (
+        "adapter_name_not_blank",
+        "adapter_matches_source",
+        "balance_reconciliation_matches_source",
+    ):
+        assert source.count(f'op.f("ck_import_jobs_{suffix}")') == 2
 
 
 def test_import_migration_freezes_convention_qualified_check_names() -> None:

@@ -19,6 +19,7 @@ from pydantic import (
 SupportedStatementSource = Literal[
     ImportSourceType.CSV,
     ImportSourceType.EXCEL,
+    ImportSourceType.BANK_STATEMENT,
 ]
 SafeFilename = Annotated[
     str,
@@ -77,8 +78,8 @@ class StatementImportOptions(ImportSchema):
 
     @model_validator(mode="after")
     def validate_source_specific_options(self) -> "StatementImportOptions":
-        """CSV input cannot select an Excel worksheet."""
-        if self.source_type == ImportSourceType.CSV and self.sheet_name:
+        """Only Excel input can select a worksheet."""
+        if self.source_type != ImportSourceType.EXCEL and self.sheet_name:
             raise ValueError("sheet_name is available only for Excel imports.")
         return self
 
@@ -106,6 +107,11 @@ class ImportJobResponse(ImportSchema):
     rejected_count: int = Field(ge=0)
     issues: tuple[ImportRowIssue, ...] = Field(max_length=100)
     issues_truncated: bool
+    adapter_name: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=64),
+    ] | None = None
+    balance_reconciled: bool | None = None
     started_at: datetime | None
     completed_at: datetime | None
     created_at: datetime

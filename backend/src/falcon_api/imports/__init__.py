@@ -19,6 +19,12 @@ from falcon_api.imports.normalization import (
     normalize_statement,
     reject_existing_duplicates,
 )
+from falcon_api.imports.pdf_extraction import (
+    GenericDigitalPdfAdapter,
+    PdfDocumentInfo,
+    PdfStatementAdapter,
+    extract_pdf_statement,
+)
 from falcon_api.imports.repository import ImportJobValues, ImportRepository
 from falcon_api.imports.service import ImportService, StatementImportCommand
 
@@ -30,6 +36,9 @@ __all__ = [
     "ColumnMapping",
     "NormalizationResult",
     "NormalizedImportRow",
+    "GenericDigitalPdfAdapter",
+    "PdfDocumentInfo",
+    "PdfStatementAdapter",
     "ImportJobValues",
     "ImportRepository",
     "ImportService",
@@ -37,6 +46,7 @@ __all__ = [
     "extract_csv",
     "extract_statement",
     "extract_xlsx",
+    "extract_pdf_statement",
     "file_fingerprint",
     "map_statement_columns",
     "normalize_statement",

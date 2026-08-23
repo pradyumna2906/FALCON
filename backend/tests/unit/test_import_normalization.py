@@ -124,6 +124,79 @@ def test_debit_credit_rows_map_to_signed_amounts() -> None:
     ]
 
 
+def test_running_balances_reconcile_in_ascending_or_descending_order() -> None:
+    ascending = _normalize(
+        _statement(
+            ("Date", "Description", "Amount", "Running Balance"),
+            ("18/08/2026", "Opening credit", "100", "1000"),
+            ("19/08/2026", "Groceries", "-100", "900"),
+            ("20/08/2026", "Salary", "500", "1400"),
+        )
+    )
+    descending = _normalize(
+        _statement(
+            ("Date", "Description", "Amount", "Balance"),
+            ("20/08/2026", "Salary", "500", "1400"),
+            ("19/08/2026", "Groceries", "-100", "900"),
+            ("18/08/2026", "Opening credit", "100", "1000"),
+        )
+    )
+
+    assert ascending.balance_reconciled is True
+    assert descending.balance_reconciled is True
+    assert ascending.rows[0].source_balance == Decimal("1000")
+
+
+def test_running_balance_mismatch_is_detected_without_rejecting_rows() -> None:
+    result = _normalize(
+        _statement(
+            ("Date", "Description", "Amount", "Available Balance"),
+            ("19/08/2026", "Groceries", "-100", "900"),
+            ("20/08/2026", "Salary", "500", "999"),
+        )
+    )
+
+    assert result.accepted_count == 2
+    assert result.balance_reconciled is False
+
+
+def test_balance_reconciliation_is_unknown_when_balance_is_absent() -> None:
+    result = _normalize(
+        _statement(
+            ("Date", "Description", "Amount"),
+            ("20/08/2026", "Salary", "500"),
+        )
+    )
+
+    assert result.balance_reconciled is None
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        (
+            ("19/08/2026", "Groceries", "-100", "900"),
+            ("20/08/2026", "Salary", "500", ""),
+        ),
+        (
+            ("19/08/2026", "Groceries", "-100", "900"),
+            ("not-a-date", "Salary", "500", "1400"),
+        ),
+    ],
+)
+def test_balance_reconciliation_is_unknown_when_sequence_is_incomplete(
+    rows: tuple[tuple[str, ...], ...],
+) -> None:
+    result = _normalize(
+        _statement(
+            ("Date", "Description", "Amount", "Balance"),
+            *rows,
+        )
+    )
+
+    assert result.balance_reconciled is None
+
+
 @pytest.mark.parametrize(
     ("date_order", "value", "expected"),
     [

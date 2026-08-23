@@ -153,6 +153,8 @@ def test_upload_uses_authenticated_owner_timezone_and_bounded_content(
             }
         ],
         "issues_truncated": False,
+        "adapter_name": None,
+        "balance_reconciled": None,
         "started_at": "2026-08-20T15:30:00Z",
         "completed_at": "2026-08-20T15:30:00Z",
         "created_at": "2026-08-20T15:30:00Z",
@@ -172,6 +174,40 @@ def test_upload_uses_authenticated_owner_timezone_and_bounded_content(
     assert command.content_type == "text/csv"
     assert command.content == _CSV
     assert command.options.account_id == job.account_id
+    assert command.file_password is None
+
+
+def test_pdf_upload_passes_ephemeral_password_without_echoing_it(
+    client: TestClient,
+    import_dependencies,
+) -> None:
+    service, _, _, principal = import_dependencies
+    job = _job(principal)
+    job.source_type = "bank_statement"
+    job.original_filename = "statement.pdf"
+    job.adapter_name = "generic_digital_pdf_v1"
+    job.balance_reconciled = True
+    service.process.return_value = job
+
+    response = _upload(
+        client,
+        account_id=job.account_id,
+        data={
+            "account_id": str(job.account_id),
+            "source_type": "bank_statement",
+            "file_password": "private-password",
+        },
+        content=b"%PDF-private-test",
+        filename="statement.pdf",
+        content_type="application/pdf",
+    )
+
+    assert response.status_code == 201
+    command = service.process.await_args.kwargs["command"]
+    assert command.file_password == "private-password"
+    assert "private-password" not in response.text
+    assert response.json()["adapter_name"] == "generic_digital_pdf_v1"
+    assert response.json()["balance_reconciled"] is True
 
 
 def test_status_read_is_owner_scoped(

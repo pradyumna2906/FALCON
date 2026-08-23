@@ -167,6 +167,37 @@ def test_create_and_start_job_sets_complete_server_values() -> None:
     assert job.started_at == _NOW
 
 
+def test_create_pdf_job_persists_adapter_and_balance_metadata() -> None:
+    repository = ImportRepository()
+    session = _session()
+    user_id = uuid4()
+    account_id = uuid4()
+    values = ImportJobValues(
+        account_id=account_id,
+        source_type=ImportSourceType.BANK_STATEMENT,
+        original_filename="statement.pdf",
+        file_fingerprint="c" * 64,
+        date_order=ImportDateOrder.DAY_FIRST,
+        header_row=1,
+        sheet_name=None,
+        adapter_name="generic_digital_pdf_v1",
+        balance_reconciled=True,
+    )
+
+    job = asyncio.run(
+        repository.create_job(
+            session,
+            user_id=user_id,
+            values=values,
+            now=_NOW,
+        )
+    )
+
+    assert job.source_type is ImportSourceType.BANK_STATEMENT
+    assert job.adapter_name == "generic_digital_pdf_v1"
+    assert job.balance_reconciled is True
+
+
 def test_existing_hash_query_is_bounded_by_user_account_and_candidates() -> None:
     session = _session()
     scalar_result = Mock()
