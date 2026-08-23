@@ -4,6 +4,7 @@ from pathlib import Path
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from falcon_api.classification.taxonomy import ClassificationSubcategoryCode
 from falcon_api.infrastructure.persistence import Base, model_metadata
 from falcon_api.models import register_models
 
@@ -18,6 +19,8 @@ _HARDENING_REVISION = "a1b1833784e5"
 _AUTH_PERSISTENCE_REVISION = "7fff19ce50be"
 _IMPORT_PERSISTENCE_REVISION = "c5a9e0b2d641"
 _PDF_IMPORT_REVISION = "d8f3a2c7b419"
+_CLASSIFICATION_REVISION = "e4a7c91d2f63"
+_PERSONALIZATION_REVISION = "f7b2d4e8a901"
 
 
 def create_alembic_config() -> Config:
@@ -37,13 +40,35 @@ def test_migrations_share_application_metadata() -> None:
     register_models()
 
     assert model_metadata() is Base.metadata
-    assert len(model_metadata().tables) == 18
+    assert len(model_metadata().tables) == 21
 
 
-def test_pdf_import_revision_is_the_single_head() -> None:
+def test_personalization_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_PDF_IMPORT_REVISION]
+    assert scripts.get_heads() == [_PERSONALIZATION_REVISION]
+
+    personalization_revision = scripts.get_revision(_PERSONALIZATION_REVISION)
+
+    assert personalization_revision is not None
+    assert personalization_revision.down_revision == _CLASSIFICATION_REVISION
+    assert callable(personalization_revision.module.upgrade)
+    assert callable(personalization_revision.module.downgrade)
+
+
+def test_classification_revision_precedes_personalization() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+
+    classification_revision = scripts.get_revision(_CLASSIFICATION_REVISION)
+
+    assert classification_revision is not None
+    assert classification_revision.down_revision == _PDF_IMPORT_REVISION
+    assert callable(classification_revision.module.upgrade)
+    assert callable(classification_revision.module.downgrade)
+
+
+def test_pdf_import_revision_precedes_classification() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
 
     pdf_revision = scripts.get_revision(_PDF_IMPORT_REVISION)
 
@@ -51,6 +76,35 @@ def test_pdf_import_revision_is_the_single_head() -> None:
     assert pdf_revision.down_revision == _IMPORT_PERSISTENCE_REVISION
     assert callable(pdf_revision.module.upgrade)
     assert callable(pdf_revision.module.downgrade)
+
+
+def test_classification_migration_seeds_every_taxonomy_leaf() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+    revision = scripts.get_revision(_CLASSIFICATION_REVISION)
+
+    assert revision is not None
+    categories = revision.module._TAXONOMY_CATEGORIES
+    codes = tuple(item[0] for item in categories)
+    assert len(codes) == 48
+    assert len(set(codes)) == len(codes)
+    assert set(codes) == {item.value for item in ClassificationSubcategoryCode}
+
+
+def test_personalization_migration_freezes_immutable_owner_scoped_feedback() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+    revision = scripts.get_revision(_PERSONALIZATION_REVISION)
+
+    assert revision is not None
+    source = Path(revision.path).read_text(encoding="utf-8")
+    for statement in (
+        "transaction_category_corrections",
+        "user_merchant_memories",
+        "uq_user_merchant_memories_owner_merchant",
+        "fk_transaction_category_corrections_original_classification",
+        "trg_transaction_category_corrections_immutable",
+        "BEFORE UPDATE ON transaction_category_corrections",
+    ):
+        assert statement in source
 
 
 def test_import_persistence_revision_precedes_pdf_import() -> None:

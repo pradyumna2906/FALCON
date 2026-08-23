@@ -21,6 +21,8 @@ The current backend provides:
 - Authenticated account provisioning and category discovery.
 - User-isolated manual transaction and internal-transfer APIs.
 - Authenticated, bounded CSV/XLSX/digital-PDF statement import and reconciliation APIs.
+- A versioned Phase 7 transaction-classification taxonomy and strict confidence,
+  abstention, provenance, batch-selection, and correction contracts.
 
 ## Requirements
 
@@ -380,3 +382,37 @@ passwords and raw statement bytes are never persisted or returned.
 Raw statement bytes are processed only within the request and are not retained.
 The authoritative contract and checkpoint record is documented in
 [`docs/imports/PHASE_6_IMPLEMENTATION.md`](../docs/imports/PHASE_6_IMPLEMENTATION.md).
+
+## Transaction classification implementation
+
+Phase 7.1 defines taxonomy version `2026.1` and the strict ownership, prediction,
+confidence, abstention, provenance, privacy, and user-correction boundaries for
+the hybrid rules-and-ML classifier. Phase 7.2 adds the shared feature schema,
+reference masking, merchant candidate extraction, payment-channel detection,
+amount bands, calendar signals, and recurring-payment indicators. Trained
+artifacts, persistence, and routes are introduced only by later checkpoints.
+Phase 7.3 adds versioned, exact reviewed merchant knowledge and high-precision
+keyword/channel rules with deterministic priority and explicit conflict
+abstention. It does not use fuzzy merchant matching or user feedback memory.
+Phase 7.4 adds the versioned privacy-bounded dataset workflow, opaque group-aware
+train/calibration/test splitting, majority and rules baselines, TF-IDF logistic
+regression and calibrated Linear SVM comparison, calibration-driven confidence
+thresholds, and publishable evaluation evidence. The reference evidence is
+synthetic and explicitly not production-eligible.
+Phase 7.5 adds a stable classifier adapter, strict artifact manifest and local
+packaging workflow, checksum/size/library compatibility verification, a
+thread-safe lazy artifact provider, and rules-first hybrid orchestration.
+Provisional synthetic models can suggest but never automatically assign a
+category. Phase 7.6 adds stable system taxonomy-category mappings, owner-scoped
+classification provenance, atomic automatic category assignment, protected
+idempotence, and authenticated single and bounded-batch routes. Phase 7.7 adds
+append-only correction snapshots, owner-isolated exact merchant memory,
+memory-aware batch inference, and authenticated create/replace/list/delete
+personalization operations without automatic global-model retraining. Phase 7.8
+closes the phase with static reason-code explanations, aggregate privacy-safe
+operational events, a guarded 100-item batch query shape, PostgreSQL index and
+lifecycle validation, and full regression requirements. The committed synthetic
+model remains provisional and cannot automatically assign model-only results.
+
+The authoritative contract and checkpoint record is documented in
+[`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).

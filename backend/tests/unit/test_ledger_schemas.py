@@ -93,6 +93,7 @@ def test_public_responses_exclude_ownership_and_internal_names() -> None:
     category = CategoryResponse(
         id=uuid4(),
         name="Groceries",
+        classification_code="groceries",
         kind="expense",
         parent_id=None,
         is_system=True,

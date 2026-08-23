@@ -15,6 +15,12 @@ _STRUCTURED_FIELDS = (
     "duration_ms",
     "error_type",
     "stack",
+    "classification_operation",
+    "classification_item_count",
+    "classification_decision_counts",
+    "classification_source_counts",
+    "classification_reason_counts",
+    "classification_taxonomy_version",
 )
 
 

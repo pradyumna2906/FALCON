@@ -77,7 +77,7 @@ def test_authentication_tables_are_registered() -> None:
     configure_mappers()
 
     assert _AUTH_TABLES <= set(Base.metadata.tables)
-    assert len(Base.metadata.tables) == 18
+    assert len(Base.metadata.tables) == 21
 
 
 def test_authentication_tables_use_uuid_and_utc_audit_columns() -> None:

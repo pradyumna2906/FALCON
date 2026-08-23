@@ -18,6 +18,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -55,6 +56,22 @@ class Category(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "display_order >= 0",
             name="display_order_non_negative",
         ),
+        CheckConstraint(
+            "classification_code IS NULL OR is_system",
+            name="classification_code_system_only",
+        ),
+        CheckConstraint(
+            (
+                "classification_code IS NULL OR "
+                "classification_code ~ '^[a-z][a-z0-9_]{0,63}$'"
+            ),
+            name="classification_code_format",
+        ),
+        UniqueConstraint(
+            "id",
+            "classification_code",
+            name="uq_categories_id_classification_code",
+        ),
         Index(
             "uq_categories_system_name",
             "normalized_name",
@@ -75,6 +92,12 @@ class Category(UUIDPrimaryKeyMixin, TimestampMixin, Base):
                 "NOT is_system AND archived_at IS NULL"
             ),
         ),
+        Index(
+            "uq_categories_classification_code",
+            "classification_code",
+            unique=True,
+            postgresql_where=text("classification_code IS NOT NULL"),
+        ),
     )
 
     user_id: Mapped[UUID | None] = mapped_column(
@@ -92,6 +115,10 @@ class Category(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     normalized_name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
+    )
+    classification_code: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
     )
     kind: Mapped[CategoryKind] = mapped_column(
         String(16),

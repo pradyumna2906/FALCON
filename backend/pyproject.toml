@@ -31,8 +31,20 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx2==2.10.0",
+  "joblib==1.5.3",
+  "numpy==2.5.2",
   "pytest==9.1.1",
   "pytest-cov==7.1.0",
+  "scikit-learn==1.8.0",
+  "scipy==1.18.1",
+  "threadpoolctl==3.6.0",
+]
+ml = [
+  "joblib==1.5.3",
+  "numpy==2.5.2",
+  "scikit-learn==1.8.0",
+  "scipy==1.18.1",
+  "threadpoolctl==3.6.0",
 ]
 
 [tool.setuptools.packages.find]
