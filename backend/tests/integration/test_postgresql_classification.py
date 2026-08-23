@@ -341,3 +341,42 @@ def test_corrections_are_immutable_and_merchant_memory_is_user_isolated() -> Non
                         "DELETE FROM users WHERE id = ANY(%s)",
                         (user_ids,),
                     )
+
+
+def test_classification_owner_scoped_performance_indexes_exist() -> None:
+    """Verify the migration head supports bounded owner-scoped access paths."""
+    settings = integration_settings()
+    expected = {
+        "uq_transaction_classifications_owner_transaction",
+        "ix_transaction_classifications_user_created",
+        "ix_transaction_classifications_user_decision",
+        "uq_user_merchant_memories_owner_merchant",
+        "ix_user_merchant_memories_user_updated",
+        "ix_transaction_category_corrections_user_occurred",
+        "ix_transaction_category_corrections_transaction_occurred",
+    }
+
+    with psycopg.connect(
+        host=settings.db_host,
+        port=settings.db_port,
+        dbname=settings.db_name,
+        user=settings.db_user,
+        password=settings.db_password.get_secret_value(),
+        connect_timeout=settings.db_connect_timeout_seconds,
+    ) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT indexname FROM pg_indexes "
+                "WHERE schemaname = 'public' "
+                "AND tablename = ANY(%s)",
+                (
+                    [
+                        "transaction_classifications",
+                        "user_merchant_memories",
+                        "transaction_category_corrections",
+                    ],
+                ),
+            )
+            actual = {row[0] for row in cursor.fetchall()}
+
+    assert expected <= actual

@@ -19,6 +19,10 @@ from falcon_api.classification.hybrid import (
     HybridClassificationService,
     MerchantMemoryMatch,
 )
+from falcon_api.classification.monitoring import (
+    ClassificationMonitor,
+    ClassificationOperation,
+)
 from falcon_api.classification.repository import (
     ClassificationRepository,
     ClassificationTarget,
@@ -64,12 +68,14 @@ class TransactionClassificationService:
         hybrid_service: HybridClassificationService,
         repository: ClassificationRepository | None = None,
         clock: Clock | None = None,
+        monitor: ClassificationMonitor | None = None,
     ) -> None:
         if not isinstance(hybrid_service, HybridClassificationService):
             raise TypeError("hybrid_service must use the hybrid service contract.")
         self._hybrid = hybrid_service
         self._repository = repository or ClassificationRepository()
         self._clock = clock or SystemClock()
+        self._monitor = monitor or ClassificationMonitor()
 
     async def classify_one(
         self,
@@ -95,6 +101,7 @@ class TransactionClassificationService:
     ) -> tuple[ClassificationResult, ...]:
         """Classify at most 100 owned transactions in one atomic request."""
         _validate_batch(transaction_ids)
+        started_at = self._monitor.start()
         targets = await self._repository.lock_targets(
             session,
             user_id=user_id,
@@ -205,7 +212,12 @@ class TransactionClassificationService:
                 (stored.transaction_id, _stored_result(stored))
                 for stored in stored_rows
             )
-        return tuple(results[item] for item in transaction_ids)
+        ordered_results = tuple(results[item] for item in transaction_ids)
+        self._monitor.record_classification(
+            ordered_results,
+            started_at=started_at,
+        )
+        return ordered_results
 
     async def correct_category(
         self,
@@ -216,6 +228,7 @@ class TransactionClassificationService:
         category_id: UUID,
     ) -> ClassificationCorrectionResult:
         """Append trusted correction feedback and update isolated memory."""
+        started_at = self._monitor.start()
         targets = await self._repository.lock_targets(
             session,
             user_id=user_id,
@@ -290,7 +303,7 @@ class TransactionClassificationService:
             merchant_memory_id=memory.id if memory is not None else None,
             now=now,
         )
-        return ClassificationCorrectionResult(
+        result = ClassificationCorrectionResult(
             id=correction.id,
             transaction_id=transaction_id,
             selected_category_id=selected.id,
@@ -299,6 +312,12 @@ class TransactionClassificationService:
             original=_stored_result(original),
             occurred_at=correction.occurred_at,
         )
+        self._monitor.record_operation(
+            ClassificationOperation.CORRECT,
+            item_count=1,
+            started_at=started_at,
+        )
+        return result
 
     async def set_merchant_memory(
         self,
@@ -309,6 +328,7 @@ class TransactionClassificationService:
         category_id: UUID,
     ) -> MerchantMemoryResult:
         """Create or replace one exact personal mapping without model training."""
+        started_at = self._monitor.start()
         normalized = normalize_merchant(merchant_name)
         if normalized is None:
             raise ApplicationError(
@@ -350,7 +370,13 @@ class TransactionClassificationService:
             subcategory_code=subcategory_code,
             now=self._clock.now(),
         )
-        return _memory_result(memory)
+        result = _memory_result(memory)
+        self._monitor.record_operation(
+            ClassificationOperation.MERCHANT_MEMORY_UPSERT,
+            item_count=1,
+            started_at=started_at,
+        )
+        return result
 
     async def list_merchant_memories(
         self,
@@ -361,16 +387,23 @@ class TransactionClassificationService:
         limit: int,
     ) -> MerchantMemoryPageResponse:
         """List a bounded stable page without exposing ownership fields."""
+        started_at = self._monitor.start()
         items, has_more = await self._repository.list_merchant_memories(
             session,
             user_id=user_id,
             after=after,
             limit=limit,
         )
-        return MerchantMemoryPageResponse(
+        result = MerchantMemoryPageResponse(
             items=tuple(_memory_result(item) for item in items),
             next_cursor=(items[-1].normalized_merchant if has_more else None),
         )
+        self._monitor.record_operation(
+            ClassificationOperation.MERCHANT_MEMORY_LIST,
+            item_count=len(result.items),
+            started_at=started_at,
+        )
+        return result
 
     async def delete_merchant_memory(
         self,
@@ -380,6 +413,7 @@ class TransactionClassificationService:
         memory_id: UUID,
     ) -> None:
         """Remove one exact mapping through a uniform owner-scoped lookup."""
+        started_at = self._monitor.start()
         memory = await self._repository.get_merchant_memory(
             session,
             user_id=user_id,
@@ -396,6 +430,11 @@ class TransactionClassificationService:
             session,
             user_id=user_id,
             memory=memory,
+        )
+        self._monitor.record_operation(
+            ClassificationOperation.MERCHANT_MEMORY_DELETE,
+            item_count=1,
+            started_at=started_at,
         )
 
 

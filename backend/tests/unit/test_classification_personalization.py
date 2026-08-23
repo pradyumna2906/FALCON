@@ -3,7 +3,7 @@
 import asyncio
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, call
 from uuid import UUID, uuid4
 
 import pytest
@@ -17,6 +17,10 @@ from falcon_api.classification.hybrid import (
     HybridClassificationOutcome,
     HybridClassificationService,
     MerchantMemoryMatch,
+)
+from falcon_api.classification.monitoring import (
+    ClassificationMonitor,
+    ClassificationOperation,
 )
 from falcon_api.classification.repository import (
     ClassificationRepository,
@@ -149,7 +153,9 @@ def _memory(category: Category, *, merchant: str = "local cafe") -> UserMerchant
     )
 
 
-def _service() -> tuple[
+def _service(
+    *, monitor: ClassificationMonitor | None = None
+) -> tuple[
     TransactionClassificationService,
     Mock,
     AsyncMock,
@@ -167,6 +173,7 @@ def _service() -> tuple[
             hybrid_service=hybrid,
             repository=repository,
             clock=clock,
+            monitor=monitor,
         ),
         hybrid,
         repository,
@@ -174,7 +181,9 @@ def _service() -> tuple[
 
 
 def test_batch_resolves_same_user_memories_once_before_hybrid_inference() -> None:
-    service, hybrid, repository = _service()
+    monitor = Mock(spec=ClassificationMonitor)
+    monitor.start.return_value = 1.0
+    service, hybrid, repository = _service(monitor=monitor)
     transaction = _transaction()
     target = ClassificationTarget(transaction, "INR")
     category = _category()
@@ -185,7 +194,7 @@ def test_batch_resolves_same_user_memories_once_before_hybrid_inference() -> Non
     repository.persist.return_value = (_stored(transaction),)
     session = AsyncMock(spec=AsyncSession)
 
-    asyncio.run(
+    result = asyncio.run(
         service.classify_one(
             session,
             user_id=_USER_ID,
@@ -203,10 +212,16 @@ def test_batch_resolves_same_user_memories_once_before_hybrid_inference() -> Non
         ClassificationCategoryCode.FOOD_DINING,
         ClassificationSubcategoryCode.RESTAURANTS,
     )
+    monitor.record_classification.assert_called_once_with(
+        (result,),
+        started_at=1.0,
+    )
 
 
 def test_correction_appends_snapshot_updates_ledger_and_personal_memory() -> None:
-    service, _, repository = _service()
+    monitor = Mock(spec=ClassificationMonitor)
+    monitor.start.return_value = 2.0
+    service, _, repository = _service(monitor=monitor)
     transaction = _transaction()
     target = ClassificationTarget(transaction, "INR")
     original = _stored(transaction)
@@ -258,6 +273,11 @@ def test_correction_appends_snapshot_updates_ledger_and_personal_memory() -> Non
     assert memory_call["normalized_merchant"] == "local cafe"
     assert memory_call["subcategory_code"] is ClassificationSubcategoryCode.RESTAURANTS
     repository.persist_correction.assert_awaited_once()
+    monitor.record_operation.assert_called_once_with(
+        ClassificationOperation.CORRECT,
+        item_count=1,
+        started_at=2.0,
+    )
 
 
 def test_private_category_correction_removes_stale_taxonomy_memory() -> None:
@@ -359,7 +379,9 @@ def test_correction_rejects_transaction_changed_outside_review_workflow() -> Non
 
 
 def test_memory_management_is_normalized_bounded_and_owner_scoped() -> None:
-    service, _, repository = _service()
+    monitor = Mock(spec=ClassificationMonitor)
+    monitor.start.side_effect = (3.0, 4.0, 5.0)
+    service, _, repository = _service(monitor=monitor)
     category = _category()
     memory = _memory(category)
     repository.get_active_category.return_value = category
@@ -400,6 +422,23 @@ def test_memory_management_is_normalized_bounded_and_owner_scoped() -> None:
         user_id=_USER_ID,
         memory=memory,
     )
+    assert monitor.record_operation.call_args_list == [
+        call(
+            ClassificationOperation.MERCHANT_MEMORY_UPSERT,
+            item_count=1,
+            started_at=3.0,
+        ),
+        call(
+            ClassificationOperation.MERCHANT_MEMORY_LIST,
+            item_count=1,
+            started_at=4.0,
+        ),
+        call(
+            ClassificationOperation.MERCHANT_MEMORY_DELETE,
+            item_count=1,
+            started_at=5.0,
+        ),
+    ]
 
 
 def test_memory_management_rejects_noise_private_category_and_foreign_id() -> None:

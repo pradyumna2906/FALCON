@@ -40,6 +40,7 @@ from falcon_api.classification.hybrid import (
     HybridClassificationService,
     MerchantMemoryMatch,
 )
+from falcon_api.classification.explanations import explanation_message
 from falcon_api.classification.inference import (
     ClassifierMetadata,
     ConfidencePolicy,
@@ -54,6 +55,10 @@ from falcon_api.classification.merchant_knowledge import (
     MERCHANT_KNOWLEDGE_VERSION,
     MerchantDefinition,
     MerchantKnowledgeBase,
+)
+from falcon_api.classification.monitoring import (
+    ClassificationMonitor,
+    ClassificationOperation,
 )
 from falcon_api.classification.rules import (
     CLASSIFICATION_RULESET_VERSION,
@@ -92,6 +97,8 @@ __all__ = [
     "AmountBand",
     "CategoryDefinition",
     "ClassificationFeatures",
+    "ClassificationMonitor",
+    "ClassificationOperation",
     "ClassificationDecision",
     "ClassificationReasonCode",
     "ClassificationRulesEngine",
@@ -141,6 +148,7 @@ __all__ = [
     "category_definition",
     "detect_payment_channel",
     "feature_record",
+    "explanation_message",
     "load_classification_dataset",
     "normalize_merchant",
     "subcategory_definition",

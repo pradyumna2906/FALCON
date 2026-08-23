@@ -408,7 +408,11 @@ classification provenance, atomic automatic category assignment, protected
 idempotence, and authenticated single and bounded-batch routes. Phase 7.7 adds
 append-only correction snapshots, owner-isolated exact merchant memory,
 memory-aware batch inference, and authenticated create/replace/list/delete
-personalization operations without automatic global-model retraining.
+personalization operations without automatic global-model retraining. Phase 7.8
+closes the phase with static reason-code explanations, aggregate privacy-safe
+operational events, a guarded 100-item batch query shape, PostgreSQL index and
+lifecycle validation, and full regression requirements. The committed synthetic
+model remains provisional and cannot automatically assign model-only results.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).

@@ -111,6 +111,12 @@ def test_single_route_uses_authenticated_owner_and_returns_safe_result(
         "subcategory_code": "food_delivery",
         "confidence": "0.9900",
         "reason_codes": ["known_merchant"],
+        "explanations": [
+            {
+                "code": "known_merchant",
+                "message": "Matched a reviewed merchant mapping.",
+            }
+        ],
         "taxonomy_version": "2026.1",
         "ruleset_version": "2026.1",
         "model_version": None,

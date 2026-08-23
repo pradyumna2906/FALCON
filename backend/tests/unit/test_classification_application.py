@@ -3,6 +3,7 @@
 import asyncio
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from time import perf_counter
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID, uuid4
 
@@ -164,6 +165,7 @@ def _service(
     hybrid.classify.return_value = outcome
     repository = AsyncMock(spec=ClassificationRepository)
     repository.get_existing.return_value = ()
+    repository.get_merchant_memories.return_value = ()
     repository.get_system_categories.return_value = ()
 
     async def persist_side_effect(
@@ -291,6 +293,36 @@ def test_batch_preserves_request_order_for_stored_results() -> None:
     )
 
     assert tuple(item.transaction_id for item in results) == (second.id, first.id)
+
+
+def test_maximum_batch_uses_bounded_repository_round_trips() -> None:
+    """Guard the 100-item path against accidental per-transaction queries."""
+    transactions = tuple(_transaction() for _ in range(100))
+    service, hybrid, repository = _service(_automatic())
+    repository.lock_targets.return_value = tuple(
+        _target(transaction) for transaction in transactions
+    )
+    repository.get_system_categories.return_value = (_category(),)
+    session = AsyncMock(spec=AsyncSession)
+
+    started_at = perf_counter()
+    results = asyncio.run(
+        service.classify_batch(
+            session,
+            user_id=_USER_ID,
+            transaction_ids=tuple(item.id for item in transactions),
+        )
+    )
+    elapsed = perf_counter() - started_at
+
+    assert len(results) == 100
+    assert elapsed < 2.0
+    assert hybrid.classify.call_count == 100
+    repository.lock_targets.assert_awaited_once()
+    repository.get_existing.assert_awaited_once()
+    repository.get_merchant_memories.assert_awaited_once()
+    repository.get_system_categories.assert_awaited_once()
+    repository.persist.assert_awaited_once()
 
 
 def test_missing_or_cross_user_transaction_is_uniform_not_found() -> None:

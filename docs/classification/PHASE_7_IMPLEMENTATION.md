@@ -1,7 +1,7 @@
 # FALCON Phase 7 Intelligent Transaction Classification
 
-Phase 7 status: Checkpoints 7.1 through 7.6 complete; later implementation
-checkpoints pending.
+Phase 7 status: complete. Checkpoints 7.1 through 7.8 are implemented and
+subject to the validation record in this document.
 
 ## 1. Purpose and phase boundary
 
@@ -17,10 +17,12 @@ merchant intelligence, rules, model inference, confidence, abstention,
 explanations, and user correction feedback. Phase 8 may aggregate reviewed
 classification results for analytics but must not reinterpret model internals.
 
-Checkpoint 7.1 freezes the taxonomy and public/domain behavior before rules,
-datasets, models, persistence, or routes are introduced. Checkpoint 7.4 now
-publishes comparison evidence but deliberately does not register or serve an
-estimator; artifact loading and inference remain Checkpoint 7.5 responsibilities.
+Checkpoint 7.1 froze the taxonomy and public/domain behavior before later work.
+Checkpoints 7.2 through 7.7 added the shared feature path, rules, evaluated
+provisional model, verified inference, persistence, APIs, corrections, and
+owner-isolated merchant memory. Checkpoint 7.8 closes the phase with bounded
+explanations, privacy-safe aggregate monitoring, database/performance evidence,
+and full regression requirements.
 
 ## 2. Ownership and authorization
 
@@ -227,6 +229,7 @@ A classification result may expose:
 - category and subcategory codes, or neither when abstaining;
 - bounded exact confidence;
 - up to five stable reason codes;
+- one static human-readable explanation for each reason code, in the same order;
 - taxonomy, ruleset, and model versions where applicable.
 
 It never exposes ownership keys, raw feature vectors, filesystem/model paths,
@@ -241,9 +244,13 @@ failure leaves the ledger transaction unchanged.
 
 Raw transaction descriptions may be processed in request or worker memory but
 must not be written to ordinary application metrics or model-operational logs.
-Logs and metrics use identifiers, stable reason codes, versions, timing, counts,
-and category codes. Training exports remove user IDs, account numbers, UPI IDs,
-card numbers, bank references, and other direct identifiers.
+Classification-operational events contain only a closed operation name, batch
+size, decision/source/reason-code counts, taxonomy version, and elapsed time.
+They exclude user IDs, transaction IDs, merchants, descriptions, category IDs,
+feature values, model paths, and arbitrary exception text. Failed requests are
+visible through the existing body-free HTTP status log rather than a second
+content-bearing classifier event. Training exports remove user IDs, account
+numbers, UPI IDs, card numbers, bank references, and other direct identifiers.
 
 Each user correction is an immutable feedback event containing the original
 bounded prediction, selected category, relevant versions, and server timestamp.
@@ -354,7 +361,7 @@ existence, and dependency exceptions never enter public messages.
   single/batch APIs, bounded atomic updates, and classification provenance.
 - **Checkpoint 7.7 (complete):** add immutable user correction events and
   isolated adaptive merchant memory without automatic global retraining.
-- **Checkpoint 7.8:** add bounded explainability, privacy-safe monitoring,
+- **Checkpoint 7.8 (complete):** add bounded explainability, privacy-safe monitoring,
   PostgreSQL and performance validation, full regression, documentation
   closure, and PR-quality verification.
 
@@ -565,6 +572,49 @@ Direction-compatible memory produces an automatic `merchant_memory` result at
 exact confidence `1.0000` with reason `user_merchant_memory`; incompatible
 memory is ignored and inference safely continues to ML. There is no fuzzy
 matching, cross-user sharing, training export, background retraining, or global
-model mutation in this checkpoint. Monitoring, performance evidence, bounded
-explainability, final PostgreSQL validation, and Phase 7 closure remain
-Checkpoint 7.8.
+model mutation in this checkpoint.
+
+## 19. Checkpoint 7.8 validation record and Phase 7 closure
+
+Checkpoint 7.8 adds a read-only `explanations` array to every serialized
+classification result, including the original result nested in a correction.
+Each entry pairs the existing stable reason code with one static message of at
+most 160 characters. Messages are selected from a complete code-reviewed map;
+they never interpolate a merchant, description, amount, identifier, feature,
+category, exception, or model diagnostic. Clients cannot submit or override
+the computed field, and changing explanation wording is an explicit public
+contract change rather than model output.
+
+The application service emits one `classification_operation_completed` event
+after each successful classification, correction, or merchant-memory action.
+Single and batch predictions share the same low-cardinality `classify`
+operation. Classification events aggregate decision, source, and reason-code
+counts; other operations record only the bounded item count. All events use a
+monotonic elapsed time and the existing JSON formatter allowlist, so arbitrary
+logging extras cannot enter the serialized operational record.
+
+Performance validation protects the maximum public batch of 100 transactions.
+The application performs one owner-scoped target lock, one existing-result
+lookup, one exact merchant-memory lookup, one taxonomy-category lookup, and one
+persistence call for the batch; there is no per-transaction database query.
+Inference remains intentionally per transaction within the bounded in-process
+loop. A generous two-second unit regression ceiling detects accidental blocking
+or query fan-out without claiming hardware-independent production latency.
+PostgreSQL integration verifies the migration head, complete authenticated
+classification/correction/memory lifecycle, immutable correction trigger,
+cross-user isolation, and the explicit owner/time access indexes used by these
+queries. CI runs all database-gated integration tests against PostgreSQL.
+
+Phase 7 completion requires the full backend unit and integration suites,
+branch coverage gate, source compilation, offline Alembic upgrade and downgrade
+rendering, local artifact packaging/evidence verification, and repository hooks
+to pass. The synthetic reference artifact remains `production_eligible=false`:
+it is suitable for a verified demo flow and can suggest, but it cannot
+automatically assign model-only results. Production rollout still requires a
+reviewed de-identified real-world dataset to pass the documented leakage,
+quality, calibration, automatic-precision, latency, and privacy gates.
+
+Phase 7 does not add fuzzy matching, transformers, background retraining,
+cross-user personalization, raw-text telemetry, or Phase 8 analytics. Phase 8
+may now consume canonical reviewed categories and bounded provenance to build
+aggregations and insights without reinterpreting classifier internals.

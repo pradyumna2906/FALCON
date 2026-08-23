@@ -5,8 +5,16 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    computed_field,
+    model_validator,
+)
 
+from falcon_api.classification.explanations import explanation_message
 from falcon_api.classification.taxonomy import (
     CLASSIFICATION_TAXONOMY_VERSION,
     ClassificationCategoryCode,
@@ -35,6 +43,10 @@ ConfidenceScore = Annotated[
 MerchantName = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+]
+ExplanationMessage = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=160),
 ]
 
 
@@ -80,6 +92,13 @@ class MerchantMemoryListQuery(ClassificationSchema):
     limit: int = Field(default=50, ge=1, le=100)
 
 
+class ClassificationExplanation(ClassificationSchema):
+    """Pair one stable reason code with a static human-readable message."""
+
+    code: ClassificationReasonCode
+    message: ExplanationMessage
+
+
 class ClassificationResult(ClassificationSchema):
     """Expose a bounded prediction without raw features or model internals."""
 
@@ -96,6 +115,18 @@ class ClassificationResult(ClassificationSchema):
     taxonomy_version: VersionIdentifier = CLASSIFICATION_TAXONOMY_VERSION
     ruleset_version: VersionIdentifier | None = None
     model_version: VersionIdentifier | None = None
+
+    @computed_field(return_type=tuple[ClassificationExplanation, ...])
+    @property
+    def explanations(self) -> tuple[ClassificationExplanation, ...]:
+        """Derive safe explanations without accepting or storing client text."""
+        return tuple(
+            ClassificationExplanation(
+                code=reason_code,
+                message=explanation_message(reason_code),
+            )
+            for reason_code in self.reason_codes
+        )
 
     @model_validator(mode="after")
     def validate_result_consistency(self) -> "ClassificationResult":
