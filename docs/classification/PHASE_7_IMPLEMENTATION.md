@@ -1,6 +1,6 @@
 # FALCON Phase 7 Intelligent Transaction Classification
 
-Phase 7 status: Checkpoints 7.1 and 7.2 complete; later implementation
+Phase 7 status: Checkpoints 7.1 through 7.3 complete; later implementation
 checkpoints pending.
 
 ## 1. Purpose and phase boundary
@@ -113,7 +113,48 @@ Tokenization, channel priority, amount boundaries, masking, record field order,
 and the feature-schema version are contract-tested. Any semantic change requires
 a new feature-schema version and model compatibility review.
 
-## 5. Hybrid classification decision contract
+## 5. Rules engine and merchant knowledge
+
+Ruleset and merchant-knowledge version `2026.1` provide a deterministic,
+dependency-free first layer before ML. The merchant knowledge base contains 24
+reviewed India-first merchants across food delivery, groceries, transport,
+fuel, clothing, electronics, pharmacy, streaming, events, education,
+investment, and electricity. Each entry records a stable merchant identifier,
+bounded display name, exact normalized aliases, compatible transaction types,
+taxonomy target, and exact confidence.
+
+Merchant resolution is exact after the shared feature normalization. It never
+uses prefix, substring, edit-distance, phonetic, embedding, or other fuzzy
+matching. Marketplaces and merchants with highly ambiguous financial meaning
+are excluded from automatic merchant rules. Adding or changing an alias requires
+review, uniqueness validation, taxonomy compatibility, tests, and a new
+knowledge version when semantics change.
+
+The high-precision keyword rules cover internal transfers, ATM withdrawals,
+cash deposits, salary, cashback, refunds, interest, EMI/loan payments, rent,
+SIP investments, bank charges, fuel, and electricity. They evaluate only the
+versioned shared features, including exact normalized tokens, transaction type,
+and payment channel. They do not inspect raw files or source-format identity.
+
+Every rule has a stable identifier, target, compatible transaction types,
+required/excluded tokens, optional channel constraint, explicit priority, exact
+confidence, safe reason code, and ruleset version. Reviewed merchant matches
+have priority over generic keyword signals. Results contain only bounded rule
+provenance; no raw description, merchant text, identifier, or matched source
+substring is returned.
+
+Matches are sorted by priority, confidence, and stable rule identifier. If the
+highest-priority matches disagree on their category target, the engine returns
+an explicit conflict with no selected candidate. Equal-priority matches for the
+same target resolve deterministically. No-match and conflict outcomes remain
+unclassified for the later hybrid/ML orchestrator; the rules engine does not
+force an `other` category.
+
+The global reviewed merchant base is distinct from same-user merchant memory.
+Personal mappings and immutable correction feedback remain owned by Checkpoint
+7.7 and can never be created from this global exact-match table.
+
+## 6. Hybrid classification decision contract
 
 The finalized decision order is:
 
@@ -142,7 +183,7 @@ them from held-out calibration evidence. The intended policy is high-confidence
 automatic assignment, medium-confidence suggestion, and low-confidence
 abstention. A small top-two probability margin may also force abstention.
 
-## 6. Public write and response boundary
+## 7. Public write and response boundary
 
 The future single-classification operation selects one owned transaction in its
 path. A future batch request accepts only `transaction_ids`, requires 1 through
@@ -167,7 +208,7 @@ It never exposes ownership keys, raw feature vectors, filesystem/model paths,
 serialized estimators, training examples, arbitrary exception messages, or raw
 model diagnostics.
 
-## 7. Safety, privacy, and correction rules
+## 8. Safety, privacy, and correction rules
 
 Existing manually selected or previously user-confirmed categories are never
 silently overwritten. Reclassification must be explicit and idempotent. A model
@@ -185,7 +226,7 @@ Corrections do not automatically mutate a global model. A user may create,
 replace, or remove their own merchant memory without exposing another user's
 mapping.
 
-## 8. Model-selection and evaluation contract
+## 9. Model-selection and evaluation contract
 
 Checkpoint 7.4 will compare rather than assume the production model. Required
 baselines are a majority/keyword baseline, TF-IDF plus logistic regression, and
@@ -209,7 +250,7 @@ must not hide failures in smaller financial categories. Dataset splitting is
 group-aware by merchant or equivalent identity and prevents duplicate or
 near-duplicate leakage across training and evaluation.
 
-## 9. Error contract
+## 10. Error contract
 
 The future API retains FALCON's unified error envelope.
 
@@ -226,7 +267,7 @@ The future API retains FALCON's unified error envelope.
 Parser details, model paths, raw text, feature values, SQL, cross-user
 existence, and dependency exceptions never enter public messages.
 
-## 10. Enhanced Phase 7 checkpoints
+## 11. Enhanced Phase 7 checkpoints
 
 - **Checkpoint 7.1 (complete):** freeze taxonomy version `2026.1`, ownership,
   decisions, sources, confidence, abstention, corrections, privacy, errors,
@@ -234,8 +275,9 @@ existence, and dependency exceptions never enter public messages.
 - **Checkpoint 7.2 (complete):** implement shared text preprocessing, merchant
   extraction, payment-channel signals, reference masking, amount/calendar/
   recurrence features, and deterministic feature schema `2026.1`.
-- **Checkpoint 7.3:** implement the versioned high-precision rules engine and
-  merchant knowledge base with conflict-safe explanations.
+- **Checkpoint 7.3 (complete):** implement versioned reviewed exact merchant
+  knowledge and priority-ordered high-precision rules with deterministic
+  selection, bounded provenance, and conflict-safe abstention.
 - **Checkpoint 7.4:** build the sanitized dataset workflow, train and compare
   baselines, calibrate confidence, select thresholds, and publish evaluation
   evidence.
@@ -249,7 +291,7 @@ existence, and dependency exceptions never enter public messages.
   PostgreSQL and performance validation, full regression, documentation
   closure, and PR-quality verification.
 
-## 11. Checkpoint 7.1 completion criteria
+## 12. Checkpoint 7.1 completion criteria
 
 Checkpoint 7.1 is complete when the taxonomy is closed and uniquely mapped,
 strict schemas reject client-controlled server fields, result invariants prevent
@@ -261,7 +303,7 @@ No database table, model artifact, route, training dependency, or production
 prediction is introduced by this checkpoint. Those changes require their own
 approved checkpoint and validation record.
 
-## 12. Checkpoint 7.2 validation record
+## 13. Checkpoint 7.2 validation record
 
 Checkpoint 7.2 adds a pure, dependency-light feature module. It does not read a
 database, mutate a transaction, infer a category, load an artifact, access the
@@ -275,3 +317,18 @@ behavior, exact amount-band boundaries, recurring and calendar signals, token
 limits, input sign and type invariants, stable primitive records, and equivalent
 manual/imported inputs. Completion also requires the full Phases 1–7 backend
 regression and repository quality checks to remain green.
+
+## 14. Checkpoint 7.3 validation record
+
+Checkpoint 7.3 adds no training dependency, model artifact, database mutation,
+API route, network call, or user-owned memory. Merchant and keyword definitions
+are immutable code-reviewed configuration. Startup construction rejects blank,
+duplicate, ambiguous, malformed, direction-incompatible, or invalid-confidence
+definitions before an evaluation can occur.
+
+Tests cover the complete default knowledge base, exact alias normalization,
+fuzzy/prefix rejection, taxonomy and direction compatibility, all reviewed
+keyword behaviors, channel/type/token/exclusion predicates, merchant priority,
+wrong-direction rejection, unknown abstention, same-target determinism,
+different-target conflicts, custom version propagation, invalid configuration,
+and the absence of raw evidence in rule results.

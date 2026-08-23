@@ -94,8 +94,11 @@ def test_phase_document_defines_the_approved_classification_contract() -> None:
         "raw transaction descriptions",
         "checkpoint 7.1",
         "checkpoint 7.2",
+        "checkpoint 7.3",
         "checkpoint 7.8",
         "feature schema version",
+        "exact normalized aliases",
+        "explicit conflict",
         "phase 6",
         "phase 8",
     )

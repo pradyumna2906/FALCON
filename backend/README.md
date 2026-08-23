@@ -389,8 +389,11 @@ Phase 7.1 defines taxonomy version `2026.1` and the strict ownership, prediction
 confidence, abstention, provenance, privacy, and user-correction boundaries for
 the hybrid rules-and-ML classifier. Phase 7.2 adds the shared feature schema,
 reference masking, merchant candidate extraction, payment-channel detection,
-amount bands, calendar signals, and recurring-payment indicators. Rules, trained
+amount bands, calendar signals, and recurring-payment indicators. Trained
 artifacts, persistence, and routes are introduced only by later checkpoints.
+Phase 7.3 adds versioned, exact reviewed merchant knowledge and high-precision
+keyword/channel rules with deterministic priority and explicit conflict
+abstention. It does not use fuzzy merchant matching or user feedback memory.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).
