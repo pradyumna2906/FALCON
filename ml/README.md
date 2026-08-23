@@ -9,3 +9,9 @@ Phase 7 transaction classification uses the versioned taxonomy and contract in
 Training and production preprocessing must share one feature-schema version.
 Artifacts must record their dataset version, evaluation split, library versions,
 hyperparameters, checksum, calibration evidence, and abstention thresholds.
+
+Feature schema `2026.1` is implemented in
+`backend/src/falcon_api/classification/features.py`. It excludes exact amounts,
+source-format identity, ownership, and source references from the primitive model
+record. Sanitized descriptions and merchant candidates remain private data and
+must not be emitted to ordinary logs or monitoring metrics.

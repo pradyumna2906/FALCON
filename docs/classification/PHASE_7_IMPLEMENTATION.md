@@ -1,6 +1,7 @@
 # FALCON Phase 7 Intelligent Transaction Classification
 
-Phase 7 status: Checkpoint 7.1 complete; implementation checkpoints pending.
+Phase 7 status: Checkpoints 7.1 and 7.2 complete; later implementation
+checkpoints pending.
 
 ## 1. Purpose and phase boundary
 
@@ -68,7 +69,51 @@ Taxonomy changes require a new version, compatibility tests, migration and
 reclassification analysis, and an explicit review. Existing codes cannot be
 silently reused with a new meaning.
 
-## 4. Hybrid classification decision contract
+## 4. Shared feature schema
+
+Feature schema version `2026.1` is the only preprocessing representation used
+by both offline training and production inference. It accepts trusted canonical
+ledger facts: description, optional merchant, transaction type, signed exact
+amount, account currency, and calendar date. It intentionally does not accept `user_id`, account
+identity, import source type, raw source reference, category, or any
+client-supplied prediction field.
+
+The deterministic output contains:
+
+- normalized description and at most 64 bounded tokens;
+- explicit normalized merchant, or a conservative rail-based candidate;
+- one payment channel: UPI, IMPS, NEFT, RTGS, card, ATM, ACH/NACH/ECS,
+  cheque, wallet, cash, bank transfer, or unknown;
+- immutable transaction direction and ISO-style account currency from the ledger;
+- one exact nominal-currency amount band: `micro` (up to 100), `small` (up to
+  1,000), `medium` (up to 5,000), `large` (up to 25,000), or `very_large`;
+- month, day of month, weekday, and weekend signal;
+- a deterministic recurring-candidate signal for reviewed terms such as salary,
+  rent, EMI, SIP, subscription, autopay, NACH, and standing instruction.
+
+Unicode uses NFKC normalization and case folding. Control characters and safe
+punctuation are normalized. Common UPI/email handles, masked account/card
+suffixes, numeric values, long digit references, and long mixed alphanumeric
+references are removed before model tokens are formed. Payment rails, currency
+markers, and generic banking words
+are represented as structured signals rather than duplicated text noise.
+
+An explicit ledger merchant always takes precedence. Description-based merchant
+inference runs only for reviewed electronic rails and remains a normalized
+candidate; alias matching, fuzzy similarity, and category knowledge belong to
+Checkpoint 7.3. Unknown free text does not invent a merchant.
+
+Exact amounts are validated but excluded from the model record to reduce
+memorization of user-specific values. Source format is also excluded, so
+equivalent manual transactions, CSV, XLSX, and digital PDF imports use the same
+representation. Sanitized feature text is still private financial information:
+it is not an anonymized export and must not be placed in logs or metrics.
+
+Tokenization, channel priority, amount boundaries, masking, record field order,
+and the feature-schema version are contract-tested. Any semantic change requires
+a new feature-schema version and model compatibility review.
+
+## 5. Hybrid classification decision contract
 
 The finalized decision order is:
 
@@ -97,7 +142,7 @@ them from held-out calibration evidence. The intended policy is high-confidence
 automatic assignment, medium-confidence suggestion, and low-confidence
 abstention. A small top-two probability margin may also force abstention.
 
-## 5. Public write and response boundary
+## 6. Public write and response boundary
 
 The future single-classification operation selects one owned transaction in its
 path. A future batch request accepts only `transaction_ids`, requires 1 through
@@ -122,7 +167,7 @@ It never exposes ownership keys, raw feature vectors, filesystem/model paths,
 serialized estimators, training examples, arbitrary exception messages, or raw
 model diagnostics.
 
-## 6. Safety, privacy, and correction rules
+## 7. Safety, privacy, and correction rules
 
 Existing manually selected or previously user-confirmed categories are never
 silently overwritten. Reclassification must be explicit and idempotent. A model
@@ -140,7 +185,7 @@ Corrections do not automatically mutate a global model. A user may create,
 replace, or remove their own merchant memory without exposing another user's
 mapping.
 
-## 7. Model-selection and evaluation contract
+## 8. Model-selection and evaluation contract
 
 Checkpoint 7.4 will compare rather than assume the production model. Required
 baselines are a majority/keyword baseline, TF-IDF plus logistic regression, and
@@ -164,7 +209,7 @@ must not hide failures in smaller financial categories. Dataset splitting is
 group-aware by merchant or equivalent identity and prevents duplicate or
 near-duplicate leakage across training and evaluation.
 
-## 8. Error contract
+## 9. Error contract
 
 The future API retains FALCON's unified error envelope.
 
@@ -181,13 +226,14 @@ The future API retains FALCON's unified error envelope.
 Parser details, model paths, raw text, feature values, SQL, cross-user
 existence, and dependency exceptions never enter public messages.
 
-## 9. Enhanced Phase 7 checkpoints
+## 10. Enhanced Phase 7 checkpoints
 
 - **Checkpoint 7.1 (complete):** freeze taxonomy version `2026.1`, ownership,
   decisions, sources, confidence, abstention, corrections, privacy, errors,
   model-evaluation requirements, strict schemas, and contract tests.
-- **Checkpoint 7.2:** implement shared text preprocessing, merchant extraction,
-  payment-channel signals, reference masking, and deterministic feature schema.
+- **Checkpoint 7.2 (complete):** implement shared text preprocessing, merchant
+  extraction, payment-channel signals, reference masking, amount/calendar/
+  recurrence features, and deterministic feature schema `2026.1`.
 - **Checkpoint 7.3:** implement the versioned high-precision rules engine and
   merchant knowledge base with conflict-safe explanations.
 - **Checkpoint 7.4:** build the sanitized dataset workflow, train and compare
@@ -203,7 +249,7 @@ existence, and dependency exceptions never enter public messages.
   PostgreSQL and performance validation, full regression, documentation
   closure, and PR-quality verification.
 
-## 10. Checkpoint 7.1 completion criteria
+## 11. Checkpoint 7.1 completion criteria
 
 Checkpoint 7.1 is complete when the taxonomy is closed and uniquely mapped,
 strict schemas reject client-controlled server fields, result invariants prevent
@@ -214,3 +260,18 @@ remains above its coverage gate.
 No database table, model artifact, route, training dependency, or production
 prediction is introduced by this checkpoint. Those changes require their own
 approved checkpoint and validation record.
+
+## 12. Checkpoint 7.2 validation record
+
+Checkpoint 7.2 adds a pure, dependency-light feature module. It does not read a
+database, mutate a transaction, infer a category, load an artifact, access the
+network, or log source content. Frozen input and output dataclasses keep the
+boundary explicit and make the same function reusable by future dataset and
+inference workflows.
+
+Tests cover every payment channel, priority collisions, Unicode and control
+characters, UPI/email/account/reference masking, explicit and inferred merchant
+behavior, exact amount-band boundaries, recurring and calendar signals, token
+limits, input sign and type invariants, stable primitive records, and equivalent
+manual/imported inputs. Completion also requires the full Phases 1–7 backend
+regression and repository quality checks to remain green.

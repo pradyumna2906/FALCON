@@ -387,8 +387,10 @@ The authoritative contract and checkpoint record is documented in
 
 Phase 7.1 defines taxonomy version `2026.1` and the strict ownership, prediction,
 confidence, abstention, provenance, privacy, and user-correction boundaries for
-the hybrid rules-and-ML classifier. Rules, trained artifacts, persistence, and
-routes are introduced only by their later approved checkpoints.
+the hybrid rules-and-ML classifier. Phase 7.2 adds the shared feature schema,
+reference masking, merchant candidate extraction, payment-channel detection,
+amount bands, calendar signals, and recurring-payment indicators. Rules, trained
+artifacts, persistence, and routes are introduced only by later checkpoints.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).
