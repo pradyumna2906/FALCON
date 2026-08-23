@@ -21,6 +21,8 @@ The current backend provides:
 - Authenticated account provisioning and category discovery.
 - User-isolated manual transaction and internal-transfer APIs.
 - Authenticated, bounded CSV/XLSX/digital-PDF statement import and reconciliation APIs.
+- A versioned Phase 7 transaction-classification taxonomy and strict confidence,
+  abstention, provenance, batch-selection, and correction contracts.
 
 ## Requirements
 
@@ -380,3 +382,13 @@ passwords and raw statement bytes are never persisted or returned.
 Raw statement bytes are processed only within the request and are not retained.
 The authoritative contract and checkpoint record is documented in
 [`docs/imports/PHASE_6_IMPLEMENTATION.md`](../docs/imports/PHASE_6_IMPLEMENTATION.md).
+
+## Transaction classification implementation
+
+Phase 7.1 defines taxonomy version `2026.1` and the strict ownership, prediction,
+confidence, abstention, provenance, privacy, and user-correction boundaries for
+the hybrid rules-and-ML classifier. Rules, trained artifacts, persistence, and
+routes are introduced only by their later approved checkpoints.
+
+The authoritative contract and checkpoint record is documented in
+[`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).
