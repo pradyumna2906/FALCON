@@ -15,3 +15,17 @@ Feature schema `2026.1` is implemented in
 source-format identity, ownership, and source references from the primitive model
 record. Sanitized descriptions and merchant candidates remain private data and
 must not be emitted to ordinary logs or monitoring metrics.
+
+Phase 7.4 implements dataset version `2026.1` and offline comparison in
+`falcon_api.classification.dataset` and `falcon_api.classification.training`.
+Install `backend[ml]`, then run from the repository root:
+
+```text
+PYTHONPATH=backend/src python scripts/build_classification_evidence.py
+```
+
+The command deterministically rebuilds the synthetic reference dataset,
+integrity manifest, and `ml/reports/classification_evaluation_2026_1.json`.
+It measures majority/rules baselines, TF-IDF logistic regression, and calibrated
+Linear SVM without writing a serialized estimator. Synthetic evidence cannot
+open the production deployment gate.

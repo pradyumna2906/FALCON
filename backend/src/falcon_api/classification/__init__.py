@@ -1,5 +1,16 @@
 """Stable contracts for transaction classification."""
 
+from falcon_api.classification.dataset import (
+    CLASSIFICATION_DATASET_VERSION,
+    ClassificationDataset,
+    ClassificationDatasetManifest,
+    DatasetLabelCount,
+    DatasetRecord,
+    DatasetSourceKind,
+    LabeledFeatureSample,
+    build_classification_dataset,
+    load_classification_dataset,
+)
 from falcon_api.classification.features import (
     CLASSIFICATION_FEATURE_SCHEMA_VERSION,
     AmountBand,
@@ -47,6 +58,7 @@ from falcon_api.classification.types import (
 
 
 __all__ = [
+    "CLASSIFICATION_DATASET_VERSION",
     "CLASSIFICATION_FEATURE_SCHEMA_VERSION",
     "CLASSIFICATION_RULESET_VERSION",
     "CATEGORY_DEFINITIONS",
@@ -59,12 +71,18 @@ __all__ = [
     "ClassificationRulesEngine",
     "ClassificationSource",
     "ClassificationCategoryCode",
+    "ClassificationDataset",
+    "ClassificationDatasetManifest",
     "ClassificationSubcategoryCode",
+    "DatasetLabelCount",
+    "DatasetRecord",
+    "DatasetSourceKind",
     "PaymentChannel",
     "DEFAULT_KEYWORD_RULES",
     "DEFAULT_MERCHANT_DEFINITIONS",
     "DEFAULT_MERCHANT_KNOWLEDGE_BASE",
     "KeywordRule",
+    "LabeledFeatureSample",
     "MERCHANT_KNOWLEDGE_VERSION",
     "MerchantDefinition",
     "MerchantKnowledgeBase",
@@ -74,10 +92,12 @@ __all__ = [
     "SubcategoryDefinition",
     "TransactionFeatureInput",
     "amount_band",
+    "build_classification_dataset",
     "build_classification_features",
     "category_definition",
     "detect_payment_channel",
     "feature_record",
+    "load_classification_dataset",
     "normalize_merchant",
     "subcategory_definition",
     "validate_classification_target",

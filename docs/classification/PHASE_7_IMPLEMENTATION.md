@@ -1,6 +1,6 @@
 # FALCON Phase 7 Intelligent Transaction Classification
 
-Phase 7 status: Checkpoints 7.1 through 7.3 complete; later implementation
+Phase 7 status: Checkpoints 7.1 through 7.4 complete; later implementation
 checkpoints pending.
 
 ## 1. Purpose and phase boundary
@@ -18,7 +18,9 @@ explanations, and user correction feedback. Phase 8 may aggregate reviewed
 classification results for analytics but must not reinterpret model internals.
 
 Checkpoint 7.1 freezes the taxonomy and public/domain behavior before rules,
-datasets, models, persistence, or routes are introduced.
+datasets, models, persistence, or routes are introduced. Checkpoint 7.4 now
+publishes comparison evidence but deliberately does not register or serve an
+estimator; artifact loading and inference remain Checkpoint 7.5 responsibilities.
 
 ## 2. Ownership and authorization
 
@@ -226,13 +228,37 @@ Corrections do not automatically mutate a global model. A user may create,
 replace, or remove their own merchant memory without exposing another user's
 mapping.
 
-## 9. Model-selection and evaluation contract
+## 9. Model-selection and evaluation implementation
 
-Checkpoint 7.4 will compare rather than assume the production model. Required
-baselines are a majority/keyword baseline, TF-IDF plus logistic regression, and
-TF-IDF plus calibrated linear SVM. Structured-feature boosting and a compact
-sentence-transformer candidate may be evaluated only when the dataset and
-latency budget justify them.
+Checkpoint 7.4 compares rather than assumes the production model. Dataset
+version `2026.1` accepts only the shared sanitized feature object plus a reviewed
+taxonomy target. Private source and equivalent-merchant keys are converted to
+opaque HMAC identifiers using a private secret of at least 32 bytes; the keys
+are never exported. Exact duplicate labeled features, duplicate source records,
+mixed-label groups, incompatible transaction directions, unknown record fields,
+and manifest/checksum mismatches are rejected.
+
+The committed reference dataset is deterministic and entirely synthetic. It
+contains 864 records: 18 for each of all 48 taxonomy leaves, arranged into 288
+independent synthetic merchant groups. It contains no real account, user,
+statement, UPI, card, or transaction identifiers. Sanitized text is still
+treated as private financial data by the workflow; a future reviewed dataset
+must be held in approved encrypted storage rather than committed.
+
+The stable group-aware split uses an opaque group exactly once and stratifies
+each leaf into 576 training, 144 calibration, and 144 final-test records. The
+calibration partition selects the automatic and suggestion confidence thresholds
+and top-two margin. The final test partition is never used to choose them. Split
+identity, seed, record IDs, dataset checksum, schema/taxonomy versions, library
+versions, hyperparameters, and in-memory artifact checksum are recorded.
+
+The implemented comparison includes a majority baseline, the Checkpoint 7.3
+keyword/rule baseline with honest abstention, TF-IDF plus class-balanced logistic
+regression, and TF-IDF plus calibrated linear SVM. Both learned candidates use
+word unigrams/bigrams and the same bounded structured tokens. The training path
+does not persist a pickle or joblib artifact. Structured-feature boosting and a
+MiniLM sentence transformer are deferred because the balanced reference evidence
+does not justify their dependency, latency, memory, and artifact cost.
 
 Evaluation records dataset version, feature-schema version, split identity,
 random seed, library versions, hyperparameters, artifact checksum, and results.
@@ -249,6 +275,22 @@ Macro-F1 is the primary classification-quality metric because dominant classes
 must not hide failures in smaller financial categories. Dataset splitting is
 group-aware by merchant or equivalent identity and prevents duplicate or
 near-duplicate leakage across training and evaluation.
+
+The reproducible synthetic reference run selected calibrated Linear SVM under
+that primary metric. Its held-out macro-F1 is `0.99285714`, weighted-F1 is
+`0.99285714`, top-two accuracy is `1.0`, and unseen-group macro-F1 is
+`0.99285714`. Logistic regression remains a strong efficiency candidate at
+`0.98571429` macro-F1 with a substantially smaller measured serialized size and
+lower per-record latency. The provisional SVM thresholds are `0.40` automatic,
+`0.20` suggested, and `0.00` minimum top-two margin, selected only from
+calibration evidence.
+
+These scores demonstrate pipeline behavior, not real-world generalization. The
+report sets `production_eligible` to false for every synthetic dataset. A future
+reviewed de-identified dataset must pass the same leakage, calibration,
+held-out-quality, and automatic-precision gates before production eligibility
+can become true. Checkpoint 7.5 may package the selected provisional estimator
+for an academic/demo flow, but it must preserve that evidence status.
 
 ## 10. Error contract
 
@@ -278,7 +320,7 @@ existence, and dependency exceptions never enter public messages.
 - **Checkpoint 7.3 (complete):** implement versioned reviewed exact merchant
   knowledge and priority-ordered high-precision rules with deterministic
   selection, bounded provenance, and conflict-safe abstention.
-- **Checkpoint 7.4:** build the sanitized dataset workflow, train and compare
+- **Checkpoint 7.4 (complete):** build the sanitized dataset workflow, train and compare
   baselines, calibrate confidence, select thresholds, and publish evaluation
   evidence.
 - **Checkpoint 7.5:** implement the classifier interface, artifact registry,
@@ -332,3 +374,26 @@ keyword behaviors, channel/type/token/exclusion predicates, merchant priority,
 wrong-direction rejection, unknown abstention, same-target determinism,
 different-target conflicts, custom version propagation, invalid configuration,
 and the absence of raw evidence in rule results.
+
+## 15. Checkpoint 7.4 validation record
+
+Checkpoint 7.4 adds a strict dataset module, an explicitly imported offline
+training/evaluation module, pinned optional ML dependencies, a deterministic
+synthetic-data/evidence command, versioned dataset records and manifest, and a
+publishable JSON evaluation report. Importing the ordinary FastAPI application
+does not import scikit-learn because training is not re-exported by the stable
+classification package boundary.
+
+The committed evidence records all required candidate metrics, sparse confusion
+entries, per-leaf and per-category precision/recall, calibration error, decision
+coverage, unseen-merchant-group performance, inference latency, peak traced
+Python inference memory, serialized estimator size/checksum, hyperparameters,
+library versions, split identity, and seed. No model binary is committed.
+
+Tests cover privacy pseudonymization, masking, strict serialization, checksum
+verification, invalid configuration, duplicate rejection, group isolation,
+stratification, deterministic split identity, threshold selection, probability
+validation, all four candidate evaluations, report safety, and the synthetic
+production gate. Completion requires the complete backend regression, coverage
+gate, compilation, repository hooks, dataset regeneration, manifest verification,
+and documentation-contract checks to pass.

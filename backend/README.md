@@ -394,6 +394,12 @@ artifacts, persistence, and routes are introduced only by later checkpoints.
 Phase 7.3 adds versioned, exact reviewed merchant knowledge and high-precision
 keyword/channel rules with deterministic priority and explicit conflict
 abstention. It does not use fuzzy merchant matching or user feedback memory.
+Phase 7.4 adds the versioned privacy-bounded dataset workflow, opaque group-aware
+train/calibration/test splitting, majority and rules baselines, TF-IDF logistic
+regression and calibrated Linear SVM comparison, calibration-driven confidence
+thresholds, and publishable evaluation evidence. The reference evidence is
+synthetic and explicitly not production-eligible; model registration and serving
+remain assigned to Phase 7.5.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).

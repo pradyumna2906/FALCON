@@ -1,5 +1,6 @@
 """Contract tests for the approved Phase 7 classification boundary."""
 
+import json
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -9,6 +10,11 @@ from falcon_api.classification.features import (
     build_classification_features,
     feature_record,
 )
+from falcon_api.classification.dataset import (
+    DatasetSourceKind,
+    load_classification_dataset,
+)
+from falcon_api.classification.taxonomy import ClassificationSubcategoryCode
 from falcon_api.models.enums import TransactionType
 from falcon_api.schemas.classification import (
     ClassificationBatchRequest,
@@ -23,6 +29,15 @@ _IMPLEMENTATION_DOCUMENT = (
     / "docs"
     / "classification"
     / "PHASE_7_IMPLEMENTATION.md"
+)
+_SYNTHETIC_DATASET_DIRECTORY = (
+    _REPOSITORY_ROOT / "data" / "synthetic" / "classification"
+)
+_EVALUATION_REPORT = (
+    _REPOSITORY_ROOT
+    / "ml"
+    / "reports"
+    / "classification_evaluation_2026_1.json"
 )
 
 
@@ -95,13 +110,43 @@ def test_phase_document_defines_the_approved_classification_contract() -> None:
         "checkpoint 7.1",
         "checkpoint 7.2",
         "checkpoint 7.3",
+        "checkpoint 7.4",
         "checkpoint 7.8",
         "feature schema version",
         "exact normalized aliases",
         "explicit conflict",
+        "production_eligible",
+        "group-aware",
         "phase 6",
         "phase 8",
     )
 
     for statement in required_statements:
         assert statement in content
+
+
+def test_published_dataset_and_model_evidence_are_integrity_checked() -> None:
+    records = (
+        _SYNTHETIC_DATASET_DIRECTORY / "transactions_2026_1.jsonl"
+    ).read_text(encoding="utf-8")
+    manifest = json.loads(
+        (_SYNTHETIC_DATASET_DIRECTORY / "manifest_2026_1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    dataset = load_classification_dataset(records, manifest)
+    report = json.loads(_EVALUATION_REPORT.read_text(encoding="utf-8"))
+
+    assert dataset.manifest.source_kind is DatasetSourceKind.SYNTHETIC
+    assert dataset.manifest.record_count == 864
+    assert dataset.manifest.group_count == 288
+    assert len(dataset.manifest.label_counts) == len(ClassificationSubcategoryCode)
+    assert report["dataset_sha256"] == dataset.manifest.records_sha256
+    assert report["dataset_version"] == dataset.manifest.dataset_version
+    assert report["production_eligible"] is False
+    assert {item["candidate"] for item in report["evaluations"]} == {
+        "majority_baseline",
+        "keyword_rule_baseline",
+        "tfidf_logistic_regression",
+        "tfidf_calibrated_linear_svm",
+    }
