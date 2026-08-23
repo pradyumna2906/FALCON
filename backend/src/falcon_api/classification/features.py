@@ -285,6 +285,30 @@ def feature_record(features: ClassificationFeatures) -> dict[str, str | int | bo
     }
 
 
+def classification_model_text(features: ClassificationFeatures) -> str:
+    """Return deterministic TF-IDF text shared by training and inference."""
+    if not isinstance(features, ClassificationFeatures):
+        raise TypeError("features must use the shared classification schema.")
+    if features.schema_version != CLASSIFICATION_FEATURE_SCHEMA_VERSION:
+        raise ValueError("The feature-schema version is not supported.")
+    fields = [features.normalized_description]
+    if features.normalized_merchant:
+        fields.append(features.normalized_merchant)
+    fields.extend(
+        (
+            f"type_{features.transaction_type.value}",
+            f"channel_{features.payment_channel.value}",
+            f"amount_{features.amount_band.value}",
+            f"currency_{features.account_currency.casefold()}",
+            f"month_{features.month}",
+            f"weekday_{features.weekday}",
+            f"weekend_{int(features.is_weekend)}",
+            f"recurring_{int(features.is_recurring_candidate)}",
+        )
+    )
+    return " ".join(fields)
+
+
 def detect_payment_channel(text: str) -> PaymentChannel:
     """Return the first reviewed payment-rail marker in priority order."""
     folded = _fold_text(text)

@@ -1,6 +1,6 @@
 # FALCON Phase 7 Intelligent Transaction Classification
 
-Phase 7 status: Checkpoints 7.1 through 7.4 complete; later implementation
+Phase 7 status: Checkpoints 7.1 through 7.5 complete; later implementation
 checkpoints pending.
 
 ## 1. Purpose and phase boundary
@@ -180,6 +180,29 @@ The supported prediction sources are `rule`, `merchant_memory`, `ml`, and
 carry a model version. All results carry the taxonomy version and an exact
 decimal confidence from zero through one.
 
+Checkpoint 7.5 implements this decision boundary without persistence or an API.
+The stable classifier adapter accepts only the shared feature object and returns
+at most two taxonomy candidates, exact four-decimal confidence, top-two margin,
+model version, and production-eligibility status. Estimator classes must exactly
+match the trusted manifest order. Invalid probability shapes, non-finite values,
+unknown taxonomy leaves, incompatible feature versions, and probability rows
+that do not sum to one are rejected.
+
+The hybrid service evaluates Checkpoint 7.3 rules before requesting a model, so
+a high-precision unambiguous rule never loads the artifact. When rules do not
+resolve the transaction, calibrated model confidence selects automatic,
+suggested, or abstained behavior. A small top-two margin forces ambiguity
+abstention. A direction-incompatible category is never assigned. A model may
+resolve a rule conflict only when it agrees with one of the leading rule targets;
+otherwise the result remains abstained with hybrid provenance.
+
+Synthetic or otherwise non-production-eligible models can provide suggestions
+for the academic/demo workflow but can never create automatic ML assignments.
+An unavailable, corrupt, incompatible, or invalid model becomes a bounded
+`classifier_unavailable` abstention and leaves the ledger untouched. No raw
+exception, path, feature text, or estimator diagnostic crosses the outcome
+boundary.
+
 Confidence thresholds are not guessed in Checkpoint 7.1. Checkpoint 7.4 selects
 them from held-out calibration evidence. The intended policy is high-confidence
 automatic assignment, medium-confidence suggestion, and low-confidence
@@ -323,7 +346,7 @@ existence, and dependency exceptions never enter public messages.
 - **Checkpoint 7.4 (complete):** build the sanitized dataset workflow, train and compare
   baselines, calibrate confidence, select thresholds, and publish evaluation
   evidence.
-- **Checkpoint 7.5:** implement the classifier interface, artifact registry,
+- **Checkpoint 7.5 (complete):** implement the classifier interface, artifact registry,
   checksum verification, lazy inference, hybrid orchestration, and abstention.
 - **Checkpoint 7.6:** add user-scoped persistence, migrations, authenticated
   single/batch APIs, bounded atomic updates, and classification provenance.
@@ -397,3 +420,34 @@ validation, all four candidate evaluations, report safety, and the synthetic
 production gate. Completion requires the complete backend regression, coverage
 gate, compilation, repository hooks, dataset regeneration, manifest verification,
 and documentation-contract checks to pass.
+
+## 16. Checkpoint 7.5 validation record
+
+Checkpoint 7.5 adds the dependency-light classifier interface, strict artifact
+manifest, local packaging workflow, trusted version registry, SHA-256 and size
+verification, exact library compatibility checks, thread-safe lazy provider,
+and rules-first hybrid classification service. The FastAPI application still
+does not import scikit-learn during ordinary startup. Loading occurs only on the
+first model request, successful verified loads are cached, and failures remain
+retryable for operational recovery.
+
+Model binaries and their generated manifests remain excluded from Git. The
+packaging command rebuilds the reviewed dataset comparison, confirms that the
+selected estimator bytes exactly match Checkpoint 7.4 evaluation evidence, and
+writes one explicit model-version directory. The registry rejects traversal,
+symlinks, missing files, unknown manifest fields, identity mismatch, excessive
+size, checksum mismatch, incomplete production taxonomy coverage, Python
+major/minor mismatch, and exact numpy/scipy/scikit-learn/joblib mismatch before
+trusted pickle deserialization. Artifact directories are server configuration;
+no client may select a filesystem path or upload serialized estimators.
+
+Tests cover classifier probability and taxonomy invariants, deterministic top-two
+selection, manifest round-trip and invalid shapes, production gates, packaging
+evidence matching, overwrite protection, missing/corrupt/incompatible artifacts,
+checksum-before-deserialization, concurrent lazy loading, retry after recovery,
+rules-first short-circuiting, automatic/suggested/abstained thresholds,
+provisional-model downgrade, transaction-direction safety, rule conflict
+agreement/disagreement, and bounded unavailable outcomes. Completion also
+requires local packaging verification, absence of tracked model binaries, full
+backend regression, coverage, compilation, repository hooks, and documentation
+contract checks.

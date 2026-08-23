@@ -28,6 +28,8 @@ class ClassificationReasonCode(StrEnum):
     USER_MERCHANT_MEMORY = "user_merchant_memory"
     MODEL_PREDICTION = "model_prediction"
     RULE_MODEL_AGREEMENT = "rule_model_agreement"
+    PROVISIONAL_MODEL = "provisional_model"
+    CLASSIFIER_UNAVAILABLE = "classifier_unavailable"
     LOW_CONFIDENCE = "low_confidence"
     AMBIGUOUS_PREDICTION = "ambiguous_prediction"
     UNSUPPORTED_TRANSACTION_TYPE = "unsupported_transaction_type"

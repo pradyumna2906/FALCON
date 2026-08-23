@@ -1,5 +1,6 @@
 """Tests for deterministic Phase 7 classification feature construction."""
 
+from dataclasses import replace
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -12,6 +13,7 @@ from falcon_api.classification.features import (
     TransactionFeatureInput,
     amount_band,
     build_classification_features,
+    classification_model_text,
     detect_payment_channel,
     feature_record,
     normalize_merchant,
@@ -198,6 +200,24 @@ def test_feature_record_has_stable_shared_training_and_inference_shape() -> None
         "is_recurring_candidate",
     ]
     assert feature_record(features) == feature_record(features)
+
+
+def test_model_text_is_shared_by_training_and_inference() -> None:
+    features = build_classification_features(_input())
+
+    assert classification_model_text(features) == (
+        "swiggy swiggy type_expense channel_upi amount_small currency_inr "
+        "month_8 weekday_6 weekend_1 recurring_0"
+    )
+
+
+def test_model_text_rejects_invalid_or_incompatible_features() -> None:
+    with pytest.raises(TypeError):
+        classification_model_text("unsafe")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="feature-schema"):
+        classification_model_text(
+            replace(build_classification_features(_input()), schema_version="old")
+        )
 
 
 def test_description_token_count_is_bounded() -> None:

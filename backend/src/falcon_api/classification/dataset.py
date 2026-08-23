@@ -17,6 +17,7 @@ from falcon_api.classification.features import (
     AmountBand,
     ClassificationFeatures,
     PaymentChannel,
+    classification_model_text,
 )
 from falcon_api.classification.taxonomy import (
     CLASSIFICATION_TAXONOMY_VERSION,
@@ -177,22 +178,7 @@ class DatasetRecord:
 
     def model_text(self) -> str:
         """Return deterministic TF-IDF text plus bounded structured tokens."""
-        fields = [self.normalized_description]
-        if self.normalized_merchant:
-            fields.append(self.normalized_merchant)
-        fields.extend(
-            (
-                f"type_{self.transaction_type.value}",
-                f"channel_{self.payment_channel.value}",
-                f"amount_{self.amount_band.value}",
-                f"currency_{self.account_currency.casefold()}",
-                f"month_{self.month}",
-                f"weekday_{self.weekday}",
-                f"weekend_{int(self.is_weekend)}",
-                f"recurring_{int(self.is_recurring_candidate)}",
-            )
-        )
-        return " ".join(fields)
+        return classification_model_text(self.to_features())
 
     def to_dict(self) -> dict[str, object]:
         """Return a stable JSON-compatible representation."""

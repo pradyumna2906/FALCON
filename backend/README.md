@@ -398,8 +398,12 @@ Phase 7.4 adds the versioned privacy-bounded dataset workflow, opaque group-awar
 train/calibration/test splitting, majority and rules baselines, TF-IDF logistic
 regression and calibrated Linear SVM comparison, calibration-driven confidence
 thresholds, and publishable evaluation evidence. The reference evidence is
-synthetic and explicitly not production-eligible; model registration and serving
-remain assigned to Phase 7.5.
+synthetic and explicitly not production-eligible.
+Phase 7.5 adds a stable classifier adapter, strict artifact manifest and local
+packaging workflow, checksum/size/library compatibility verification, a
+thread-safe lazy artifact provider, and rules-first hybrid orchestration.
+Provisional synthetic models can suggest but never automatically assign a
+category. Persistence and authenticated classification routes remain Phase 7.6.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).

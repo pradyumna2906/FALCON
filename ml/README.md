@@ -29,3 +29,10 @@ integrity manifest, and `ml/reports/classification_evaluation_2026_1.json`.
 It measures majority/rules baselines, TF-IDF logistic regression, and calibrated
 Linear SVM without writing a serialized estimator. Synthetic evidence cannot
 open the production deployment gate.
+
+Phase 7.5 adds the dependency-light inference adapter, manifest/registry and
+hybrid orchestration in `falcon_api.classification`. The separate packaging
+command writes only to the ignored `ml/artifacts/classification` registry.
+Ordinary API startup does not import scikit-learn, and a synthetic artifact is
+restricted to suggestions even when its confidence exceeds the automatic
+threshold.
