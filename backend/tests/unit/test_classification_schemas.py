@@ -108,6 +108,8 @@ def test_rule_result_requires_consistent_target_and_provenance() -> None:
 
     assert result.taxonomy_version == "2026.1"
     assert result.model_version is None
+    assert result.confidence == Decimal("1.0000")
+    assert result.model_dump(mode="json")["confidence"] == "1.0000"
 
 
 def test_ml_abstention_exposes_no_forced_category() -> None:

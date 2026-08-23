@@ -11,6 +11,7 @@ from pydantic import (
     Field,
     StringConstraints,
     computed_field,
+    field_validator,
     model_validator,
 )
 
@@ -115,6 +116,12 @@ class ClassificationResult(ClassificationSchema):
     taxonomy_version: VersionIdentifier = CLASSIFICATION_TAXONOMY_VERSION
     ruleset_version: VersionIdentifier | None = None
     model_version: VersionIdentifier | None = None
+
+    @field_validator("confidence")
+    @classmethod
+    def normalize_confidence_scale(cls, value: Decimal) -> Decimal:
+        """Keep fresh and PostgreSQL-loaded responses byte-consistent."""
+        return value.quantize(Decimal("0.0001"))
 
     @computed_field(return_type=tuple[ClassificationExplanation, ...])
     @property
