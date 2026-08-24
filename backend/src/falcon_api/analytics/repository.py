@@ -19,6 +19,7 @@ from falcon_api.analytics.types import (
     CategoryAggregate,
     MerchantAggregate,
     RecurringTransactionRecord,
+    SpendingSignalTransactionRecord,
     money,
 )
 from falcon_api.classification.types import ClassificationDecision
@@ -487,6 +488,60 @@ class AnalyticsRepository:
             RecurringTransactionRecord(
                 transaction_date=row["transaction_date"],
                 transaction_type=TransactionType(row["transaction_type"]),
+                amount=money(row["amount"]),
+                normalized_merchant=row["normalized_merchant"],
+                display_name=row["display_name"],
+                classification_code=row["classification_code"],
+                category_name=row["category_name"],
+            )
+            for row in rows
+        )
+
+    async def list_spending_signal_transactions(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        period: AnalyticsPeriod,
+        currency: str,
+    ) -> tuple[SpendingSignalTransactionRecord, ...]:
+        """Return private posted-expense evidence in one scoped statement."""
+        normalized_merchant = func.nullif(
+            func.lower(func.trim(Transaction.merchant_name)),
+            "",
+        )
+        display_name = func.nullif(func.trim(Transaction.merchant_name), "")
+        valid_category = _valid_category(user_id=user_id)
+        statement = (
+            select(
+                Transaction.transaction_date.label("transaction_date"),
+                func.abs(Transaction.amount).label("amount"),
+                normalized_merchant.label("normalized_merchant"),
+                display_name.label("display_name"),
+                case(
+                    (valid_category, Category.classification_code),
+                    else_=None,
+                ).label("classification_code"),
+                case((valid_category, Category.name), else_=None).label(
+                    "category_name"
+                ),
+            )
+            .select_from(Transaction)
+            .join(Account, _owned_account_join())
+            .outerjoin(Category, Category.id == Transaction.category_id)
+            .where(
+                Transaction.user_id == user_id,
+                *_in_period(period),
+                Account.currency == _currency(currency),
+                Transaction.status == TransactionStatus.POSTED,
+                Transaction.transaction_type == TransactionType.EXPENSE,
+            )
+            .order_by(Transaction.transaction_date.asc(), Transaction.id.asc())
+        )
+        rows = (await session.execute(statement)).mappings().all()
+        return tuple(
+            SpendingSignalTransactionRecord(
+                transaction_date=row["transaction_date"],
                 amount=money(row["amount"]),
                 normalized_merchant=row["normalized_merchant"],
                 display_name=row["display_name"],

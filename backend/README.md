@@ -176,6 +176,7 @@ The current endpoints are:
 | `GET` | `/api/v1/analytics/cash-flow` | Returns exact cash-flow metrics, trends, and prior-period values |
 | `GET` | `/api/v1/analytics/spending` | Returns bounded category, merchant, and account expense distributions |
 | `GET` | `/api/v1/analytics/recurring` | Returns explainable recurring patterns and explicit abstentions |
+| `GET` | `/api/v1/analytics/spending-signals` | Returns explainable spending-leak and anomaly evidence |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |

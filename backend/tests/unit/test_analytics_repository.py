@@ -20,6 +20,7 @@ from falcon_api.analytics import (
     CategoryAggregate,
     MerchantAggregate,
     RecurringTransactionRecord,
+    SpendingSignalTransactionRecord,
 )
 from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
 
@@ -403,6 +404,56 @@ def test_recurring_source_is_owner_scoped_canonical_and_description_free() -> No
     assert "INR" in params.values()
 
 
+def test_spending_signal_source_is_expense_only_owner_scoped_and_private() -> None:
+    session = _session_with_all(
+        [
+            {
+                "transaction_date": date(2026, 8, 7),
+                "amount": Decimal("620"),
+                "normalized_merchant": "swiggy",
+                "display_name": "SWIGGY",
+                "classification_code": "food_delivery",
+                "category_name": "Food Delivery",
+            }
+        ]
+    )
+    user_id = uuid4()
+
+    result = asyncio.run(
+        AnalyticsRepository().list_spending_signal_transactions(
+            session,
+            user_id=user_id,
+            period=_PERIOD,
+            currency="inr",
+        )
+    )
+
+    assert result == (
+        SpendingSignalTransactionRecord(
+            transaction_date=date(2026, 8, 7),
+            amount=Decimal("620.0000"),
+            normalized_merchant="swiggy",
+            display_name="SWIGGY",
+            classification_code="food_delivery",
+            category_name="Food Delivery",
+        ),
+    )
+    query, params = _compiled(session)
+    assert "transactions.user_id =" in query
+    assert "accounts.user_id = transactions.user_id" in query
+    assert "accounts.currency =" in query
+    assert "transactions.status =" in query
+    assert "transactions.transaction_type =" in query
+    assert "categories.kind = transactions.transaction_type" in query
+    assert "lower(trim(transactions.merchant_name))" in query
+    assert "ORDER BY transactions.transaction_date" in query
+    assert "transactions.description" not in query
+    assert "transactions.id" not in query.split("FROM", maxsplit=1)[0]
+    assert user_id in params.values()
+    assert TransactionType.EXPENSE in params.values()
+    assert "INR" in params.values()
+
+
 @pytest.mark.parametrize("currency", ["", "IN", "USDT", "1NR", "ÄBC"])
 def test_repository_rejects_invalid_internal_currency(currency: str) -> None:
     session = _session_with_one(_summary_row())
@@ -440,7 +491,7 @@ def test_dimension_queries_reject_unbounded_limits(limit: int) -> None:
 
 def test_each_aggregate_surface_uses_one_database_statement() -> None:
     summary_session = _session_with_one(_summary_row())
-    empty_sessions = [_session_with_all([]) for _ in range(5)]
+    empty_sessions = [_session_with_all([]) for _ in range(6)]
     repository = AnalyticsRepository()
     user_id = uuid4()
 
@@ -488,6 +539,14 @@ def test_each_aggregate_surface_uses_one_database_statement() -> None:
     asyncio.run(
         repository.list_recurring_transactions(
             empty_sessions[4],
+            user_id=user_id,
+            period=_PERIOD,
+            currency="INR",
+        )
+    )
+    asyncio.run(
+        repository.list_spending_signal_transactions(
+            empty_sessions[5],
             user_id=user_id,
             period=_PERIOD,
             currency="INR",

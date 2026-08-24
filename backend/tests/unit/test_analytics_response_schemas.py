@@ -14,8 +14,11 @@ from falcon_api.analytics.types import (
     CategoryAggregate,
     MerchantAggregate,
     RecurringTransactionRecord,
+    SpendingSignalTransactionRecord,
 )
+from falcon_api.analytics.periods import AnalyticsPeriod
 from falcon_api.analytics.recurring import detect_recurring_patterns
+from falcon_api.analytics.spending_signals import detect_spending_signals
 from falcon_api.models.enums import (
     AccountType,
     CategoryKind,
@@ -33,6 +36,9 @@ from falcon_api.schemas.analytics import (
     SpendingAnalyticsResponse,
     SpendingCategory,
     SpendingMerchant,
+    SpendingSignalAnalyticsQuery,
+    SpendingSignalAnalyticsSummary,
+    SpendingSignalResponse,
     ShareMetric,
 )
 
@@ -267,4 +273,84 @@ def test_recurring_summary_rejects_impossible_subsets_and_negative_totals() -> N
     with pytest.raises(ValidationError, match="cannot exceed candidate"):
         RecurringAnalyticsSummary.model_validate(
             valid | {"returned_pattern_count": 2}
+        )
+
+
+def test_spending_signal_query_is_bounded_and_server_context_is_private() -> None:
+    properties = set(
+        SpendingSignalAnalyticsQuery.model_json_schema()["properties"]
+    )
+
+    assert properties == {"date_from", "date_to", "currency", "limit"}
+    query = SpendingSignalAnalyticsQuery(currency="inr")
+    assert query.currency == "INR"
+    assert query.limit == 25
+    for values in (
+        {"limit": 0},
+        {"limit": 101},
+        {"date_to": date(2026, 8, 1)},
+    ):
+        with pytest.raises(ValidationError):
+            SpendingSignalAnalyticsQuery.model_validate(values)
+    for private in {"user_id", "timezone", "threshold", "transaction_ids"}:
+        assert private not in properties
+
+
+def test_spending_signal_schema_uses_exact_scales_and_hides_source_rows() -> None:
+    period = AnalyticsPeriod(
+        date_from=date(2026, 8, 1),
+        date_to=date(2026, 8, 31),
+        timezone="Asia/Kolkata",
+    )
+    records = (
+        SpendingSignalTransactionRecord(
+            transaction_date=date(2026, 8, 2),
+            amount=Decimal("25"),
+            normalized_merchant="bank",
+            display_name="Bank",
+            classification_code="bank_charges",
+            category_name="Bank Charges",
+        ),
+        SpendingSignalTransactionRecord(
+            transaction_date=date(2026, 8, 9),
+            amount=Decimal("50"),
+            normalized_merchant="bank",
+            display_name="Bank",
+            classification_code="bank_charges",
+            category_name="Bank Charges",
+        ),
+    )
+    signal = detect_spending_signals(
+        records,
+        period=period,
+        total_expense=Decimal("75"),
+    ).signals[0]
+
+    dumped = SpendingSignalResponse.from_signal(signal).model_dump(mode="json")
+
+    assert dumped["signal_type"] == "bank_charge_leakage"
+    assert dumped["evidence_score"]["value"] == "0.500000"
+    assert dumped["observed_amount"]["value"] == "75.0000"
+    assert dumped["share_of_total_expense"]["value"] == "1.000000"
+    assert "transaction_ids" not in dumped
+    assert "descriptions" not in dumped
+
+
+def test_spending_signal_summary_rejects_impossible_counts() -> None:
+    valid = {
+        "evaluated_transaction_count": 10,
+        "detected_signal_count": 2,
+        "potential_leak_signal_count": 1,
+        "anomaly_signal_count": 1,
+        "returned_signal_count": 2,
+        "truncated": False,
+    }
+
+    with pytest.raises(ValidationError, match="must equal detected"):
+        SpendingSignalAnalyticsSummary.model_validate(
+            valid | {"anomaly_signal_count": 2}
+        )
+    with pytest.raises(ValidationError, match="cannot exceed detected"):
+        SpendingSignalAnalyticsSummary.model_validate(
+            valid | {"returned_signal_count": 3}
         )

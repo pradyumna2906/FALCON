@@ -24,6 +24,7 @@ from falcon_api.analytics.types import (
     CategoryAggregate,
     MerchantAggregate,
     RecurringTransactionRecord,
+    SpendingSignalTransactionRecord,
 )
 from falcon_api.core.errors import ApplicationError
 from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
@@ -449,3 +450,87 @@ def test_recurring_applies_pattern_limit_after_complete_detection() -> None:
     assert result.summary.truncated is True
     assert result.summary.detected_expense_observed.value == Decimal("900.0000")
     assert result.patterns[0].normalized_merchant == "beta"
+
+
+def test_spending_signals_compose_owner_scoped_evidence_and_limit() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = _summary(
+        expense="75",
+        eligible=5,
+        categorized=2,
+    )
+    repository.list_spending_signal_transactions.return_value = (
+        SpendingSignalTransactionRecord(
+            transaction_date=date(2026, 8, 2),
+            amount=Decimal("25"),
+            normalized_merchant="bank",
+            display_name="Bank",
+            classification_code="bank_charges",
+            category_name="Bank Charges",
+        ),
+        SpendingSignalTransactionRecord(
+            transaction_date=date(2026, 8, 9),
+            amount=Decimal("50"),
+            normalized_merchant="bank",
+            display_name="Bank",
+            classification_code="bank_charges",
+            category_name="Bank Charges",
+        ),
+    )
+    session = AsyncMock(spec=AsyncSession)
+    user_id = uuid4()
+
+    result = asyncio.run(
+        _service(repository).spending_signals(
+            session,
+            user_id=user_id,
+            trusted_timezone="Asia/Kolkata",
+            default_currency="INR",
+            selection=_selection(comparison=AnalyticsComparisonMode.NONE),
+            limit=1,
+        )
+    )
+
+    assert result.context.comparison_period is None
+    assert result.summary.evaluated_transaction_count == 2
+    assert result.summary.detected_signal_count == 1
+    assert result.summary.potential_leak_signal_count == 1
+    assert result.summary.anomaly_signal_count == 0
+    assert result.summary.returned_signal_count == 1
+    assert result.summary.truncated is False
+    assert len(result.evaluations) == 8
+    assert result.signals[0].signal_type.value == "bank_charge_leakage"
+    assert result.signals[0].observed_amount.value == Decimal("75.0000")
+    repository.list_spending_signal_transactions.assert_awaited_once_with(
+        session,
+        user_id=user_id,
+        period=repository.get_summary.await_args.kwargs["period"],
+        currency="INR",
+    )
+
+
+def test_spending_signals_zero_data_is_successful_and_explicit() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = _summary(
+        income="0",
+        expense="0",
+        eligible=0,
+        categorized=0,
+    )
+    repository.list_spending_signal_transactions.return_value = ()
+
+    result = asyncio.run(
+        _service(repository).spending_signals(
+            AsyncMock(spec=AsyncSession),
+            user_id=uuid4(),
+            trusted_timezone="UTC",
+            default_currency="INR",
+            selection=_selection(comparison=AnalyticsComparisonMode.NONE),
+            limit=25,
+        )
+    )
+
+    assert result.summary.evaluated_transaction_count == 0
+    assert result.summary.detected_signal_count == 0
+    assert result.signals == ()
+    assert all(item.status.value == "insufficient_data" for item in result.evaluations)

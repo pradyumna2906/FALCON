@@ -1,4 +1,4 @@
-"""Authenticated cash-flow, spending, and recurrence analytics routes."""
+"""Authenticated financial analytics routes."""
 
 from typing import Annotated, cast
 
@@ -20,6 +20,8 @@ from falcon_api.schemas.analytics import (
     RecurringAnalyticsResponse,
     SpendingAnalyticsQuery,
     SpendingAnalyticsResponse,
+    SpendingSignalAnalyticsQuery,
+    SpendingSignalAnalyticsResponse,
 )
 from falcon_api.schemas.errors import ErrorResponse
 
@@ -45,6 +47,7 @@ AnalyticsServiceDependency = Annotated[
 CashFlowQueryDependency = Annotated[CashFlowAnalyticsQuery, Query()]
 SpendingQueryDependency = Annotated[SpendingAnalyticsQuery, Query()]
 RecurringQueryDependency = Annotated[RecurringAnalyticsQuery, Query()]
+SpendingSignalQueryDependency = Annotated[SpendingSignalAnalyticsQuery, Query()]
 
 _AUTHENTICATION_ERROR = {
     "model": ErrorResponse,
@@ -141,6 +144,38 @@ async def get_recurring_analytics(
         minimum_occurrences=query.minimum_occurrences,
         limit=query.limit,
         include_abstained=query.include_abstained,
+    )
+
+
+@analytics_router.get(
+    "/spending-signals",
+    response_model=SpendingSignalAnalyticsResponse,
+    operation_id="get_spending_signal_analytics",
+    summary="Return explainable spending-leak and anomaly signals",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: _AUTHENTICATION_ERROR,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: _VALIDATION_ERROR,
+    },
+)
+async def get_spending_signal_analytics(
+    query: SpendingSignalQueryDependency,
+    session: DatabaseSession,
+    service: AnalyticsServiceDependency,
+    principal: CurrentPrincipalDependency,
+) -> SpendingSignalAnalyticsResponse:
+    """Evaluate fixed policies using trusted owner and timezone context."""
+    return await service.spending_signals(
+        session,
+        user_id=principal.user_id,
+        trusted_timezone=principal.timezone,
+        default_currency=principal.default_currency,
+        selection=AnalyticsSelection(
+            date_from=query.date_from,
+            date_to=query.date_to,
+            currency=query.currency,
+            comparison=AnalyticsComparisonMode.NONE,
+        ),
+        limit=query.limit,
     )
 
 

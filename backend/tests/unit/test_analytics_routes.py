@@ -12,6 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from falcon_api.analytics.application import FinancialAnalyticsService
 from falcon_api.analytics.types import AnalyticsGranularity
+from falcon_api.analytics.spending_signals import (
+    SpendingSignalEvaluationStatus,
+    SpendingSignalType,
+)
 from falcon_api.api.routes.analytics import analytics_service_from
 from falcon_api.api.routes.auth import current_principal_service_from
 from falcon_api.auth.principal import (
@@ -34,6 +38,9 @@ from falcon_api.schemas.analytics import (
     RecurringAnalyticsResponse,
     RecurringAnalyticsSummary,
     SpendingAnalyticsResponse,
+    SpendingSignalAnalyticsResponse,
+    SpendingSignalAnalyticsSummary,
+    SpendingSignalEvaluationResponse,
 )
 
 
@@ -171,6 +178,31 @@ def _recurring_response() -> RecurringAnalyticsResponse:
     )
 
 
+def _spending_signal_response() -> SpendingSignalAnalyticsResponse:
+    context = _context().model_copy(update={"comparison_period": None})
+    return SpendingSignalAnalyticsResponse(
+        context=context,
+        summary=SpendingSignalAnalyticsSummary(
+            evaluated_transaction_count=0,
+            detected_signal_count=0,
+            potential_leak_signal_count=0,
+            anomaly_signal_count=0,
+            returned_signal_count=0,
+            truncated=False,
+        ),
+        evaluations=tuple(
+            SpendingSignalEvaluationResponse(
+                signal_type=signal_type,
+                status=SpendingSignalEvaluationStatus.INSUFFICIENT_DATA,
+                source_observation_count=0,
+                explanation="No eligible expense evidence was available.",
+            )
+            for signal_type in SpendingSignalType
+        ),
+        signals=(),
+    )
+
+
 def test_cash_flow_route_uses_authenticated_context_and_safe_query(
     client: TestClient,
     analytics_dependencies,
@@ -263,6 +295,35 @@ def test_recurring_route_passes_only_trusted_owner_and_bounded_controls(
     assert call.kwargs["include_abstained"] is False
 
 
+def test_spending_signal_route_passes_only_trusted_owner_and_limit(
+    client: TestClient,
+    analytics_dependencies,
+) -> None:
+    service, _, session, principal = analytics_dependencies
+    service.spending_signals.return_value = _spending_signal_response()
+
+    response = client.get(
+        "/api/v1/analytics/spending-signals",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+        params={
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-24",
+            "currency": "inr",
+            "limit": "10",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["policy_version"] == "2026.1"
+    call = service.spending_signals.await_args
+    assert call.args == (session,)
+    assert call.kwargs["user_id"] == principal.user_id
+    assert call.kwargs["trusted_timezone"] == principal.timezone
+    assert call.kwargs["selection"].currency == "INR"
+    assert call.kwargs["selection"].comparison.value == "none"
+    assert call.kwargs["limit"] == 10
+
+
 @pytest.mark.parametrize(
     ("path", "params"),
     [
@@ -275,6 +336,9 @@ def test_recurring_route_passes_only_trusted_owner_and_bounded_controls(
         ("/api/v1/analytics/recurring", {"user_id": str(uuid4())}),
         ("/api/v1/analytics/recurring", {"minimum_occurrences": "2"}),
         ("/api/v1/analytics/recurring", {"limit": "101"}),
+        ("/api/v1/analytics/spending-signals", {"user_id": str(uuid4())}),
+        ("/api/v1/analytics/spending-signals", {"threshold": "0.5"}),
+        ("/api/v1/analytics/spending-signals", {"limit": "101"}),
     ],
 )
 def test_analytics_routes_reject_untrusted_or_invalid_query_fields(
@@ -296,6 +360,7 @@ def test_analytics_routes_reject_untrusted_or_invalid_query_fields(
     service.cash_flow.assert_not_awaited()
     service.spending.assert_not_awaited()
     service.recurring.assert_not_awaited()
+    service.spending_signals.assert_not_awaited()
 
 
 def test_analytics_routes_require_authentication(
@@ -322,6 +387,7 @@ def test_openapi_documents_all_analytics_operations(client: TestClient) -> None:
     assert "get" in document["paths"]["/api/v1/analytics/cash-flow"]
     assert "get" in document["paths"]["/api/v1/analytics/spending"]
     assert "get" in document["paths"]["/api/v1/analytics/recurring"]
+    assert "get" in document["paths"]["/api/v1/analytics/spending-signals"]
     assert (
         document["paths"]["/api/v1/analytics/cash-flow"]["get"]["operationId"]
         == "get_cash_flow_analytics"
@@ -333,4 +399,9 @@ def test_openapi_documents_all_analytics_operations(client: TestClient) -> None:
     assert (
         document["paths"]["/api/v1/analytics/recurring"]["get"]["operationId"]
         == "get_recurring_analytics"
+    )
+    assert (
+        document["paths"]["/api/v1/analytics/spending-signals"]["get"]
+        ["operationId"]
+        == "get_spending_signal_analytics"
     )

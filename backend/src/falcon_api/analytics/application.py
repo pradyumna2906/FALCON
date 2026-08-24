@@ -23,6 +23,10 @@ from falcon_api.analytics.semantics import (
     RATIO_QUANTUM,
     AnalyticsComparisonMode,
 )
+from falcon_api.analytics.spending_signals import (
+    SpendingSignalFamily,
+    detect_spending_signals,
+)
 from falcon_api.analytics.types import (
     AnalyticsGranularity,
     AnalyticsSummaryAggregate,
@@ -45,6 +49,10 @@ from falcon_api.schemas.analytics import (
     SpendingAccount,
     SpendingAnalyticsResponse,
     SpendingCategory,
+    SpendingSignalAnalyticsResponse,
+    SpendingSignalAnalyticsSummary,
+    SpendingSignalEvaluationResponse,
+    SpendingSignalResponse,
     SpendingMerchant,
 )
 
@@ -319,6 +327,75 @@ class FinancialAnalyticsService:
             patterns=tuple(
                 RecurringPatternResponse.from_pattern(pattern)
                 for pattern in returned
+            ),
+        )
+
+    async def spending_signals(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        trusted_timezone: str,
+        default_currency: str,
+        selection: AnalyticsSelection,
+        limit: int,
+    ) -> SpendingSignalAnalyticsResponse:
+        """Return bounded leak and anomaly evidence without recommendations."""
+        now = self._clock.now()
+        period = resolve_analytics_period(
+            date_from=selection.date_from,
+            date_to=selection.date_to,
+            trusted_timezone=trusted_timezone,
+            now=now,
+        )
+        currency = _resolve_currency(
+            requested=selection.currency,
+            default=default_currency,
+        )
+        summary = await self._repository.get_summary(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+        )
+        records = await self._repository.list_spending_signal_transactions(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+        )
+        analysis = detect_spending_signals(
+            records,
+            period=period,
+            total_expense=summary.total_expense,
+        )
+        returned = analysis.signals[:limit]
+        leak_count = sum(
+            signal.family is SpendingSignalFamily.POTENTIAL_LEAK
+            for signal in analysis.signals
+        )
+        return SpendingSignalAnalyticsResponse(
+            context=_context(
+                period=period,
+                comparison=None,
+                currency=currency,
+                summary=summary,
+                calculated_at=now,
+            ),
+            summary=SpendingSignalAnalyticsSummary(
+                evaluated_transaction_count=len(records),
+                detected_signal_count=len(analysis.signals),
+                potential_leak_signal_count=leak_count,
+                anomaly_signal_count=len(analysis.signals) - leak_count,
+                returned_signal_count=len(returned),
+                truncated=len(analysis.signals) > len(returned),
+            ),
+            evaluations=tuple(
+                SpendingSignalEvaluationResponse.from_evaluation(item)
+                for item in analysis.evaluations
+            ),
+            signals=tuple(
+                SpendingSignalResponse.from_signal(item) for item in returned
             ),
         )
 

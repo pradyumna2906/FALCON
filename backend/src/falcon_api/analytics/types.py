@@ -134,3 +134,15 @@ class RecurringTransactionRecord:
     display_name: str | None
     classification_code: str | None
     category_name: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class SpendingSignalTransactionRecord:
+    """One private posted-expense observation used by signal policies."""
+
+    transaction_date: date
+    amount: Decimal
+    normalized_merchant: str | None
+    display_name: str | None
+    classification_code: str | None
+    category_name: str | None

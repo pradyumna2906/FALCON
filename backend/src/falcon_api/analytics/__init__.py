@@ -27,6 +27,18 @@ from falcon_api.analytics.semantics import (
     classification_completeness,
     metric_definition,
 )
+from falcon_api.analytics.spending_signals import (
+    SPENDING_SIGNAL_POLICY_VERSION,
+    SpendingSignal,
+    SpendingSignalAnalysis,
+    SpendingSignalEvaluation,
+    SpendingSignalEvaluationStatus,
+    SpendingSignalFamily,
+    SpendingSignalReasonCode,
+    SpendingSignalSeverity,
+    SpendingSignalType,
+    detect_spending_signals,
+)
 from falcon_api.analytics.repository import AnalyticsRepository
 from falcon_api.analytics.types import (
     MAX_ANALYTICS_DIMENSION_ROWS,
@@ -37,6 +49,7 @@ from falcon_api.analytics.types import (
     CategoryAggregate,
     MerchantAggregate,
     RecurringTransactionRecord,
+    SpendingSignalTransactionRecord,
 )
 
 __all__ = (
@@ -44,6 +57,7 @@ __all__ = (
     "MAX_ANALYTICS_RANGE_DAYS",
     "MAX_ANALYTICS_DIMENSION_ROWS",
     "RECURRING_POLICY_VERSION",
+    "SPENDING_SIGNAL_POLICY_VERSION",
     "AccountAggregate",
     "AnalyticsCategoryState",
     "AnalyticsComparisonMode",
@@ -65,8 +79,18 @@ __all__ = (
     "RecurringPatternType",
     "RecurringReasonCode",
     "RecurringTransactionRecord",
+    "SpendingSignal",
+    "SpendingSignalAnalysis",
+    "SpendingSignalEvaluation",
+    "SpendingSignalEvaluationStatus",
+    "SpendingSignalFamily",
+    "SpendingSignalReasonCode",
+    "SpendingSignalSeverity",
+    "SpendingSignalTransactionRecord",
+    "SpendingSignalType",
     "classification_completeness",
     "detect_recurring_patterns",
+    "detect_spending_signals",
     "metric_definition",
     "previous_period",
     "resolve_analytics_period",

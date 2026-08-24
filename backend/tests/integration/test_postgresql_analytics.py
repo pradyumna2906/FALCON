@@ -222,6 +222,51 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
                 "repeated_merchant"
             )
             assert recurring_body["patterns"][0]["decision"] == "detected"
+
+            for _ in range(2):
+                _post_transaction(
+                    client,
+                    token=token,
+                    account_id=account_id,
+                    transaction_type=TransactionType.EXPENSE,
+                    amount="620.0000",
+                    merchant="Food App",
+                    transaction_date="2026-08-10",
+                )
+                _post_transaction(
+                    client,
+                    token=other_token,
+                    account_id=other_account_id,
+                    transaction_type=TransactionType.EXPENSE,
+                    amount="888888.0000",
+                    merchant="Must Not Leak",
+                    transaction_date="2026-08-10",
+                )
+
+            spending_signals = client.get(
+                "/api/v1/analytics/spending-signals",
+                headers=headers,
+                params={
+                    "date_from": "2026-08-01",
+                    "date_to": "2026-08-24",
+                    "limit": "10",
+                },
+            )
+            assert spending_signals.status_code == 200, spending_signals.text
+            signal_body = spending_signals.json()
+            assert signal_body["summary"]["evaluated_transaction_count"] == 4
+            assert signal_body["summary"]["detected_signal_count"] == 1
+            assert signal_body["summary"]["potential_leak_signal_count"] == 1
+            assert signal_body["summary"]["anomaly_signal_count"] == 0
+            assert len(signal_body["evaluations"]) == 8
+            assert signal_body["signals"][0]["signal_type"] == (
+                "duplicate_like_expense"
+            )
+            assert signal_body["signals"][0]["observed_amount"]["value"] == (
+                "1240.0000"
+            )
+            assert signal_body["signals"][0]["normalized_merchant"] == "food app"
+            assert "must not leak" not in str(signal_body).lower()
     finally:
         if user_ids:
             asyncio.run(_delete_users(integration_settings(), *user_ids))

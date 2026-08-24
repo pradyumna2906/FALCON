@@ -1,7 +1,7 @@
 # Phase 8 — Financial Analytics and Spending Intelligence
 
 **Phase status:** in progress
-**Current checkpoint:** 8.4 complete after validation
+**Current checkpoint:** 8.5 complete after validation
 Analytics contract version: `2026.1`
 
 ## 1. Purpose
@@ -235,8 +235,10 @@ bounded and privacy safe.
   cash-flow and spending summary APIs.
 - **Checkpoint 8.4 (complete after validation):** explainable recurring
   transaction and subscription intelligence with explicit abstention.
-- **Checkpoints 8.5–8.8:** leak/anomaly detection, bounded budget risk,
-  explainable health score, and prioritized insights.
+- **Checkpoint 8.5 (complete after validation):** deterministic spending-leak and
+  anomaly signals with robust personal baselines and cautious evidence.
+- **Checkpoints 8.6–8.8:** bounded budget risk, explainable health score, and
+  prioritized insights.
 - **Checkpoint 8.9:** snapshot policy, invalidation, monitoring, maximum-range
   performance, full regression, and Phase 8 closure.
 
@@ -547,3 +549,102 @@ Alembic upgrade and downgrade SQL, whitespace, line-ending, final-newline,
 merge-marker, large-file, case-conflict, illegal-Windows-name, submodule, and
 private-key checks passed. No migration is required because Checkpoint 8.4 is a
 live, read-only policy and API over the existing indexed transaction ledger.
+
+## 20. Checkpoint 8.5 spending-leak and anomaly detection
+
+Checkpoint 8.5 exposes one authenticated live read operation:
+
+```text
+GET /api/v1/analytics/spending-signals
+```
+
+The request accepts the frozen inclusive `date_from`, `date_to`, and `currency`
+controls plus a response `limit` from 1 through 100, defaulting to 25. The
+policy thresholds are server-owned and versioned. Clients cannot select a user,
+override the trusted timezone, submit descriptions or transaction IDs, change
+statistical thresholds, inject model confidence, or request a different signal
+formula under policy version `2026.1`.
+
+Only owned, posted expense transactions from one account currency and the
+selected period enter the policy. Pending rows, income, transfers, adjustments,
+foreign-currency rows, and another user's ledger are excluded in PostgreSQL.
+The source statement reads the financial date, absolute amount, normalized
+merchant display data, and valid canonical category metadata. It does not read
+transaction descriptions, source hashes, import provenance, feature vectors,
+model paths, or Phase 7 prediction confidence.
+
+The fixed policy evaluates eight distinct checks:
+
+| Check | Evidence and minimum guard |
+| --- | --- |
+| Bank-charge leakage | At least two expenses with canonical `bank_charges` evidence |
+| Repeated small expenses | At least five same-merchant/category payments no greater than half the user's selected-period median expense |
+| Recurring subscriptions | At least three canonical `streaming` observations that pass the reviewed Checkpoint 8.4 recurrence policy |
+| Merchant concentration | At least three payments to one merchant, at least five expenses overall, and at least 30% of selected-period expense |
+| Category spike | Latest seven-day canonical category total above both 1.5× the median of the three preceding seven-day windows and median plus 3× median absolute deviation |
+| Unusual amount | A merchant/category group with at least five observations and an amount above both its 1.5× median guard and median plus 3× median absolute deviation; when deviation is zero the amount must exceed 2× median |
+| Discretionary spike | Latest seven-day total across the reviewed discretionary code set above the same three-window robust baseline |
+| Duplicate-like expense | At least two same-day rows with the same exact amount and normalized merchant or canonical category key |
+
+The reviewed discretionary set contains restaurants, food delivery, taxi and
+ride share, clothing, electronics, general shopping, streaming, movies and
+events, gaming, and hobbies. Category evidence is accepted only when it is
+system-owned or belongs to the authenticated user and its kind is compatible
+with an expense transaction. Merchant text is used only as an exact normalized
+grouping key; it never assigns a financial meaning.
+
+Every check returns one explicit evaluation state: `detected`, `no_signal`, or
+`insufficient_data`. This prevents an empty response from pretending that all
+checks ran successfully. Detected signals are separated into `potential_leak`
+and `anomaly` families and include severity, a six-decimal evidence score,
+bounded reason codes, observed amount, optional baseline and excess, share of
+selected-period expense, occurrence count, observed date bounds, reviewed
+merchant/category dimensions, and a privacy-safe explanation.
+
+Evidence score is deterministic policy strength, not a probability, fraud
+score, Phase 7 model confidence, or prediction of future behavior. Severity is
+an impact band based on the signal's observed share of selected-period expense:
+low below 10%, medium from 10% through below 20%, and high at or above 20%.
+Signals can overlap, so the response deliberately does not sum their amounts
+into “potential savings.” Bank charges and recurring subscriptions may be
+legitimate; recurring does not mean unwanted. Duplicate-like evidence is not a
+confirmed duplicate, and unusual behavior is not confirmed fraud. Explanations
+therefore request review without making a financial, legal, or fraud claim.
+
+Signals are deterministically ordered by severity, observed amount, signal
+type, and date before the response limit is applied. Zero data returns `200`,
+zero signal counts, all eight evaluations as `insufficient_data`, and an empty
+signal list. The endpoint uses at most two SQL statements: the existing
+owner-scoped analytics summary and one ordered expense-evidence query. Detection
+performs no query per transaction, merchant, category, or signal.
+
+Checkpoint 8.5 adds no database table, migration, write operation, snapshot,
+cache, background job, black-box anomaly model, clustering model, fuzzy match,
+fraud decision, automatic cancellation, budget, health score, recommendation,
+forecast, or UI. Checkpoint 8.6 owns budget variance and bounded overspend risk;
+Checkpoint 8.8 owns prioritized recommendations; Phase 9 owns forecasting.
+
+## 21. Checkpoint 8.5 validation
+
+Focused signal-policy, repository, schema, service, route, contract, and
+integration-collection coverage passed 131 tests while skipping the two
+explicitly PostgreSQL-gated analytics scenarios. The complete backend
+collection passed 1,044 tests and skipped 37 explicitly PostgreSQL-gated tests.
+The complete backend statement and branch coverage gate passed at 95.38%, above
+the required 90% threshold. The new spending-signal policy reached 95%; the
+analytics repository and private result types remained fully covered.
+
+The PostgreSQL-gated authenticated API lifecycle now creates same-day exact
+duplicate-like expenses for two owners, verifies only the authenticated owner's
+bounded signal and amounts, and proves the second owner's much larger matching
+expenses cannot leak into counts, evidence, merchant dimensions, or signals. A
+local PostgreSQL execution is attempted only when the existing integration flag
+and service are available; otherwise the scenario remains collected for the
+existing PostgreSQL CI job.
+
+Source compilation, Ruff static checks for the touched Python surface, OpenAPI
+generation, offline Alembic upgrade and downgrade SQL, whitespace, line-ending,
+final-newline, merge-marker, large-file, case-conflict, illegal-Windows-name,
+submodule, and private-key checks passed. No migration is required because
+Checkpoint 8.5 is a live, read-only policy and API over the existing indexed
+transaction ledger.

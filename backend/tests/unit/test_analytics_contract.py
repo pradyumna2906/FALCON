@@ -6,6 +6,7 @@ from falcon_api.schemas.analytics import (
     AnalyticsContext,
     AnalyticsRangeQuery,
     RecurringAnalyticsQuery,
+    SpendingSignalAnalyticsQuery,
 )
 
 
@@ -102,6 +103,40 @@ def test_recurring_contract_is_bounded_private_and_documented() -> None:
         "0.65 × interval consistency + 0.35 × amount consistency",
         "explicitly `abstained`",
         "not a forecast",
+        "at most two sql statements",
+    ):
+        assert statement in content
+
+
+def test_spending_signal_contract_is_fixed_private_and_cautious() -> None:
+    properties = set(
+        SpendingSignalAnalyticsQuery.model_json_schema()["properties"]
+    )
+
+    assert properties == {"date_from", "date_to", "currency", "limit"}
+    for private_field in {
+        "user_id",
+        "timezone",
+        "transaction_ids",
+        "descriptions",
+        "threshold",
+        "model_confidence",
+    }:
+        assert private_field not in properties
+
+    content = _IMPLEMENTATION_DOCUMENT.read_text(encoding="utf-8").lower()
+    for statement in (
+        "get /api/v1/analytics/spending-signals",
+        "bank-charge leakage",
+        "repeated small expenses",
+        "recurring subscriptions",
+        "merchant concentration",
+        "category spike",
+        "median absolute deviation",
+        "discretionary spike",
+        "duplicate-like",
+        "not a probability",
+        "not confirmed fraud",
         "at most two sql statements",
     ):
         assert statement in content

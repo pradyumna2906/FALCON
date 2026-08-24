@@ -46,6 +46,17 @@ from falcon_api.analytics.semantics import (
     AnalyticsConfidenceLevel,
     classification_completeness,
 )
+from falcon_api.analytics.spending_signals import (
+    MAX_SPENDING_SIGNALS,
+    SPENDING_SIGNAL_POLICY_VERSION,
+    SpendingSignal,
+    SpendingSignalEvaluation,
+    SpendingSignalEvaluationStatus,
+    SpendingSignalFamily,
+    SpendingSignalReasonCode,
+    SpendingSignalSeverity,
+    SpendingSignalType,
+)
 from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
 
 
@@ -139,6 +150,27 @@ class RecurringAnalyticsQuery(AnalyticsSchema):
 
     @model_validator(mode="after")
     def validate_date_window(self) -> "RecurringAnalyticsQuery":
+        """Apply the frozen inclusive analytics range contract."""
+        _validate_date_range(self.date_from, self.date_to)
+        return self
+
+
+class SpendingSignalAnalyticsQuery(AnalyticsSchema):
+    """Select bounded live leak and anomaly evidence."""
+
+    date_from: date | None = None
+    date_to: date | None = None
+    currency: CurrencyCode | None = None
+    limit: int = Field(default=25, ge=1, le=MAX_SPENDING_SIGNALS)
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str | None) -> str | None:
+        """Use canonical uppercase currency identifiers."""
+        return value.upper() if value is not None else None
+
+    @model_validator(mode="after")
+    def validate_date_window(self) -> "SpendingSignalAnalyticsQuery":
         """Apply the frozen inclusive analytics range contract."""
         _validate_date_range(self.date_from, self.date_to)
         return self
@@ -626,6 +658,138 @@ class RecurringAnalyticsResponse(AnalyticsSchema):
     )
     summary: RecurringAnalyticsSummary
     patterns: tuple[RecurringPatternResponse, ...]
+
+
+class SpendingSignalEvaluationResponse(AnalyticsSchema):
+    """Public status for one fixed leak or anomaly check."""
+
+    signal_type: SpendingSignalType
+    status: SpendingSignalEvaluationStatus
+    source_observation_count: int = Field(ge=0)
+    explanation: str = Field(min_length=1, max_length=200)
+
+    @classmethod
+    def from_evaluation(
+        cls,
+        evaluation: SpendingSignalEvaluation,
+    ) -> "SpendingSignalEvaluationResponse":
+        return cls(
+            signal_type=evaluation.signal_type,
+            status=evaluation.status,
+            source_observation_count=evaluation.source_observation_count,
+            explanation=evaluation.explanation,
+        )
+
+
+class SpendingSignalResponse(AnalyticsSchema):
+    """One bounded observation without source transaction identifiers."""
+
+    signal_type: SpendingSignalType
+    family: SpendingSignalFamily
+    severity: SpendingSignalSeverity
+    evidence_score: RateMetric
+    reason_codes: tuple[SpendingSignalReasonCode, ...]
+    observed_amount: MoneyMetric
+    baseline_amount: MoneyMetric | None
+    excess_amount: MoneyMetric | None
+    share_of_total_expense: ShareMetric
+    occurrence_count: int = Field(ge=1)
+    first_observed_date: date
+    last_observed_date: date
+    normalized_merchant: str | None = Field(default=None, max_length=200)
+    display_name: str | None = Field(default=None, max_length=200)
+    classification_code: str | None = Field(default=None, max_length=64)
+    category_name: str | None = Field(default=None, max_length=100)
+    explanation: str = Field(min_length=1, max_length=240)
+
+    @classmethod
+    def from_signal(cls, signal: SpendingSignal) -> "SpendingSignalResponse":
+        return cls(
+            signal_type=signal.signal_type,
+            family=signal.family,
+            severity=signal.severity,
+            evidence_score=RateMetric(value=signal.evidence_score),
+            reason_codes=signal.reason_codes,
+            observed_amount=MoneyMetric(value=signal.observed_amount),
+            baseline_amount=(
+                MoneyMetric(value=signal.baseline_amount)
+                if signal.baseline_amount is not None
+                else None
+            ),
+            excess_amount=(
+                MoneyMetric(value=signal.excess_amount)
+                if signal.excess_amount is not None
+                else None
+            ),
+            share_of_total_expense=ShareMetric(
+                value=signal.share_of_total_expense
+            ),
+            occurrence_count=signal.occurrence_count,
+            first_observed_date=signal.first_observed_date,
+            last_observed_date=signal.last_observed_date,
+            normalized_merchant=signal.normalized_merchant,
+            display_name=signal.display_name,
+            classification_code=signal.classification_code,
+            category_name=signal.category_name,
+            explanation=signal.explanation,
+        )
+
+    @model_validator(mode="after")
+    def validate_signal_evidence(self) -> "SpendingSignalResponse":
+        if self.last_observed_date < self.first_observed_date:
+            raise ValueError("Spending-signal observation dates must be ordered.")
+        if self.observed_amount.value <= 0:
+            raise ValueError("Spending-signal observed amount must be positive.")
+        if self.baseline_amount is not None and self.baseline_amount.value < 0:
+            raise ValueError("Spending-signal baseline cannot be negative.")
+        if self.excess_amount is not None and self.excess_amount.value < 0:
+            raise ValueError("Spending-signal excess cannot be negative.")
+        return self
+
+
+class SpendingSignalAnalyticsSummary(AnalyticsSchema):
+    """Counts that do not double-count overlapping monetary evidence."""
+
+    evaluated_transaction_count: int = Field(ge=0)
+    detected_signal_count: int = Field(ge=0)
+    potential_leak_signal_count: int = Field(ge=0)
+    anomaly_signal_count: int = Field(ge=0)
+    returned_signal_count: int = Field(ge=0)
+    truncated: bool
+
+    @model_validator(mode="after")
+    def validate_signal_counts(self) -> "SpendingSignalAnalyticsSummary":
+        if (
+            self.potential_leak_signal_count + self.anomaly_signal_count
+            != self.detected_signal_count
+        ):
+            raise ValueError(
+                "Leak and anomaly signal counts must equal detected signals."
+            )
+        if self.returned_signal_count > self.detected_signal_count:
+            raise ValueError("Returned signals cannot exceed detected signals.")
+        return self
+
+
+class SpendingSignalAnalyticsResponse(AnalyticsSchema):
+    """Owner-scoped leak and anomaly evidence with explicit evaluation states."""
+
+    context: AnalyticsContext
+    policy_version: Literal["2026.1"] = SPENDING_SIGNAL_POLICY_VERSION
+    summary: SpendingSignalAnalyticsSummary
+    evaluations: tuple[SpendingSignalEvaluationResponse, ...]
+    signals: tuple[SpendingSignalResponse, ...]
+
+    @model_validator(mode="after")
+    def validate_evaluation_coverage(self) -> "SpendingSignalAnalyticsResponse":
+        evaluated = {item.signal_type for item in self.evaluations}
+        if evaluated != set(SpendingSignalType):
+            raise ValueError("Every spending-signal policy check must be evaluated.")
+        if len(evaluated) != len(self.evaluations):
+            raise ValueError("Spending-signal evaluations must be unique.")
+        if len(self.signals) != self.summary.returned_signal_count:
+            raise ValueError("Returned signal count must match the response list.")
+        return self
 
 
 def _validate_date_range(
