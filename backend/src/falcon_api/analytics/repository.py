@@ -1,0 +1,476 @@
+"""Owner- and currency-scoped PostgreSQL financial aggregations."""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from uuid import UUID
+
+from sqlalchemy import Date, and_, case, cast, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
+
+from falcon_api.analytics.periods import AnalyticsPeriod
+from falcon_api.analytics.types import (
+    MAX_ANALYTICS_DIMENSION_ROWS,
+    AccountAggregate,
+    AnalyticsGranularity,
+    AnalyticsSummaryAggregate,
+    CashFlowBucketAggregate,
+    CategoryAggregate,
+    MerchantAggregate,
+    money,
+)
+from falcon_api.classification.types import ClassificationDecision
+from falcon_api.models.account import Account
+from falcon_api.models.category import Category
+from falcon_api.models.classification import TransactionClassification
+from falcon_api.models.enums import (
+    AccountType,
+    CategoryKind,
+    TransactionStatus,
+    TransactionType,
+)
+from falcon_api.models.ledger import Transaction
+
+
+_CASH_FLOW_TYPES = (TransactionType.INCOME, TransactionType.EXPENSE)
+
+
+class AnalyticsRepository:
+    """Read exact aggregates without accepting an owner from public input."""
+
+    async def get_summary(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        period: AnalyticsPeriod,
+        currency: str,
+    ) -> AnalyticsSummaryAggregate:
+        """Return contract metrics and completeness counts in one statement."""
+        normalized_currency = _currency(currency)
+        in_period = _in_period(period)
+        owned_account = _owned_account_join()
+        selected_currency = Account.currency == normalized_currency
+        posted = Transaction.status == TransactionStatus.POSTED
+        eligible = and_(
+            selected_currency,
+            posted,
+            Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+        )
+        valid_category = _valid_category(user_id=user_id)
+        unresolved = and_(eligible, ~valid_category)
+
+        transfer_groups = (
+            select(
+                Transaction.transfer_group_id.label("transfer_group_id"),
+                func.max(func.abs(Transaction.amount)).label("amount"),
+            )
+            .join(Account, owned_account)
+            .where(
+                Transaction.user_id == user_id,
+                *in_period,
+                selected_currency,
+                posted,
+                Transaction.transaction_type == TransactionType.TRANSFER,
+                Transaction.transfer_group_id.is_not(None),
+                Transaction.amount < 0,
+            )
+            .group_by(Transaction.transfer_group_id)
+            .subquery()
+        )
+        transfer_volume = (
+            select(func.coalesce(func.sum(transfer_groups.c.amount), 0))
+            .select_from(transfer_groups)
+            .scalar_subquery()
+        )
+
+        statement = (
+            select(
+                _money_sum(
+                    and_(
+                        eligible,
+                        Transaction.transaction_type == TransactionType.INCOME,
+                    )
+                ).label("gross_income"),
+                _money_sum(
+                    and_(
+                        eligible,
+                        Transaction.transaction_type == TransactionType.EXPENSE,
+                    )
+                ).label("total_expense"),
+                transfer_volume.label("internal_transfer_volume"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                and_(
+                                    selected_currency,
+                                    posted,
+                                    Transaction.transaction_type
+                                    == TransactionType.ADJUSTMENT,
+                                ),
+                                Transaction.amount,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("net_adjustment"),
+                _count_if(eligible).label("eligible_transaction_count"),
+                _count_if(and_(eligible, valid_category)).label(
+                    "categorized_transaction_count"
+                ),
+                _count_if(
+                    and_(
+                        unresolved,
+                        TransactionClassification.decision
+                        == ClassificationDecision.SUGGESTED,
+                    )
+                ).label("suggested_transaction_count"),
+                _count_if(
+                    and_(
+                        unresolved,
+                        TransactionClassification.decision
+                        == ClassificationDecision.ABSTAINED,
+                    )
+                ).label("abstained_transaction_count"),
+                _count_if(
+                    and_(
+                        selected_currency,
+                        Transaction.status == TransactionStatus.PENDING,
+                        Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+                    )
+                ).label("pending_count"),
+                _count_if(
+                    and_(
+                        selected_currency,
+                        posted,
+                        Transaction.transaction_type == TransactionType.TRANSFER,
+                    )
+                ).label("transfer_entry_count"),
+                _count_if(
+                    and_(
+                        selected_currency,
+                        posted,
+                        Transaction.transaction_type
+                        == TransactionType.ADJUSTMENT,
+                    )
+                ).label("adjustment_count"),
+                _count_if(
+                    and_(
+                        Account.currency != normalized_currency,
+                        posted,
+                        Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+                    )
+                ).label("other_currency_count"),
+                func.max(
+                    case((eligible, Transaction.transaction_date), else_=None)
+                ).label("latest_transaction_date"),
+                func.max(
+                    case((eligible, Transaction.updated_at), else_=None)
+                ).label("source_last_updated_at"),
+            )
+            .select_from(Transaction)
+            .join(Account, owned_account)
+            .outerjoin(Category, Category.id == Transaction.category_id)
+            .outerjoin(
+                TransactionClassification,
+                and_(
+                    TransactionClassification.user_id == Transaction.user_id,
+                    TransactionClassification.transaction_id == Transaction.id,
+                ),
+            )
+            .where(Transaction.user_id == user_id, *in_period)
+        )
+        row = (await session.execute(statement)).mappings().one()
+        return AnalyticsSummaryAggregate(
+            gross_income=money(row["gross_income"]),
+            total_expense=money(row["total_expense"]),
+            internal_transfer_volume=money(row["internal_transfer_volume"]),
+            net_adjustment=money(row["net_adjustment"]),
+            eligible_transaction_count=row["eligible_transaction_count"],
+            categorized_transaction_count=row["categorized_transaction_count"],
+            suggested_transaction_count=row["suggested_transaction_count"],
+            abstained_transaction_count=row["abstained_transaction_count"],
+            pending_count=row["pending_count"],
+            transfer_entry_count=row["transfer_entry_count"],
+            adjustment_count=row["adjustment_count"],
+            other_currency_count=row["other_currency_count"],
+            latest_transaction_date=row["latest_transaction_date"],
+            source_last_updated_at=row["source_last_updated_at"],
+        )
+
+    async def list_cash_flow_buckets(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        period: AnalyticsPeriod,
+        currency: str,
+        granularity: AnalyticsGranularity,
+    ) -> tuple[CashFlowBucketAggregate, ...]:
+        """Return observed daily or monthly external cash-flow buckets."""
+        resolved_granularity = AnalyticsGranularity(granularity)
+        bucket = Transaction.transaction_date
+        if resolved_granularity is AnalyticsGranularity.MONTH:
+            bucket = cast(
+                func.date_trunc("month", Transaction.transaction_date),
+                Date,
+            )
+        statement = (
+            select(
+                bucket.label("period_start"),
+                _money_sum(
+                    Transaction.transaction_type == TransactionType.INCOME
+                ).label("gross_income"),
+                _money_sum(
+                    Transaction.transaction_type == TransactionType.EXPENSE
+                ).label("total_expense"),
+                func.count().label("transaction_count"),
+            )
+            .select_from(Transaction)
+            .join(Account, _owned_account_join())
+            .where(
+                Transaction.user_id == user_id,
+                *_in_period(period),
+                Account.currency == _currency(currency),
+                Transaction.status == TransactionStatus.POSTED,
+                Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+            )
+            .group_by(bucket)
+            .order_by(bucket.asc())
+        )
+        rows = (await session.execute(statement)).mappings().all()
+        return tuple(
+            CashFlowBucketAggregate(
+                period_start=row["period_start"],
+                gross_income=money(row["gross_income"]),
+                total_expense=money(row["total_expense"]),
+                transaction_count=row["transaction_count"],
+            )
+            for row in rows
+        )
+
+    async def list_category_aggregates(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        period: AnalyticsPeriod,
+        currency: str,
+        limit: int = MAX_ANALYTICS_DIMENSION_ROWS,
+    ) -> tuple[CategoryAggregate, ...]:
+        """Return bounded allocations to valid canonical ledger categories."""
+        _dimension_limit(limit)
+        amount = func.sum(func.abs(Transaction.amount))
+        statement = (
+            select(
+                Category.id.label("category_id"),
+                Category.parent_id.label("parent_category_id"),
+                Category.name.label("name"),
+                Category.classification_code.label("classification_code"),
+                Category.kind.label("kind"),
+                amount.label("amount"),
+                func.count().label("transaction_count"),
+            )
+            .select_from(Transaction)
+            .join(Account, _owned_account_join())
+            .join(Category, Category.id == Transaction.category_id)
+            .where(
+                Transaction.user_id == user_id,
+                *_in_period(period),
+                Account.currency == _currency(currency),
+                Transaction.status == TransactionStatus.POSTED,
+                Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+                _valid_category(user_id=user_id),
+            )
+            .group_by(
+                Category.id,
+                Category.parent_id,
+                Category.name,
+                Category.classification_code,
+                Category.kind,
+            )
+            .order_by(amount.desc(), Category.id.asc())
+            .limit(limit)
+        )
+        rows = (await session.execute(statement)).mappings().all()
+        return tuple(
+            CategoryAggregate(
+                category_id=row["category_id"],
+                parent_category_id=row["parent_category_id"],
+                name=row["name"],
+                classification_code=row["classification_code"],
+                kind=CategoryKind(row["kind"]),
+                amount=money(row["amount"]),
+                transaction_count=row["transaction_count"],
+            )
+            for row in rows
+        )
+
+    async def list_merchant_aggregates(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        period: AnalyticsPeriod,
+        currency: str,
+        limit: int = MAX_ANALYTICS_DIMENSION_ROWS,
+    ) -> tuple[MerchantAggregate, ...]:
+        """Return bounded case-insensitive merchant allocations."""
+        _dimension_limit(limit)
+        normalized = func.nullif(func.lower(func.trim(Transaction.merchant_name)), "")
+        display = func.min(func.nullif(func.trim(Transaction.merchant_name), ""))
+        income = _money_sum(
+            Transaction.transaction_type == TransactionType.INCOME
+        )
+        expense = _money_sum(
+            Transaction.transaction_type == TransactionType.EXPENSE
+        )
+        total = income + expense
+        statement = (
+            select(
+                normalized.label("normalized_merchant"),
+                display.label("display_name"),
+                income.label("gross_income"),
+                expense.label("total_expense"),
+                func.count().label("transaction_count"),
+            )
+            .select_from(Transaction)
+            .join(Account, _owned_account_join())
+            .where(
+                Transaction.user_id == user_id,
+                *_in_period(period),
+                Account.currency == _currency(currency),
+                Transaction.status == TransactionStatus.POSTED,
+                Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+            )
+            .group_by(normalized)
+            .order_by(total.desc(), normalized.asc().nulls_last())
+            .limit(limit)
+        )
+        rows = (await session.execute(statement)).mappings().all()
+        return tuple(
+            MerchantAggregate(
+                normalized_merchant=row["normalized_merchant"],
+                display_name=row["display_name"],
+                gross_income=money(row["gross_income"]),
+                total_expense=money(row["total_expense"]),
+                transaction_count=row["transaction_count"],
+            )
+            for row in rows
+        )
+
+    async def list_account_aggregates(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        period: AnalyticsPeriod,
+        currency: str,
+        limit: int = MAX_ANALYTICS_DIMENSION_ROWS,
+    ) -> tuple[AccountAggregate, ...]:
+        """Return bounded external cash flow by owned historical account."""
+        _dimension_limit(limit)
+        income = _money_sum(
+            Transaction.transaction_type == TransactionType.INCOME
+        )
+        expense = _money_sum(
+            Transaction.transaction_type == TransactionType.EXPENSE
+        )
+        total = income + expense
+        statement = (
+            select(
+                Account.id.label("account_id"),
+                Account.name.label("name"),
+                Account.account_type.label("account_type"),
+                income.label("gross_income"),
+                expense.label("total_expense"),
+                func.count().label("transaction_count"),
+            )
+            .select_from(Transaction)
+            .join(Account, _owned_account_join())
+            .where(
+                Transaction.user_id == user_id,
+                *_in_period(period),
+                Account.currency == _currency(currency),
+                Transaction.status == TransactionStatus.POSTED,
+                Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+            )
+            .group_by(
+                Account.id,
+                Account.name,
+                Account.account_type,
+            )
+            .order_by(total.desc(), Account.id.asc())
+            .limit(limit)
+        )
+        rows = (await session.execute(statement)).mappings().all()
+        return tuple(
+            AccountAggregate(
+                account_id=row["account_id"],
+                name=row["name"],
+                account_type=AccountType(row["account_type"]),
+                gross_income=money(row["gross_income"]),
+                total_expense=money(row["total_expense"]),
+                transaction_count=row["transaction_count"],
+            )
+            for row in rows
+        )
+
+
+def _owned_account_join() -> ColumnElement[bool]:
+    return and_(
+        Account.user_id == Transaction.user_id,
+        Account.id == Transaction.account_id,
+    )
+
+
+def _in_period(
+    period: AnalyticsPeriod,
+) -> tuple[ColumnElement[bool], ColumnElement[bool]]:
+    return (
+        Transaction.transaction_date >= period.date_from,
+        Transaction.transaction_date <= period.date_to,
+    )
+
+
+def _valid_category(*, user_id: UUID) -> ColumnElement[bool]:
+    allowed_owner = or_(
+        and_(Category.is_system.is_(True), Category.user_id.is_(None)),
+        and_(Category.is_system.is_(False), Category.user_id == user_id),
+    )
+    return and_(
+        Category.id.is_not(None),
+        Category.kind == Transaction.transaction_type,
+        allowed_owner,
+    )
+
+
+def _money_sum(predicate: ColumnElement[bool]) -> ColumnElement[Decimal]:
+    return func.coalesce(
+        func.sum(case((predicate, func.abs(Transaction.amount)), else_=0)),
+        0,
+    )
+
+
+def _count_if(predicate: ColumnElement[bool]) -> ColumnElement[int]:
+    return func.count().filter(predicate)
+
+
+def _currency(value: str) -> str:
+    normalized = value.strip().upper()
+    if len(normalized) != 3 or not all(
+        "A" <= character <= "Z" for character in normalized
+    ):
+        raise ValueError("Analytics currency must be a three-letter code.")
+    return normalized
+
+
+def _dimension_limit(value: int) -> None:
+    if type(value) is not int or not 1 <= value <= MAX_ANALYTICS_DIMENSION_ROWS:
+        raise ValueError(
+            "Analytics dimension limits must be between 1 and "
+            f"{MAX_ANALYTICS_DIMENSION_ROWS}."
+        )

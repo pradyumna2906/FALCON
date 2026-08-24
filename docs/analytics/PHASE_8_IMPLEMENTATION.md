@@ -1,7 +1,7 @@
 # Phase 8 — Financial Analytics and Spending Intelligence
 
 **Phase status:** in progress
-**Current checkpoint:** 8.1 complete
+**Current checkpoint:** 8.2 complete
 Analytics contract version: `2026.1`
 
 ## 1. Purpose
@@ -228,8 +228,9 @@ bounded and privacy safe.
   date/currency/status/type/category/comparison/freshness/completeness semantics,
   strict schemas, error identifiers, contract tests, and this implementation
   record.
-- **Checkpoint 8.2:** owner-scoped PostgreSQL aggregation foundation and query
-  efficiency. It must implement this contract without changing its meanings.
+- **Checkpoint 8.2 (complete after validation):** owner-scoped PostgreSQL
+  aggregation foundation and query efficiency. It implements this contract
+  without changing its meanings.
 - **Checkpoint 8.3:** authenticated dashboard summary and distribution APIs.
 - **Checkpoints 8.4–8.8:** recurring intelligence, leak/anomaly detection,
   bounded budget risk, explainable health score, and prioritized insights.
@@ -253,3 +254,88 @@ Source compilation, whitespace, line-ending, final-newline, merge-marker,
 large-file, and private-key checks passed. No database migration is required
 because this checkpoint defines immutable application and API contracts only;
 PostgreSQL aggregation and live database validation begin in Checkpoint 8.2.
+
+## 14. Checkpoint 8.2 aggregation foundation
+
+Checkpoint 8.2 implements the contract as a read-only application repository.
+Every method receives the authenticated `user_id` from trusted application
+context plus a previously resolved `AnalyticsPeriod` and currency. No public
+request model contains an owner selector or timezone override.
+
+The repository exposes five bounded read paths:
+
+1. one summary statement for income, expense, transfer volume, adjustments,
+   category completeness, exclusions, and freshness watermarks;
+2. observed daily or calendar-month income/expense buckets;
+3. canonical category allocations;
+4. case-normalized merchant allocations, including one unattributed bucket;
+5. historical owned-account allocations.
+
+Every read path applies `transactions.user_id = authenticated_user_id`, joins
+accounts through both `account_id` and `user_id`, filters the inclusive date
+window, and isolates one account currency. Other-owner rows cannot contribute
+even if a transaction or account identifier is guessed. Other-currency posted
+income/expense rows are counted only in summary exclusion metadata and are
+never mixed into money totals.
+
+Summary transfer volume is a grouped scalar subquery: negative posted transfer
+legs are grouped by `transfer_group_id`, one magnitude is retained per group,
+and those magnitudes are summed. Thus the normal two ledger legs do not double
+count a move, and a transfer group contributes at most one aggregate value.
+Adjustments use their signed amount and remain separate from external cash
+flow.
+
+Category allocation joins only the canonical `transactions.category_id`. A
+category counts only when its kind matches the transaction type and it is a
+system category or a private category belonging to the same authenticated
+owner. Suggested or abstained predictions without a canonical category remain
+unallocated. Archived categories and accounts remain available to historical
+analytics because archiving does not rewrite already-posted ledger history.
+
+Merchant keys use trimmed lowercase text only for grouping. The foundation
+retains a deterministic display variant and a `null` unattributed group but
+never reads or returns transaction descriptions. Account and merchant rows
+contain separate income and expense amounts. Category rows contain their
+single compatible amount and kind.
+
+All database numerics are converted to `Decimal` and quantized to four places.
+Daily/monthly, category, merchant, and account outputs have deterministic
+ordering. Dimension queries accept only a 1–100 row bound. Each surface uses
+exactly one SQL statement, so aggregation never performs a query per
+transaction, category, merchant, or account. Empty results remain empty tuples;
+the summary statement still returns the contract's exact zero values.
+
+Checkpoint 8.2 adds no API route, response endpoint, materialized view,
+database table, migration, cache, background job, anomaly detector, recurring
+payment logic, budget, health score, recommendation, or forecast. Checkpoint
+8.3 owns authenticated dashboard APIs and presentation schemas; Checkpoint 8.9
+owns snapshot policy and maximum-range production performance gates.
+
+## 15. Checkpoint 8.2 validation
+
+The aggregation repository has unit coverage for owner/date/currency/status
+predicates, composite account joins, compatible category visibility, exact
+money mapping, transfer-group de-duplication, archived-history inclusion,
+merchant normalization, daily/monthly grouping, stable limits, and the
+one-statement-per-surface query budget. A PostgreSQL-gated integration test
+constructs two owners and two currencies, exercises every read path, and
+verifies that pending entries, transfers, adjustments, foreign currency, and
+the second owner's ledger cannot leak into core totals.
+
+No migration is required: the existing `ix_transactions_user_date`, account,
+category, and transfer-group indexes support the bounded read shapes. The live
+integration test remains gated by `FALCON_RUN_DATABASE_INTEGRATION=1` and is
+executed by the existing PostgreSQL CI service.
+
+Final verification passed 58 focused analytics tests with 100% statement and
+branch coverage across `falcon_api.analytics`. The complete backend collection
+passed 971 tests and skipped 36 explicitly PostgreSQL-gated tests. The complete
+backend coverage gate passed at 95.33%; the final repository changes remained
+fully covered by the focused run. Offline Alembic upgrade and downgrade SQL,
+source compilation, whitespace, line-ending, final-newline, merge-marker,
+large-file, case-conflict, and private-key checks also passed.
+
+No PostgreSQL service was listening locally on ports 5432 or 5433, so the new
+real-database scenario could not execute in this workspace. It is collected by
+the full test run and will execute in the existing PostgreSQL CI job alongside
+the other database-gated tests.

@@ -24,7 +24,9 @@ The current backend provides:
 - A versioned Phase 7 transaction-classification taxonomy and strict confidence,
   abstention, provenance, batch-selection, and correction contracts.
 - A versioned Phase 8 financial-analytics contract with exact metric, period,
-  currency, completeness, confidence, and zero-data semantics.
+  currency, completeness, confidence, and zero-data semantics, plus
+  owner-scoped live PostgreSQL aggregation for summaries, trends, categories,
+  merchants, and accounts.
 
 ## Requirements
 
@@ -418,3 +420,17 @@ model remains provisional and cannot automatically assign model-only results.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).
+
+## Financial analytics implementation
+
+Phase 8.1 freezes versioned metric, date-window, currency, transaction-status,
+classification-completeness, confidence, freshness, comparison, and zero-data
+semantics. Phase 8.2 implements those meanings as exact, owner-scoped live
+PostgreSQL aggregations for summary metrics, observed daily/monthly cash flow,
+canonical categories, normalized merchants, and historical accounts. Every
+surface uses one bounded SQL statement and archived ledger history remains
+eligible. No analytics API route, materialized snapshot, anomaly model, budget,
+score, recommendation, or forecast has been introduced yet.
+
+The authoritative contract and checkpoint record is documented in
+[`docs/analytics/PHASE_8_IMPLEMENTATION.md`](../docs/analytics/PHASE_8_IMPLEMENTATION.md).
