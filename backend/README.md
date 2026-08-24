@@ -23,6 +23,8 @@ The current backend provides:
 - Authenticated, bounded CSV/XLSX/digital-PDF statement import and reconciliation APIs.
 - A versioned Phase 7 transaction-classification taxonomy and strict confidence,
   abstention, provenance, batch-selection, and correction contracts.
+- A versioned Phase 8 financial-analytics contract with exact metric, period,
+  currency, completeness, confidence, and zero-data semantics.
 
 ## Requirements
 
