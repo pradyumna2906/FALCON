@@ -383,6 +383,42 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
             )
             assert foreign_health_budget.status_code == 404
             assert foreign_health_budget.json()["error"]["code"] == ("budget_not_found")
+
+            insights = client.get(
+                "/api/v1/analytics/insights",
+                headers=headers,
+                params={
+                    "date_from": "2026-08-01",
+                    "date_to": "2026-08-24",
+                    "budget_id": str(owner_budget_id),
+                    "limit": "10",
+                },
+            )
+            assert insights.status_code == 200, insights.text
+            insight_body = insights.json()
+            assert insight_body["policy_version"] == "2026.1"
+            assert insight_body["status"] == "available"
+            assert insight_body["summary"]["active_insight_count"] >= 1
+            assert insight_body["summary"]["returned_insight_count"] == len(
+                insight_body["insights"]
+            )
+            assert all(
+                item["lifecycle_state"] == "active"
+                and len(item["insight_id"]) == 24
+                for item in insight_body["insights"]
+            )
+            assert "666666" not in str(insight_body)
+            assert "other health evidence" not in str(insight_body).lower()
+
+            foreign_insight_budget = client.get(
+                "/api/v1/analytics/insights",
+                headers=headers,
+                params={"budget_id": str(other_budget_id)},
+            )
+            assert foreign_insight_budget.status_code == 404
+            assert foreign_insight_budget.json()["error"]["code"] == (
+                "budget_not_found"
+            )
     finally:
         if user_ids:
             asyncio.run(_delete_users(integration_settings(), *user_ids))

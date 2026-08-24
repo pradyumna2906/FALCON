@@ -8,6 +8,8 @@ from falcon_api.schemas.analytics import (
     BudgetAnalyticsResponse,
     FinancialHealthAnalyticsQuery,
     FinancialHealthScoreResponse,
+    InsightAnalyticsQuery,
+    InsightAnalyticsResponse,
     RecurringAnalyticsQuery,
     SpendingSignalAnalyticsQuery,
 )
@@ -215,5 +217,44 @@ def test_health_score_contract_is_fixed_explainable_and_non_advisory() -> None:
         "not an investment recommendation",
         "not a forecast",
         "at most five sql statements",
+    ):
+        assert statement in content
+
+
+def test_insight_contract_is_bounded_deduplicated_and_non_advisory() -> None:
+    query_properties = set(InsightAnalyticsQuery.model_json_schema()["properties"])
+    assert query_properties == {
+        "date_from",
+        "date_to",
+        "currency",
+        "budget_id",
+        "limit",
+    }
+    response_properties = set(
+        InsightAnalyticsResponse.model_json_schema()["properties"]
+    )
+    for private_field in {
+        "user_id",
+        "weights",
+        "thresholds",
+        "transaction_ids",
+        "investment_product",
+        "forecast_probability",
+    }:
+        assert private_field not in query_properties
+        assert private_field not in response_properties
+
+    content = _IMPLEMENTATION_DOCUMENT.read_text(encoding="utf-8").lower()
+    for statement in (
+        "get /api/v1/analytics/insights",
+        "severity, urgency, confidence",
+        "deterministic 24-character identifier",
+        "deduplicated",
+        "estimated period impact",
+        "not guaranteed savings",
+        "lifecycle state is `active`",
+        "not investment advice",
+        "not a forecast",
+        "at most six sql statements",
     ):
         assert statement in content

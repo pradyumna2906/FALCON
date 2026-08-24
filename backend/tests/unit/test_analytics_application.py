@@ -1,6 +1,7 @@
 """Application contracts for authenticated financial analytics."""
 
 import asyncio
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, Mock
@@ -818,4 +819,114 @@ def test_financial_health_score_rejects_missing_or_misaligned_budget() -> None:
             )
         )
     assert mismatch.value.code == "health_budget_period_mismatch"
+    assert mismatch.value.status_code == 422
+
+
+def test_prioritized_insights_compose_existing_evidence_in_five_queries() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = replace(
+        _summary(income="5000", expense="7000"),
+        source_last_updated_at=datetime(2026, 8, 24, 6, tzinfo=UTC),
+    )
+    repository.list_spending_signal_transactions.return_value = (
+        SpendingSignalTransactionRecord(
+            transaction_date=date(2026, 8, 3),
+            amount=Decimal("50"),
+            normalized_merchant="bank",
+            display_name="Bank",
+            classification_code="bank_charges",
+            category_name="Bank Charges",
+        ),
+        SpendingSignalTransactionRecord(
+            transaction_date=date(2026, 8, 10),
+            amount=Decimal("75"),
+            normalized_merchant="bank",
+            display_name="Bank",
+            classification_code="bank_charges",
+            category_name="Bank Charges",
+        ),
+    )
+    repository.list_cash_flow_buckets.return_value = ()
+    repository.list_category_aggregates.return_value = ()
+    later = _NOW
+    repository.get_financial_health_profile.return_value = (
+        FinancialHealthProfileAggregate(
+            profile_completion_status=ProfileCompletionStatus.COMPLETE,
+            emergency_fund_target_months=Decimal("3"),
+            liquid_balance=Decimal("0"),
+            liability_account_count=0,
+            liability_payment_count=0,
+            monthly_debt_payment=Decimal("0"),
+            source_last_updated_at=later,
+        )
+    )
+    session = AsyncMock(spec=AsyncSession)
+    user_id = uuid4()
+
+    result = asyncio.run(
+        _service(repository).prioritized_insights(
+            session,
+            user_id=user_id,
+            trusted_timezone="Asia/Kolkata",
+            default_currency="INR",
+            selection=_selection(comparison=AnalyticsComparisonMode.NONE),
+            budget_id=None,
+            limit=2,
+        )
+    )
+
+    assert result.status.value == "available"
+    assert result.insights[0].insight_type.value == "restore_positive_cash_flow"
+    assert result.summary.active_insight_count >= 2
+    assert result.summary.returned_insight_count == 2
+    assert result.context.freshness.source_last_updated_at == later
+    assert result.context.comparison_period is None
+    repository.get_summary.assert_awaited_once()
+    repository.list_spending_signal_transactions.assert_awaited_once()
+    repository.list_cash_flow_buckets.assert_awaited_once()
+    repository.list_category_aggregates.assert_awaited_once()
+    repository.get_financial_health_profile.assert_awaited_once()
+    repository.get_budget_definition.assert_not_awaited()
+
+
+def test_prioritized_insights_enforce_owned_aligned_optional_budget() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = _summary()
+    repository.list_spending_signal_transactions.return_value = ()
+    repository.list_cash_flow_buckets.return_value = ()
+    repository.list_category_aggregates.return_value = ()
+    repository.get_financial_health_profile.return_value = _health_profile()
+    session = AsyncMock(spec=AsyncSession)
+
+    repository.get_budget_definition.return_value = None
+    with pytest.raises(ApplicationError) as missing:
+        asyncio.run(
+            _service(repository).prioritized_insights(
+                session,
+                user_id=uuid4(),
+                trusted_timezone="UTC",
+                default_currency="INR",
+                selection=_selection(comparison=AnalyticsComparisonMode.NONE),
+                budget_id=uuid4(),
+                limit=10,
+            )
+        )
+    assert missing.value.code == "budget_not_found"
+
+    repository.get_budget_definition.return_value = _budget_definition(
+        start=date(2026, 7, 1),
+    )
+    with pytest.raises(ApplicationError) as mismatch:
+        asyncio.run(
+            _service(repository).prioritized_insights(
+                session,
+                user_id=uuid4(),
+                trusted_timezone="UTC",
+                default_currency="INR",
+                selection=_selection(comparison=AnalyticsComparisonMode.NONE),
+                budget_id=uuid4(),
+                limit=10,
+            )
+        )
+    assert mismatch.value.code == "insight_budget_period_mismatch"
     assert mismatch.value.status_code == 422

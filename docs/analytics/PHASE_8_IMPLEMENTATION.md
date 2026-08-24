@@ -1,7 +1,7 @@
 # Phase 8 — Financial Analytics and Spending Intelligence
 
 **Phase status:** in progress
-**Current checkpoint:** 8.7 complete after validation
+**Current checkpoint:** 8.8 complete after validation
 Analytics contract version: `2026.1`
 
 ## 1. Purpose
@@ -241,7 +241,8 @@ bounded and privacy safe.
   overspend-risk pace arithmetic.
 - **Checkpoint 8.7 (complete after validation):** versioned, explainable
   financial-health score with factor-level contributions and abstention.
-- **Checkpoint 8.8:** prioritized insights and recommendations.
+- **Checkpoint 8.8 (complete after validation):** prioritized insights and
+  recommendations.
 - **Checkpoint 8.9:** snapshot policy, invalidation, monitoring, maximum-range
   performance, full regression, and Phase 8 closure.
 
@@ -858,3 +859,121 @@ final-newline, merge-marker, large-file, case-conflict, illegal-Windows-name,
 submodule, and private-key checks passed. No migration is required because
 Checkpoint 8.7 derives live read-only evidence from existing profiles,
 accounts, liabilities, transactions, categories, and budgets.
+
+## 26. Checkpoint 8.8 prioritized insights and recommendations
+
+Checkpoint 8.8 adds one authenticated read-only operation:
+
+```text
+GET /api/v1/analytics/insights
+```
+
+The query accepts only `date_from`, `date_to`, `currency`, optional
+owner-scoped `budget_id`, and a response `limit` from 1 through 50. The
+authenticated principal supplies the owner and trusted timezone. A client
+cannot provide a user identifier, policy weights, thresholds, priority score,
+confidence, recommendation text, source transactions, or lifecycle override.
+The date, currency, posted-status, transfer, adjustment, category-correction,
+freshness, and completeness rules remain analytics contract `2026.1`.
+
+Insight policy `2026.1` composes evidence that Checkpoints 8.5–8.7 already
+define. It runs the spending-signal and financial-health policies over the same
+owner/date/currency selection, then converts only evidence that crosses a fixed
+threshold into a bounded action. It does not reinterpret raw transactions with
+a second set of hidden financial formulas.
+
+The first policy can produce these stable insight families:
+
+- restore positive cash flow;
+- improve savings rate;
+- build emergency-fund readiness;
+- review debt-service burden;
+- protect an aligned selected budget;
+- stabilize monthly cash flow;
+- improve classification completeness;
+- review repeated bank charges, small expenses, subscriptions, merchant
+  concentration, category spikes, or discretionary spikes; and
+- verify unusual amounts or duplicate-like expenses against the source
+  statement.
+
+Each item exposes a deterministic 24-character identifier derived from policy
+version, insight type, and bounded merchant/category dimensions. Repeated
+candidates with the same identity are deduplicated and the strongest one is
+kept. No transaction identifier, raw description, account number, feature
+vector, or cross-user dimension enters the identity or public response.
+
+Prioritization is deterministic. A 0–100 priority score combines severity,
+urgency, confidence, and fixed policy points:
+
+| Component | Fixed points |
+| --- | --- |
+| Severity | low 20, medium 40, high 55 |
+| Urgency | routine 5, soon 15, immediate 25 |
+| Confidence | evidence score multiplied by 20 |
+
+Items are sorted by descending priority and then by stable identifier, so the
+same evidence produces the same order. Negative net cash flow is a high,
+immediate item and suppresses the redundant low-savings item. Available health
+factors create an item only below their documented thresholds; unavailable
+factors abstain, and an unavailable composite withholds all health-derived
+recommendations. Spending-signal confidence reuses its deterministic evidence
+score and is banded as low below 0.50, medium from 0.50, and high from 0.80.
+It is not an ML probability.
+
+Every insight returns severity, urgency, confidence, bounded reason codes,
+title, evidence explanation, recommended action, and optional estimated period impact.
+Monetary impact is labeled either the observed reviewable amount,
+robust-baseline excess, or selected-period cash-flow deficit. It is not guaranteed savings,
+a prediction, or an instruction to dispute a valid charge.
+Actions use fixed reviewed text, ask the user to verify uncertain evidence, and
+never name a financial product, security, lender, or investment allocation.
+
+The lifecycle state is `active` because Checkpoint 8.8 is a live read-only
+policy. Dismissal, snoozing, delivery, and persisted lifecycle history are not
+invented without a storage and product contract. A zero-data selection returns
+`insufficient_data`; sufficient evidence that crosses no threshold returns
+`no_insights`; otherwise the response is `available`. The summary reports
+candidate, active, severity, returned, and truncation counts without summing
+overlapping monetary evidence.
+
+An optional budget must be owned and aligned to the selected currency, start
+date, and observed end date. Missing or cross-owner identifiers use
+`budget_not_found`; misalignment uses `insight_budget_period_mismatch`. The
+endpoint uses at most six SQL statements: summary, spending-signal records,
+monthly cash-flow buckets, bounded expense categories, combined live
+profile/liquidity/liability evidence, and the optional budget definition. It
+performs no query per insight, signal, transaction, account, factor, or
+category.
+
+These recommendations are personal-finance review prompts. They are not investment advice,
+credit or lending decisions, legal or tax advice, automated financial actions,
+guaranteed outcomes, or fraud findings. This policy is not a forecast. Phase 9
+owns forecasting; Phase 10 owns goal optimization. Checkpoint 8.8 adds no
+write endpoint, notification, LLM generation, ML model, table, migration,
+snapshot, cache, or background job. Checkpoint 8.9 owns performance,
+monitoring, snapshot policy, invalidation, regression closure, and Phase 8 PR
+readiness.
+
+## 27. Checkpoint 8.8 validation
+
+Focused analytics policy, schema, application, route, contract, and
+integration-collection coverage passed 187 tests while skipping the two
+explicitly PostgreSQL-gated analytics scenarios. The complete backend suite
+passed 1,100 tests and skipped 37 explicitly PostgreSQL-gated tests. Complete
+statement and branch coverage passed at 95.07%, above the required 90% gate;
+the new insight policy reached 99% coverage.
+
+The PostgreSQL-gated authenticated scenario extends the existing two-owner
+analytics lifecycle. It verifies the policy version, active prioritized items,
+stable identifiers, bounded counts, optional owned budget, and absence of the
+other owner's much larger transaction and merchant evidence. Supplying the
+other owner's budget identifier returns the same `budget_not_found` response
+as a missing identifier. Local PostgreSQL was unavailable, so the collected
+scenario remains enabled for the repository's PostgreSQL CI service.
+
+Source compilation, focused Ruff error/import checks, OpenAPI generation,
+offline Alembic upgrade and downgrade SQL, pre-commit hooks, whitespace,
+line-ending, final-newline, merge-marker, large-file, case-conflict,
+illegal-Windows-name, submodule, and private-key checks passed. No migration is
+required because Checkpoint 8.8 is a live read-only policy over existing
+analytics sources.

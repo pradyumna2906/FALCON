@@ -10,6 +10,7 @@ import pytest
 from falcon_api.analytics.application import FinancialAnalyticsService
 from falcon_api.analytics.budgeting import evaluate_budget
 from falcon_api.analytics.health_score import evaluate_financial_health
+from falcon_api.analytics.insights import InsightAnalysisStatus
 from falcon_api.analytics.spending_signals import (
     SpendingSignalEvaluationStatus,
     SpendingSignalType,
@@ -40,6 +41,8 @@ from falcon_api.schemas.analytics import (
     CashFlowMetrics,
     CashFlowPoint,
     FinancialHealthScoreResponse,
+    InsightAnalyticsResponse,
+    InsightAnalyticsSummary,
     MoneyMetric,
     RateMetric,
     RecurringAnalyticsResponse,
@@ -276,6 +279,24 @@ def _financial_health_response() -> FinancialHealthScoreResponse:
     )
 
 
+def _insight_response() -> InsightAnalyticsResponse:
+    return InsightAnalyticsResponse(
+        context=_context().model_copy(update={"comparison_period": None}),
+        status=InsightAnalysisStatus.NO_INSIGHTS,
+        summary=InsightAnalyticsSummary(
+            candidate_count=0,
+            active_insight_count=0,
+            high_severity_count=0,
+            medium_severity_count=0,
+            low_severity_count=0,
+            returned_insight_count=0,
+            truncated=False,
+        ),
+        insights=(),
+        explanation="No recommendation threshold was crossed.",
+    )
+
+
 def test_cash_flow_route_uses_authenticated_context_and_safe_query(
     client: TestClient,
     analytics_dependencies,
@@ -452,6 +473,39 @@ def test_financial_health_route_passes_trusted_context_and_optional_budget(
     assert call.kwargs["budget_id"] == budget_id
 
 
+def test_insight_route_passes_trusted_context_budget_and_bounded_limit(
+    client: TestClient,
+    analytics_dependencies,
+) -> None:
+    service, _, session, principal = analytics_dependencies
+    service.prioritized_insights.return_value = _insight_response()
+    budget_id = uuid4()
+
+    response = client.get(
+        "/api/v1/analytics/insights",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+        params={
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-24",
+            "currency": "inr",
+            "budget_id": str(budget_id),
+            "limit": "5",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["policy_version"] == "2026.1"
+    assert response.json()["status"] == "no_insights"
+    call = service.prioritized_insights.await_args
+    assert call.args == (session,)
+    assert call.kwargs["user_id"] == principal.user_id
+    assert call.kwargs["trusted_timezone"] == principal.timezone
+    assert call.kwargs["selection"].currency == "INR"
+    assert call.kwargs["selection"].comparison.value == "none"
+    assert call.kwargs["budget_id"] == budget_id
+    assert call.kwargs["limit"] == 5
+
+
 @pytest.mark.parametrize(
     ("path", "params"),
     [
@@ -470,6 +524,9 @@ def test_financial_health_route_passes_trusted_context_and_optional_budget(
         ("/api/v1/analytics/budgets/not-a-uuid", {}),
         ("/api/v1/analytics/health-score", {"weight": "25"}),
         ("/api/v1/analytics/health-score", {"budget_id": "not-a-uuid"}),
+        ("/api/v1/analytics/insights", {"user_id": str(uuid4())}),
+        ("/api/v1/analytics/insights", {"priority_weight": "50"}),
+        ("/api/v1/analytics/insights", {"limit": "51"}),
     ],
 )
 def test_analytics_routes_reject_untrusted_or_invalid_query_fields(
@@ -494,6 +551,7 @@ def test_analytics_routes_reject_untrusted_or_invalid_query_fields(
     service.spending_signals.assert_not_awaited()
     service.budget.assert_not_awaited()
     service.financial_health_score.assert_not_awaited()
+    service.prioritized_insights.assert_not_awaited()
 
 
 def test_analytics_routes_require_authentication(
@@ -523,6 +581,7 @@ def test_openapi_documents_all_analytics_operations(client: TestClient) -> None:
     assert "get" in document["paths"]["/api/v1/analytics/spending-signals"]
     assert "get" in document["paths"]["/api/v1/analytics/budgets/{budget_id}"]
     assert "get" in document["paths"]["/api/v1/analytics/health-score"]
+    assert "get" in document["paths"]["/api/v1/analytics/insights"]
     assert (
         document["paths"]["/api/v1/analytics/cash-flow"]["get"]["operationId"]
         == "get_cash_flow_analytics"
@@ -550,3 +609,10 @@ def test_openapi_documents_all_analytics_operations(client: TestClient) -> None:
         document["paths"]["/api/v1/analytics/health-score"]["get"]["operationId"]
         == "get_financial_health_score"
     )
+    assert (
+        document["paths"]["/api/v1/analytics/insights"]["get"]["operationId"]
+        == "get_prioritized_financial_insights"
+    )
+    assert set(
+        document["paths"]["/api/v1/analytics/insights"]["get"]["responses"]
+    ) >= {"200", "401", "404", "422"}

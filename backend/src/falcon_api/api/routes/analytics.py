@@ -20,6 +20,8 @@ from falcon_api.schemas.analytics import (
     CashFlowAnalyticsResponse,
     FinancialHealthAnalyticsQuery,
     FinancialHealthScoreResponse,
+    InsightAnalyticsQuery,
+    InsightAnalyticsResponse,
     RecurringAnalyticsQuery,
     RecurringAnalyticsResponse,
     SpendingAnalyticsQuery,
@@ -52,6 +54,7 @@ SpendingQueryDependency = Annotated[SpendingAnalyticsQuery, Query()]
 RecurringQueryDependency = Annotated[RecurringAnalyticsQuery, Query()]
 SpendingSignalQueryDependency = Annotated[SpendingSignalAnalyticsQuery, Query()]
 FinancialHealthQueryDependency = Annotated[FinancialHealthAnalyticsQuery, Query()]
+InsightQueryDependency = Annotated[InsightAnalyticsQuery, Query()]
 
 _AUTHENTICATION_ERROR = {
     "model": ErrorResponse,
@@ -243,6 +246,40 @@ async def get_financial_health_score(
             comparison=AnalyticsComparisonMode.NONE,
         ),
         budget_id=query.budget_id,
+    )
+
+
+@analytics_router.get(
+    "/insights",
+    response_model=InsightAnalyticsResponse,
+    operation_id="get_prioritized_financial_insights",
+    summary="Return prioritized explainable financial recommendations",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: _AUTHENTICATION_ERROR,
+        status.HTTP_404_NOT_FOUND: _NOT_FOUND_ERROR,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: _VALIDATION_ERROR,
+    },
+)
+async def get_prioritized_financial_insights(
+    query: InsightQueryDependency,
+    session: DatabaseSession,
+    service: AnalyticsServiceDependency,
+    principal: CurrentPrincipalDependency,
+) -> InsightAnalyticsResponse:
+    """Prioritize live evidence without accepting policy weights or an owner."""
+    return await service.prioritized_insights(
+        session,
+        user_id=principal.user_id,
+        trusted_timezone=principal.timezone,
+        default_currency=principal.default_currency,
+        selection=AnalyticsSelection(
+            date_from=query.date_from,
+            date_to=query.date_to,
+            currency=query.currency,
+            comparison=AnalyticsComparisonMode.NONE,
+        ),
+        budget_id=query.budget_id,
+        limit=query.limit,
     )
 
 

@@ -27,7 +27,8 @@ The current backend provides:
   currency, completeness, confidence, and zero-data semantics, plus
   owner-scoped live PostgreSQL aggregation for summaries, trends, categories,
   merchants, accounts, recurring evidence, spending signals, budget variance,
-  and an explainable versioned financial-health score.
+  an explainable versioned financial-health score, and deterministic prioritized
+  recommendations.
 
 ## Requirements
 
@@ -180,6 +181,7 @@ The current endpoints are:
 | `GET` | `/api/v1/analytics/spending-signals` | Returns explainable spending-leak and anomaly evidence |
 | `GET` | `/api/v1/analytics/budgets/{budget_id}` | Returns budget variance and bounded overspend-risk evidence |
 | `GET` | `/api/v1/analytics/health-score` | Returns a versioned explainable financial-health planning score |
+| `GET` | `/api/v1/analytics/insights` | Returns bounded, deduplicated, prioritized financial review actions |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |
@@ -440,11 +442,14 @@ eligible. Phase 8.3 exposes authenticated cash-flow and expense-only spending
 responses with trusted period/currency defaults, previous-period values,
 completeness/freshness context, exact ratios, and bounded dimensions.
 Phase 8.4 adds live recurrence intelligence for canonical salary, rent, EMI,
-SIP, insurance, utilities, subscriptions, and repeated merchants. It uses
-reviewed timing and amount tolerances, deterministic evidence scores, and
-explicit abstention instead of forcing uncertain patterns. No materialized
-snapshot, anomaly model, budget, score, recommendation, or forecast has been
-introduced yet.
+SIP, insurance, utilities, subscriptions, and repeated merchants. Phase 8.5
+adds robust spending-leak and anomaly evidence; Phase 8.6 adds exact budget
+variance and bounded pace risk; Phase 8.7 adds the seven-factor explainable
+financial-health score. Phase 8.8 converts those existing signals into fixed,
+deduplicated, prioritized review actions with severity, urgency, confidence,
+reason codes, cautious impact semantics, and no investment advice or forecast.
+Materialized snapshots, monitoring, invalidation, and Phase 8 closure remain in
+Checkpoint 8.9.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/analytics/PHASE_8_IMPLEMENTATION.md`](../docs/analytics/PHASE_8_IMPLEMENTATION.md).

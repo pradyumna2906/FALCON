@@ -35,6 +35,20 @@ from falcon_api.analytics.health_score import (
     FinancialHealthReasonCode,
     FinancialHealthScoreStatus,
 )
+from falcon_api.analytics.insights import (
+    INSIGHT_POLICY_VERSION,
+    MAX_INSIGHTS,
+    InsightAnalysisStatus,
+    InsightCategory,
+    InsightConfidence,
+    InsightImpactBasis,
+    InsightLifecycleState,
+    InsightReasonCode,
+    InsightSeverity,
+    InsightType,
+    InsightUrgency,
+    PersonalFinanceInsight,
+)
 from falcon_api.analytics.periods import AnalyticsPeriod
 from falcon_api.analytics.recurring import (
     MAX_RECURRING_OCCURRENCES,
@@ -213,6 +227,12 @@ class FinancialHealthAnalyticsQuery(AnalyticsSchema):
         """Apply the frozen inclusive analytics range contract."""
         _validate_date_range(self.date_from, self.date_to)
         return self
+
+
+class InsightAnalyticsQuery(FinancialHealthAnalyticsQuery):
+    """Select a bounded live recommendation set from trusted evidence."""
+
+    limit: int = Field(default=10, ge=1, le=MAX_INSIGHTS)
 
 
 class AnalyticsPeriodResponse(AnalyticsSchema):
@@ -1176,6 +1196,132 @@ class FinancialHealthScoreResponse(AnalyticsSchema):
         )
         if not Decimal("99.98") <= effective_total <= Decimal("100.02"):
             raise ValueError("Effective health-score weights must total 100.")
+        return self
+
+
+class PersonalFinanceInsightResponse(AnalyticsSchema):
+    """One active recommendation with bounded evidence and no source IDs."""
+
+    insight_id: str = Field(pattern=r"^[0-9a-f]{24}$")
+    insight_type: InsightType
+    category: InsightCategory
+    severity: InsightSeverity
+    urgency: InsightUrgency
+    confidence: InsightConfidence
+    confidence_score: RateMetric
+    priority_score: Decimal = Field(ge=0, le=100, decimal_places=2)
+    lifecycle_state: InsightLifecycleState
+    reason_codes: tuple[InsightReasonCode, ...] = Field(min_length=1)
+    title: str = Field(min_length=1, max_length=100)
+    explanation: str = Field(min_length=1, max_length=240)
+    recommended_action: str = Field(min_length=1, max_length=240)
+    estimated_period_impact: MoneyMetric | None
+    impact_basis: InsightImpactBasis | None
+    normalized_merchant: str | None = Field(default=None, max_length=200)
+    display_name: str | None = Field(default=None, max_length=200)
+    classification_code: str | None = Field(default=None, max_length=64)
+    category_name: str | None = Field(default=None, max_length=100)
+
+    @classmethod
+    def from_insight(
+        cls,
+        insight: PersonalFinanceInsight,
+    ) -> "PersonalFinanceInsightResponse":
+        return cls(
+            insight_id=insight.insight_id,
+            insight_type=insight.insight_type,
+            category=insight.category,
+            severity=insight.severity,
+            urgency=insight.urgency,
+            confidence=insight.confidence,
+            confidence_score=RateMetric(value=insight.confidence_score),
+            priority_score=insight.priority_score,
+            lifecycle_state=insight.lifecycle_state,
+            reason_codes=insight.reason_codes,
+            title=insight.title,
+            explanation=insight.explanation,
+            recommended_action=insight.recommended_action,
+            estimated_period_impact=(
+                MoneyMetric(value=insight.estimated_period_impact)
+                if insight.estimated_period_impact is not None
+                else None
+            ),
+            impact_basis=insight.impact_basis,
+            normalized_merchant=insight.normalized_merchant,
+            display_name=insight.display_name,
+            classification_code=insight.classification_code,
+            category_name=insight.category_name,
+        )
+
+    @model_validator(mode="after")
+    def validate_impact(self) -> "PersonalFinanceInsightResponse":
+        if (self.estimated_period_impact is None) != (self.impact_basis is None):
+            raise ValueError("Insight impact and its basis must appear together.")
+        if (
+            self.estimated_period_impact is not None
+            and self.estimated_period_impact.value < 0
+        ):
+            raise ValueError("Insight impact cannot be negative.")
+        return self
+
+
+class InsightAnalyticsSummary(AnalyticsSchema):
+    """Bounded counts for the live prioritized insight set."""
+
+    candidate_count: int = Field(ge=0)
+    active_insight_count: int = Field(ge=0)
+    high_severity_count: int = Field(ge=0)
+    medium_severity_count: int = Field(ge=0)
+    low_severity_count: int = Field(ge=0)
+    returned_insight_count: int = Field(ge=0)
+    truncated: bool
+
+    @model_validator(mode="after")
+    def validate_counts(self) -> "InsightAnalyticsSummary":
+        if (
+            self.high_severity_count
+            + self.medium_severity_count
+            + self.low_severity_count
+            != self.active_insight_count
+        ):
+            raise ValueError("Severity counts must equal active insight count.")
+        if self.returned_insight_count > self.active_insight_count:
+            raise ValueError("Returned insight count cannot exceed active insights.")
+        if self.active_insight_count > self.candidate_count:
+            raise ValueError("Active insight count cannot exceed candidates.")
+        if self.truncated != (
+            self.returned_insight_count < self.active_insight_count
+        ):
+            raise ValueError("Insight truncation must match returned counts.")
+        return self
+
+
+class InsightAnalyticsResponse(AnalyticsSchema):
+    """Owner-scoped deterministic recommendations ordered by priority."""
+
+    context: AnalyticsContext
+    policy_version: Literal["2026.1"] = INSIGHT_POLICY_VERSION
+    status: InsightAnalysisStatus
+    summary: InsightAnalyticsSummary
+    insights: tuple[PersonalFinanceInsightResponse, ...]
+    explanation: str = Field(min_length=1, max_length=240)
+
+    @model_validator(mode="after")
+    def validate_insight_set(self) -> "InsightAnalyticsResponse":
+        if len(self.insights) != self.summary.returned_insight_count:
+            raise ValueError("Returned insight count must match the response list.")
+        identifiers = tuple(item.insight_id for item in self.insights)
+        if len(set(identifiers)) != len(identifiers):
+            raise ValueError("Returned insights must be deduplicated.")
+        ordering = tuple(
+            (-item.priority_score, item.insight_id) for item in self.insights
+        )
+        if ordering != tuple(sorted(ordering)):
+            raise ValueError("Insights must use stable descending priority order.")
+        if self.status is InsightAnalysisStatus.AVAILABLE and not self.insights:
+            raise ValueError("Available insight responses require an active insight.")
+        if self.status is not InsightAnalysisStatus.AVAILABLE and self.insights:
+            raise ValueError("Unavailable insight responses cannot return insights.")
         return self
 
 
