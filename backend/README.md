@@ -173,6 +173,8 @@ The current endpoints are:
 | `POST` | `/api/v1/transfers` | Creates an atomic internal transfer |
 | `POST` | `/api/v1/imports` | Imports one bounded CSV/XLSX/digital-PDF statement into an owned account |
 | `GET` | `/api/v1/imports/{job_id}` | Returns one owned import reconciliation result |
+| `GET` | `/api/v1/analytics/cash-flow` | Returns exact cash-flow metrics, trends, and prior-period values |
+| `GET` | `/api/v1/analytics/spending` | Returns bounded category, merchant, and account expense distributions |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |
@@ -429,8 +431,11 @@ semantics. Phase 8.2 implements those meanings as exact, owner-scoped live
 PostgreSQL aggregations for summary metrics, observed daily/monthly cash flow,
 canonical categories, normalized merchants, and historical accounts. Every
 surface uses one bounded SQL statement and archived ledger history remains
-eligible. No analytics API route, materialized snapshot, anomaly model, budget,
-score, recommendation, or forecast has been introduced yet.
+eligible. Phase 8.3 exposes authenticated cash-flow and expense-only spending
+responses with trusted period/currency defaults, previous-period values,
+completeness/freshness context, exact ratios, and bounded dimensions. No
+materialized snapshot, anomaly model, budget, score, recommendation, or
+forecast has been introduced yet.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/analytics/PHASE_8_IMPLEMENTATION.md`](../docs/analytics/PHASE_8_IMPLEMENTATION.md).

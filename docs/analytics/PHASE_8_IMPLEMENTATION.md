@@ -1,7 +1,7 @@
 # Phase 8 — Financial Analytics and Spending Intelligence
 
 **Phase status:** in progress
-**Current checkpoint:** 8.2 complete
+**Current checkpoint:** 8.3 complete
 Analytics contract version: `2026.1`
 
 ## 1. Purpose
@@ -211,7 +211,7 @@ The common `AnalyticsContext` response carries:
 - completeness and exclusion counts.
 
 Malformed currency, partial ranges, inverted ranges, and ranges longer than
-366 days use the existing `422 request_validation_error` envelope. A range
+366 days use the existing `422 validation_error` envelope. A range
 ending after the trusted local date uses `422 analytics_date_in_future`.
 An invalid stored trusted timezone is an internal invariant failure identified
 as `invalid_trusted_timezone`; clients cannot provide or override that value.
@@ -231,7 +231,8 @@ bounded and privacy safe.
 - **Checkpoint 8.2 (complete after validation):** owner-scoped PostgreSQL
   aggregation foundation and query efficiency. It implements this contract
   without changing its meanings.
-- **Checkpoint 8.3:** authenticated dashboard summary and distribution APIs.
+- **Checkpoint 8.3 (complete after validation):** authenticated dashboard
+  cash-flow and spending summary APIs.
 - **Checkpoints 8.4–8.8:** recurring intelligence, leak/anomaly detection,
   bounded budget risk, explainable health score, and prioritized insights.
 - **Checkpoint 8.9:** snapshot policy, invalidation, monitoring, maximum-range
@@ -339,3 +340,94 @@ No PostgreSQL service was listening locally on ports 5432 or 5433, so the new
 real-database scenario could not execute in this workspace. It is collected by
 the full test run and will execute in the existing PostgreSQL CI job alongside
 the other database-gated tests.
+
+## 16. Checkpoint 8.3 cash-flow and spending APIs
+
+Checkpoint 8.3 exposes two authenticated read operations:
+
+```text
+GET /api/v1/analytics/cash-flow
+GET /api/v1/analytics/spending
+```
+
+Both operations accept the frozen range controls `date_from`, `date_to`,
+`currency`, and `comparison`. Cash flow additionally accepts `granularity` as
+`day` or `month`, defaulting to calendar month. Spending accepts a dimension
+`limit` from 1 through 100, defaulting to 25. Extra query fields are forbidden,
+so clients cannot select a user, override the trusted timezone, supply a
+freshness timestamp, or inject calculated metrics.
+
+The application service resolves the current month-to-date default from the
+authenticated principal's IANA timezone, selects the requested currency or the
+principal's trusted default currency, and passes the authenticated `user_id`
+directly into every repository call. A `previous_period` comparison fetches
+the equal-length immediately preceding summary. `none` performs no comparison
+query. Previous-period responses expose the prior exact values rather than an
+unstated percentage-change formula.
+
+The cash-flow response contains:
+
+- gross income, total expense, net cash flow, savings amount and savings rate;
+- internal-transfer volume and signed net adjustments;
+- optional previous-period values for the same metrics;
+- observed daily or calendar-month cash-flow buckets;
+- common period, currency, freshness, completeness, and exclusion context.
+
+The spending response contains:
+
+- current and optional previous-period total expense;
+- canonical expense-category allocations;
+- normalized merchant expense allocations;
+- historical owned-account expense allocations;
+- each dimension's exact amount, expense transaction count, and share of total
+  expense; and
+- the same common context as cash flow.
+
+Spending queries are filtered to `transaction_type=expense` in PostgreSQL
+before ranking and limiting. Income rows therefore cannot consume a dimension
+slot, inflate a spending count, or alter an expense share. Category shares may
+sum below one when expenses remain unclassified or the requested top-N limit
+truncates the category list. Merchant and account shares may also sum below
+one after top-N truncation. A share is `null` when total expense is zero.
+
+Money values serialize at four decimal places and ratios at six. Valid
+zero-data selections return `200`, exact zero totals, `null` denominator-based
+rates, empty series/distributions, and `unavailable` data confidence. Responses
+never expose user IDs, transaction IDs, descriptions, raw feature data, model
+paths, or model-confidence aggregates. Reviewed merchant/account/category
+display dimensions appear only in the spending response.
+
+Cash flow uses at most three SQL statements: current summary, observed series,
+and an optional comparison summary. Spending uses at most five: current
+summary, three expense dimensions, and an optional comparison summary. Every
+statement remains owner/date/currency scoped and no endpoint performs a query
+per transaction or returned dimension.
+
+Checkpoint 8.3 adds no table, migration, write operation, materialized view,
+cache, background calculation, recurring-payment inference, anomaly detector,
+budget, health score, recommendation, forecast, or UI. Those remain assigned
+to later approved checkpoints.
+
+## 17. Checkpoint 8.3 validation
+
+Focused service, schema, repository, route, application-wiring, contract, and
+integration-collection coverage passed 86 tests while skipping the two
+explicitly PostgreSQL-gated analytics scenarios. The complete backend
+collection passed 993 tests and skipped 37 explicitly PostgreSQL-gated tests.
+The complete backend unit coverage gate passed at 95.42%, above the required
+90% threshold; the analytics repository and internal result types remain fully
+covered, the application service reached 97%, and the public analytics schemas
+reached 99%.
+
+The integration suite now contains both direct repository aggregation and
+authenticated API lifecycle scenarios. The API scenario creates two owners,
+proves the second owner's large expense cannot affect either response, and
+checks exact cash-flow, spending, merchant, account, share, and comparison
+serialization. No PostgreSQL service was listening locally on ports 5432 or
+5433, so those scenarios remain collected for the existing PostgreSQL CI job.
+
+Offline Alembic upgrade and downgrade SQL, source compilation, OpenAPI
+generation, whitespace, line-ending, final-newline, merge-marker, large-file,
+case-conflict, illegal-Windows-name, submodule, and private-key checks passed.
+No migration is required because Checkpoint 8.3 composes the existing live
+aggregation foundation into authenticated read-only responses.

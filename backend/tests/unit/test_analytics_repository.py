@@ -20,7 +20,7 @@ from falcon_api.analytics import (
     CategoryAggregate,
     MerchantAggregate,
 )
-from falcon_api.models.enums import AccountType, CategoryKind
+from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
 
 
 _PERIOD = AnalyticsPeriod(
@@ -252,6 +252,8 @@ def test_merchant_aggregation_normalizes_case_and_preserves_unattributed_bucket(
                 "gross_income": Decimal("0"),
                 "total_expense": Decimal("620"),
                 "transaction_count": 2,
+                "income_transaction_count": 0,
+                "expense_transaction_count": 2,
             },
             {
                 "normalized_merchant": None,
@@ -259,6 +261,8 @@ def test_merchant_aggregation_normalizes_case_and_preserves_unattributed_bucket(
                 "gross_income": Decimal("100"),
                 "total_expense": Decimal("0"),
                 "transaction_count": 1,
+                "income_transaction_count": 1,
+                "expense_transaction_count": 0,
             },
         ]
     )
@@ -280,6 +284,8 @@ def test_merchant_aggregation_normalizes_case_and_preserves_unattributed_bucket(
             gross_income=Decimal("0.0000"),
             total_expense=Decimal("620.0000"),
             transaction_count=2,
+            income_transaction_count=0,
+            expense_transaction_count=2,
         ),
         MerchantAggregate(
             normalized_merchant=None,
@@ -287,6 +293,8 @@ def test_merchant_aggregation_normalizes_case_and_preserves_unattributed_bucket(
             gross_income=Decimal("100.0000"),
             total_expense=Decimal("0.0000"),
             transaction_count=1,
+            income_transaction_count=1,
+            expense_transaction_count=0,
         ),
     )
     query, _ = _compiled(session)
@@ -307,6 +315,8 @@ def test_account_aggregation_includes_archived_owned_accounts() -> None:
                 "gross_income": Decimal("7500"),
                 "total_expense": Decimal("1250"),
                 "transaction_count": 8,
+                "income_transaction_count": 2,
+                "expense_transaction_count": 6,
             }
         ]
     )
@@ -329,6 +339,8 @@ def test_account_aggregation_includes_archived_owned_accounts() -> None:
             gross_income=Decimal("7500.0000"),
             total_expense=Decimal("1250.0000"),
             transaction_count=8,
+            income_transaction_count=2,
+            expense_transaction_count=6,
         ),
     )
     query, _ = _compiled(session)
@@ -423,3 +435,39 @@ def test_each_aggregate_surface_uses_one_database_statement() -> None:
     summary_session.execute.assert_awaited_once()
     for session in empty_sessions:
         session.execute.assert_awaited_once()
+
+
+def test_dimension_query_can_be_restricted_to_expenses() -> None:
+    session = _session_with_all([])
+
+    result = asyncio.run(
+        AnalyticsRepository().list_merchant_aggregates(
+            session,
+            user_id=uuid4(),
+            period=_PERIOD,
+            currency="INR",
+            transaction_type=TransactionType.EXPENSE,
+        )
+    )
+
+    assert result == ()
+    query, params = _compiled(session)
+    assert "transactions.transaction_type =" in query
+    assert TransactionType.EXPENSE in params.values()
+
+
+def test_dimension_query_rejects_transfer_filter() -> None:
+    session = _session_with_all([])
+
+    with pytest.raises(ValueError, match="income or expense"):
+        asyncio.run(
+            AnalyticsRepository().list_account_aggregates(
+                session,
+                user_id=uuid4(),
+                period=_PERIOD,
+                currency="INR",
+                transaction_type=TransactionType.TRANSFER,
+            )
+        )
+
+    session.execute.assert_not_awaited()

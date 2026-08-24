@@ -55,7 +55,7 @@ def test_phase_document_freezes_the_approved_analytics_contract() -> None:
         "previous-period",
         "zero-data",
         "freshness",
-        "request_validation_error",
+        "validation_error",
         "analytics_date_in_future",
         "checkpoint 8.1",
         "checkpoint 8.2",

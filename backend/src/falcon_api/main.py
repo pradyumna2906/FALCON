@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from falcon_api import __version__
+from falcon_api.analytics.application import FinancialAnalyticsService
 from falcon_api.api.errors import register_exception_handlers
 from falcon_api.api.router import api_v1_router
 from falcon_api.api.routes.health import health_router
@@ -154,6 +155,7 @@ def create_app(
         )
     )
     application.state.import_service = ImportService()
+    application.state.analytics_service = FinancialAnalyticsService()
 
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)

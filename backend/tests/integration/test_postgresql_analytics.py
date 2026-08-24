@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
 from falcon_api.analytics import (
@@ -19,8 +20,10 @@ from falcon_api.analytics import (
     AnalyticsRepository,
 )
 from falcon_api.core.config import AppEnvironment, Settings
+from falcon_api.core.event_loop import create_psycopg_compatible_event_loop
 from falcon_api.infrastructure.database import create_database_resources
 from falcon_api.infrastructure.persistence import transaction_scope
+from falcon_api.main import create_app
 from falcon_api.models.account import Account
 from falcon_api.models.category import Category
 from falcon_api.models.enums import (
@@ -51,6 +54,7 @@ _PERIOD = AnalyticsPeriod(
     date_to=date(2026, 8, 24),
     timezone="Asia/Kolkata",
 )
+_PASSWORD = "Analytics-Integration-Password-2026!"
 
 
 def integration_settings() -> Settings:
@@ -74,6 +78,106 @@ def migrated_database() -> Iterator[None]:
 def test_live_aggregates_are_exact_currency_scoped_and_owner_isolated() -> None:
     """Exercise every 8.2 query against real PostgreSQL records."""
     asyncio.run(_exercise_live_aggregates())
+
+
+def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
+    """Exercise both public analytics operations against real PostgreSQL."""
+    settings = integration_settings()
+    user_ids: list[UUID] = []
+
+    try:
+        with TestClient(
+            create_app(settings),
+            backend_options={
+                "loop_factory": create_psycopg_compatible_event_loop,
+            },
+        ) as client:
+            owner_id, token, account_id = _register_login_account(
+                client,
+                email=f"analytics-api-owner-{uuid4().hex}@falcon.test",
+            )
+            other_id, other_token, other_account_id = _register_login_account(
+                client,
+                email=f"analytics-api-other-{uuid4().hex}@falcon.test",
+            )
+            user_ids.extend((owner_id, other_id))
+            _post_transaction(
+                client,
+                token=token,
+                account_id=account_id,
+                transaction_type=TransactionType.INCOME,
+                amount="10000.0000",
+                merchant="Employer",
+            )
+            _post_transaction(
+                client,
+                token=token,
+                account_id=account_id,
+                transaction_type=TransactionType.EXPENSE,
+                amount="2500.0000",
+                merchant="Swiggy",
+            )
+            _post_transaction(
+                client,
+                token=other_token,
+                account_id=other_account_id,
+                transaction_type=TransactionType.EXPENSE,
+                amount="999999.0000",
+                merchant="Must Not Leak",
+            )
+            headers = {"Authorization": f"Bearer {token}"}
+            params = {
+                "date_from": "2026-08-01",
+                "date_to": "2026-08-24",
+                "comparison": "none",
+            }
+
+            cash_flow = client.get(
+                "/api/v1/analytics/cash-flow",
+                headers=headers,
+                params={**params, "granularity": "day"},
+            )
+            assert cash_flow.status_code == 200, cash_flow.text
+            cash_body = cash_flow.json()
+            assert cash_body["metrics"]["gross_income"]["value"] == (
+                "10000.0000"
+            )
+            assert cash_body["metrics"]["total_expense"]["value"] == (
+                "2500.0000"
+            )
+            assert cash_body["metrics"]["net_cash_flow"]["value"] == (
+                "7500.0000"
+            )
+            assert cash_body["previous_period"] is None
+            assert len(cash_body["series"]) == 1
+
+            spending = client.get(
+                "/api/v1/analytics/spending",
+                headers=headers,
+                params={**params, "limit": "10"},
+            )
+            assert spending.status_code == 200, spending.text
+            spending_body = spending.json()
+            assert spending_body["total_expense"]["value"] == "2500.0000"
+            assert spending_body["categories"] == []
+            assert spending_body["merchants"] == [
+                {
+                    "normalized_merchant": "swiggy",
+                    "display_name": "Swiggy",
+                    "amount": {"value": "2500.0000"},
+                    "share": {"value": "1.000000"},
+                    "transaction_count": 1,
+                }
+            ]
+            assert spending_body["accounts"][0]["account_id"] == str(
+                account_id
+            )
+            assert spending_body["accounts"][0]["amount"]["value"] == (
+                "2500.0000"
+            )
+    finally:
+        if user_ids:
+            asyncio.run(_delete_users(integration_settings(), *user_ids))
 
 
 async def _exercise_live_aggregates() -> None:
@@ -256,14 +360,88 @@ async def _exercise_live_aggregates() -> None:
             row for row in merchants if row.normalized_merchant == "swiggy"
         )
         assert swiggy.total_expense == Decimal("2550.0000")
+        assert swiggy.expense_transaction_count == 2
+        assert swiggy.income_transaction_count == 0
         assert accounts[0].account_id == inr_account.id
         assert accounts[0].gross_income == Decimal("10000.0000")
         assert accounts[0].total_expense == Decimal("2550.0000")
+        assert accounts[0].income_transaction_count == 1
+        assert accounts[0].expense_transaction_count == 2
     finally:
         async with transaction_scope(resources.session_factory) as session:
             await session.execute(
                 delete(User).where(User.id.in_((owner_id, other_id)))
             )
+        await resources.dispose()
+
+
+def _register_login_account(
+    client: TestClient,
+    *,
+    email: str,
+) -> tuple[UUID, str, UUID]:
+    registration = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": email,
+            "password": _PASSWORD,
+            "timezone": "Asia/Kolkata",
+            "default_currency": "INR",
+        },
+    )
+    assert registration.status_code == 201, registration.text
+    user_id = UUID(registration.json()["id"])
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": _PASSWORD},
+    )
+    assert login.status_code == 200, login.text
+    token = login.json()["access_token"]
+    account = client.post(
+        "/api/v1/accounts",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "name": f"Analytics {uuid4().hex[:8]}",
+            "account_type": "bank",
+            "opening_balance": "0.0000",
+            "opening_balance_date": "2026-08-01",
+        },
+    )
+    assert account.status_code == 201, account.text
+    return user_id, token, UUID(account.json()["id"])
+
+
+def _post_transaction(
+    client: TestClient,
+    *,
+    token: str,
+    account_id: UUID,
+    transaction_type: TransactionType,
+    amount: str,
+    merchant: str,
+) -> None:
+    response = client.post(
+        "/api/v1/transactions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "account_id": str(account_id),
+            "category_id": None,
+            "transaction_type": transaction_type.value,
+            "amount": amount,
+            "transaction_date": "2026-08-24",
+            "description": f"Analytics API {transaction_type.value}",
+            "merchant_name": merchant,
+        },
+    )
+    assert response.status_code == 201, response.text
+
+
+async def _delete_users(settings: Settings, *user_ids: UUID) -> None:
+    resources = create_database_resources(settings)
+    try:
+        async with transaction_scope(resources.session_factory) as session:
+            await session.execute(delete(User).where(User.id.in_(user_ids)))
+    finally:
         await resources.dispose()
 
 

@@ -1,5 +1,4 @@
 """Versioned financial-analytics contracts and metric semantics."""
-
 from falcon_api.analytics.periods import (
     AnalyticsPeriod,
     previous_period,

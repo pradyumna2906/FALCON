@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import (
     BaseModel,
@@ -17,6 +18,15 @@ from pydantic import (
 )
 
 from falcon_api.analytics.periods import AnalyticsPeriod
+from falcon_api.analytics.types import (
+    MAX_ANALYTICS_DIMENSION_ROWS,
+    AccountAggregate,
+    AnalyticsGranularity,
+    AnalyticsSummaryAggregate,
+    CashFlowBucketAggregate,
+    CategoryAggregate,
+    MerchantAggregate,
+)
 from falcon_api.analytics.semantics import (
     ANALYTICS_CONTRACT_VERSION,
     MAX_ANALYTICS_RANGE_DAYS,
@@ -24,6 +34,7 @@ from falcon_api.analytics.semantics import (
     AnalyticsConfidenceLevel,
     classification_completeness,
 )
+from falcon_api.models.enums import AccountType, CategoryKind
 
 
 CurrencyCode = Annotated[
@@ -88,6 +99,18 @@ class AnalyticsRangeQuery(AnalyticsSchema):
                     "The selected range has no representable previous period."
                 ) from None
         return self
+
+
+class CashFlowAnalyticsQuery(AnalyticsRangeQuery):
+    """Select a bounded cash-flow series and comparison."""
+
+    granularity: AnalyticsGranularity = AnalyticsGranularity.MONTH
+
+
+class SpendingAnalyticsQuery(AnalyticsRangeQuery):
+    """Select bounded expense distributions and comparison."""
+
+    limit: int = Field(default=25, ge=1, le=MAX_ANALYTICS_DIMENSION_ROWS)
 
 
 class AnalyticsPeriodResponse(AnalyticsSchema):
@@ -275,3 +298,178 @@ class RateMetric(AnalyticsSchema):
     def normalize_rate_scale(cls, value: Decimal | None) -> Decimal | None:
         """Serialize ratios with the versioned six-decimal public scale."""
         return value.quantize(_RATIO_QUANTUM) if value is not None else None
+
+
+class ShareMetric(RateMetric):
+    """Represent a nullable bounded part-to-whole ratio."""
+
+    @model_validator(mode="after")
+    def validate_share(self) -> "ShareMetric":
+        """Reject distribution shares outside the closed unit interval."""
+        if self.value is not None and not Decimal("0") <= self.value <= Decimal(
+            "1"
+        ):
+            raise ValueError("Distribution shares must be between zero and one.")
+        return self
+
+
+class CashFlowMetrics(AnalyticsSchema):
+    """Headline metrics for one selected or comparison period."""
+
+    gross_income: MoneyMetric
+    total_expense: MoneyMetric
+    net_cash_flow: MoneyMetric
+    savings_amount: MoneyMetric
+    savings_rate: RateMetric
+    internal_transfer_volume: MoneyMetric
+    net_adjustment: MoneyMetric
+
+    @classmethod
+    def from_aggregate(
+        cls,
+        aggregate: AnalyticsSummaryAggregate,
+    ) -> "CashFlowMetrics":
+        """Map exact internal totals to stable public metric wrappers."""
+        return cls(
+            gross_income=MoneyMetric(value=aggregate.gross_income),
+            total_expense=MoneyMetric(value=aggregate.total_expense),
+            net_cash_flow=MoneyMetric(value=aggregate.net_cash_flow),
+            savings_amount=MoneyMetric(value=aggregate.savings_amount),
+            savings_rate=RateMetric(value=aggregate.savings_rate),
+            internal_transfer_volume=MoneyMetric(
+                value=aggregate.internal_transfer_volume
+            ),
+            net_adjustment=MoneyMetric(value=aggregate.net_adjustment),
+        )
+
+
+class CashFlowPoint(AnalyticsSchema):
+    """One observed calendar bucket in a cash-flow series."""
+
+    period_start: date
+    gross_income: MoneyMetric
+    total_expense: MoneyMetric
+    net_cash_flow: MoneyMetric
+    transaction_count: int = Field(ge=1)
+
+    @classmethod
+    def from_aggregate(
+        cls,
+        aggregate: CashFlowBucketAggregate,
+    ) -> "CashFlowPoint":
+        """Map one exact internal bucket to its public representation."""
+        return cls(
+            period_start=aggregate.period_start,
+            gross_income=MoneyMetric(value=aggregate.gross_income),
+            total_expense=MoneyMetric(value=aggregate.total_expense),
+            net_cash_flow=MoneyMetric(value=aggregate.net_cash_flow),
+            transaction_count=aggregate.transaction_count,
+        )
+
+
+class CashFlowAnalyticsResponse(AnalyticsSchema):
+    """Authenticated cash-flow totals, trend, and optional prior values."""
+
+    context: AnalyticsContext
+    granularity: AnalyticsGranularity
+    metrics: CashFlowMetrics
+    previous_period: CashFlowMetrics | None
+    series: tuple[CashFlowPoint, ...]
+
+
+class SpendingCategory(AnalyticsSchema):
+    """One compatible canonical expense-category allocation."""
+
+    category_id: UUID
+    parent_category_id: UUID | None
+    name: str = Field(min_length=1, max_length=100)
+    classification_code: str | None = Field(default=None, max_length=64)
+    kind: Literal[CategoryKind.EXPENSE] = CategoryKind.EXPENSE
+    amount: MoneyMetric
+    share: ShareMetric
+    transaction_count: int = Field(ge=1)
+
+    @classmethod
+    def from_aggregate(
+        cls,
+        aggregate: CategoryAggregate,
+        *,
+        share: Decimal | None,
+    ) -> "SpendingCategory":
+        """Map one expense-category amount and its total-expense share."""
+        if aggregate.kind is not CategoryKind.EXPENSE:
+            raise ValueError("Spending categories must use expense kind.")
+        return cls(
+            category_id=aggregate.category_id,
+            parent_category_id=aggregate.parent_category_id,
+            name=aggregate.name,
+            classification_code=aggregate.classification_code,
+            amount=MoneyMetric(value=aggregate.amount),
+            share=ShareMetric(value=share),
+            transaction_count=aggregate.transaction_count,
+        )
+
+
+class SpendingMerchant(AnalyticsSchema):
+    """One normalized merchant's eligible expense allocation."""
+
+    normalized_merchant: str | None = Field(default=None, max_length=200)
+    display_name: str | None = Field(default=None, max_length=200)
+    amount: MoneyMetric
+    share: ShareMetric
+    transaction_count: int = Field(ge=1)
+
+    @classmethod
+    def from_aggregate(
+        cls,
+        aggregate: MerchantAggregate,
+        *,
+        share: Decimal | None,
+    ) -> "SpendingMerchant":
+        """Map one expense-only merchant allocation."""
+        return cls(
+            normalized_merchant=aggregate.normalized_merchant,
+            display_name=aggregate.display_name,
+            amount=MoneyMetric(value=aggregate.total_expense),
+            share=ShareMetric(value=share),
+            transaction_count=aggregate.expense_transaction_count,
+        )
+
+
+class SpendingAccount(AnalyticsSchema):
+    """One owned historical account's eligible expense allocation."""
+
+    account_id: UUID
+    name: str = Field(min_length=1, max_length=120)
+    account_type: AccountType
+    amount: MoneyMetric
+    share: ShareMetric
+    transaction_count: int = Field(ge=1)
+
+    @classmethod
+    def from_aggregate(
+        cls,
+        aggregate: AccountAggregate,
+        *,
+        share: Decimal | None,
+    ) -> "SpendingAccount":
+        """Map one expense-only account allocation."""
+        return cls(
+            account_id=aggregate.account_id,
+            name=aggregate.name,
+            account_type=aggregate.account_type,
+            amount=MoneyMetric(value=aggregate.total_expense),
+            share=ShareMetric(value=share),
+            transaction_count=aggregate.expense_transaction_count,
+        )
+
+
+class SpendingAnalyticsResponse(AnalyticsSchema):
+    """Authenticated expense total and bounded dimension distributions."""
+
+    context: AnalyticsContext
+    total_expense: MoneyMetric
+    previous_period_total_expense: MoneyMetric | None
+    categories: tuple[SpendingCategory, ...]
+    merchants: tuple[SpendingMerchant, ...]
+    accounts: tuple[SpendingAccount, ...]

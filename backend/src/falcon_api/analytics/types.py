@@ -8,6 +8,7 @@ from decimal import Decimal, ROUND_HALF_EVEN
 from enum import StrEnum
 from uuid import UUID
 
+from falcon_api.analytics.semantics import RATIO_QUANTUM
 from falcon_api.models.enums import AccountType, CategoryKind
 
 
@@ -56,6 +57,16 @@ class AnalyticsSummaryAggregate:
         """Return the contract's cash-flow savings proxy."""
         return self.net_cash_flow
 
+    @property
+    def savings_rate(self) -> Decimal | None:
+        """Return the six-decimal savings ratio when income is positive."""
+        if self.gross_income <= 0:
+            return None
+        return (self.savings_amount / self.gross_income).quantize(
+            RATIO_QUANTUM,
+            rounding=ROUND_HALF_EVEN,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class CashFlowBucketAggregate:
@@ -94,6 +105,8 @@ class MerchantAggregate:
     gross_income: Decimal
     total_expense: Decimal
     transaction_count: int
+    income_transaction_count: int
+    expense_transaction_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,3 +119,5 @@ class AccountAggregate:
     gross_income: Decimal
     total_expense: Decimal
     transaction_count: int
+    income_transaction_count: int
+    expense_transaction_count: int

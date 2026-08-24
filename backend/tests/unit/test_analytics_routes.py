@@ -1,0 +1,274 @@
+"""API contracts for authenticated cash-flow and spending analytics."""
+
+from collections.abc import AsyncIterator
+from datetime import UTC, date, datetime
+from decimal import Decimal
+from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from falcon_api.analytics.application import FinancialAnalyticsService
+from falcon_api.analytics.types import AnalyticsGranularity
+from falcon_api.api.routes.analytics import analytics_service_from
+from falcon_api.api.routes.auth import current_principal_service_from
+from falcon_api.auth.principal import (
+    AuthenticatedPrincipal,
+    CurrentPrincipalService,
+)
+from falcon_api.core.errors import ApplicationError
+from falcon_api.infrastructure.database import get_database_session
+from falcon_api.schemas.analytics import (
+    AnalyticsCompleteness,
+    AnalyticsContext,
+    AnalyticsExclusions,
+    AnalyticsFreshness,
+    AnalyticsPeriodResponse,
+    CashFlowAnalyticsResponse,
+    CashFlowMetrics,
+    CashFlowPoint,
+    MoneyMetric,
+    RateMetric,
+    SpendingAnalyticsResponse,
+)
+
+
+_TOKEN = "signed-analytics-access-token"
+_NOW = datetime(2026, 8, 24, 8, tzinfo=UTC)
+
+
+@pytest.fixture
+def analytics_dependencies(
+    client: TestClient,
+) -> tuple[AsyncMock, AsyncMock, AsyncMock, AuthenticatedPrincipal]:
+    """Override persistence, authentication, and analytics services."""
+    principal = AuthenticatedPrincipal(
+        user_id=uuid4(),
+        session_id=uuid4(),
+        email="analytics-user@example.com",
+        display_name="Analytics User",
+        timezone="Asia/Kolkata",
+        default_currency="INR",
+        email_verified_at=_NOW,
+    )
+    principal_service = Mock(spec=CurrentPrincipalService)
+    principal_service.authenticate = AsyncMock(return_value=principal)
+    analytics_service = AsyncMock(spec=FinancialAnalyticsService)
+    session = AsyncMock(spec=AsyncSession)
+
+    async def session_override() -> AsyncIterator[AsyncSession]:
+        yield session
+
+    client.app.dependency_overrides[get_database_session] = session_override
+    client.app.dependency_overrides[current_principal_service_from] = lambda: (
+        principal_service
+    )
+    client.app.dependency_overrides[analytics_service_from] = lambda: (
+        analytics_service
+    )
+
+    try:
+        yield analytics_service, principal_service, session, principal
+    finally:
+        client.app.dependency_overrides.clear()
+
+
+def _context() -> AnalyticsContext:
+    return AnalyticsContext(
+        currency="INR",
+        period=AnalyticsPeriodResponse(
+            date_from=date(2026, 8, 1),
+            date_to=date(2026, 8, 24),
+            timezone="Asia/Kolkata",
+            day_count=24,
+        ),
+        comparison_period=AnalyticsPeriodResponse(
+            date_from=date(2026, 7, 8),
+            date_to=date(2026, 7, 31),
+            timezone="Asia/Kolkata",
+            day_count=24,
+        ),
+        freshness=AnalyticsFreshness(
+            calculated_at=_NOW,
+            source_last_updated_at=_NOW,
+            latest_transaction_date=date(2026, 8, 24),
+        ),
+        completeness=AnalyticsCompleteness(
+            eligible_transaction_count=40,
+            categorized_transaction_count=36,
+            suggested_transaction_count=2,
+            abstained_transaction_count=1,
+            exclusions=AnalyticsExclusions(
+                pending_count=3,
+                transfer_entry_count=4,
+                adjustment_count=1,
+                other_currency_count=2,
+            ),
+        ),
+    )
+
+
+def _metrics() -> CashFlowMetrics:
+    return CashFlowMetrics(
+        gross_income=MoneyMetric(value=Decimal("10000")),
+        total_expense=MoneyMetric(value=Decimal("6250")),
+        net_cash_flow=MoneyMetric(value=Decimal("3750")),
+        savings_amount=MoneyMetric(value=Decimal("3750")),
+        savings_rate=RateMetric(value=Decimal("0.375")),
+        internal_transfer_volume=MoneyMetric(value=Decimal("500")),
+        net_adjustment=MoneyMetric(value=Decimal("-10")),
+    )
+
+
+def _cash_flow_response() -> CashFlowAnalyticsResponse:
+    return CashFlowAnalyticsResponse(
+        context=_context(),
+        granularity=AnalyticsGranularity.MONTH,
+        metrics=_metrics(),
+        previous_period=_metrics(),
+        series=(
+            CashFlowPoint(
+                period_start=date(2026, 8, 1),
+                gross_income=MoneyMetric(value=Decimal("10000")),
+                total_expense=MoneyMetric(value=Decimal("6250")),
+                net_cash_flow=MoneyMetric(value=Decimal("3750")),
+                transaction_count=40,
+            ),
+        ),
+    )
+
+
+def _spending_response() -> SpendingAnalyticsResponse:
+    return SpendingAnalyticsResponse(
+        context=_context(),
+        total_expense=MoneyMetric(value=Decimal("6250")),
+        previous_period_total_expense=MoneyMetric(value=Decimal("6000")),
+        categories=(),
+        merchants=(),
+        accounts=(),
+    )
+
+
+def test_cash_flow_route_uses_authenticated_context_and_safe_query(
+    client: TestClient,
+    analytics_dependencies,
+) -> None:
+    service, principal_service, session, principal = analytics_dependencies
+    service.cash_flow.return_value = _cash_flow_response()
+
+    response = client.get(
+        "/api/v1/analytics/cash-flow",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+        params={
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-24",
+            "currency": "inr",
+            "comparison": "previous_period",
+            "granularity": "month",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["context"]["currency"] == "INR"
+    assert body["metrics"]["net_cash_flow"]["value"] == "3750.0000"
+    assert body["metrics"]["savings_rate"]["value"] == "0.375000"
+    assert body["series"][0]["period_start"] == "2026-08-01"
+    assert "user_id" not in body
+    assert "timezone_override" not in body
+    principal_service.authenticate.assert_awaited_once_with(session, token=_TOKEN)
+    call = service.cash_flow.await_args
+    assert call.args == (session,)
+    assert call.kwargs["user_id"] == principal.user_id
+    assert call.kwargs["trusted_timezone"] == principal.timezone
+    assert call.kwargs["default_currency"] == principal.default_currency
+    assert call.kwargs["selection"].currency == "INR"
+    assert call.kwargs["granularity"] is AnalyticsGranularity.MONTH
+
+
+def test_spending_route_passes_bounded_limit_and_authenticated_owner(
+    client: TestClient,
+    analytics_dependencies,
+) -> None:
+    service, _, session, principal = analytics_dependencies
+    service.spending.return_value = _spending_response()
+
+    response = client.get(
+        "/api/v1/analytics/spending",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+        params={"comparison": "none", "limit": "10"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["total_expense"]["value"] == "6250.0000"
+    call = service.spending.await_args
+    assert call.args == (session,)
+    assert call.kwargs["user_id"] == principal.user_id
+    assert call.kwargs["selection"].comparison.value == "none"
+    assert call.kwargs["limit"] == 10
+
+
+@pytest.mark.parametrize(
+    ("path", "params"),
+    [
+        ("/api/v1/analytics/cash-flow", {"user_id": str(uuid4())}),
+        ("/api/v1/analytics/cash-flow", {"timezone": "UTC"}),
+        ("/api/v1/analytics/cash-flow", {"date_from": "2026-08-01"}),
+        ("/api/v1/analytics/cash-flow", {"granularity": "week"}),
+        ("/api/v1/analytics/spending", {"limit": "101"}),
+        ("/api/v1/analytics/spending", {"currency": "RUPEE"}),
+    ],
+)
+def test_analytics_routes_reject_untrusted_or_invalid_query_fields(
+    client: TestClient,
+    analytics_dependencies,
+    path: str,
+    params: dict[str, str],
+) -> None:
+    service, _, _, _ = analytics_dependencies
+
+    response = client.get(
+        path,
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+        params=params,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+    service.cash_flow.assert_not_awaited()
+    service.spending.assert_not_awaited()
+
+
+def test_analytics_routes_require_authentication(
+    client: TestClient,
+    analytics_dependencies,
+) -> None:
+    service, principal_service, session, _ = analytics_dependencies
+    principal_service.authenticate.side_effect = ApplicationError(
+        code="invalid_access_token",
+        message="The access token is invalid or expired.",
+        status_code=401,
+    )
+
+    response = client.get("/api/v1/analytics/cash-flow")
+
+    assert response.status_code == 401
+    principal_service.authenticate.assert_awaited_once_with(session, token="")
+    service.cash_flow.assert_not_awaited()
+
+
+def test_openapi_documents_both_analytics_operations(client: TestClient) -> None:
+    document = client.get("/openapi.json").json()
+
+    assert "get" in document["paths"]["/api/v1/analytics/cash-flow"]
+    assert "get" in document["paths"]["/api/v1/analytics/spending"]
+    assert (
+        document["paths"]["/api/v1/analytics/cash-flow"]["get"]["operationId"]
+        == "get_cash_flow_analytics"
+    )
+    assert (
+        document["paths"]["/api/v1/analytics/spending"]["get"]["operationId"]
+        == "get_spending_analytics"
+    )

@@ -260,6 +260,7 @@ class AnalyticsRepository:
         period: AnalyticsPeriod,
         currency: str,
         limit: int = MAX_ANALYTICS_DIMENSION_ROWS,
+        transaction_type: TransactionType | None = None,
     ) -> tuple[CategoryAggregate, ...]:
         """Return bounded allocations to valid canonical ledger categories."""
         _dimension_limit(limit)
@@ -282,7 +283,7 @@ class AnalyticsRepository:
                 *_in_period(period),
                 Account.currency == _currency(currency),
                 Transaction.status == TransactionStatus.POSTED,
-                Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+                _cash_flow_type_filter(transaction_type),
                 _valid_category(user_id=user_id),
             )
             .group_by(
@@ -317,6 +318,7 @@ class AnalyticsRepository:
         period: AnalyticsPeriod,
         currency: str,
         limit: int = MAX_ANALYTICS_DIMENSION_ROWS,
+        transaction_type: TransactionType | None = None,
     ) -> tuple[MerchantAggregate, ...]:
         """Return bounded case-insensitive merchant allocations."""
         _dimension_limit(limit)
@@ -336,6 +338,12 @@ class AnalyticsRepository:
                 income.label("gross_income"),
                 expense.label("total_expense"),
                 func.count().label("transaction_count"),
+                _count_if(
+                    Transaction.transaction_type == TransactionType.INCOME
+                ).label("income_transaction_count"),
+                _count_if(
+                    Transaction.transaction_type == TransactionType.EXPENSE
+                ).label("expense_transaction_count"),
             )
             .select_from(Transaction)
             .join(Account, _owned_account_join())
@@ -344,7 +352,7 @@ class AnalyticsRepository:
                 *_in_period(period),
                 Account.currency == _currency(currency),
                 Transaction.status == TransactionStatus.POSTED,
-                Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+                _cash_flow_type_filter(transaction_type),
             )
             .group_by(normalized)
             .order_by(total.desc(), normalized.asc().nulls_last())
@@ -358,6 +366,8 @@ class AnalyticsRepository:
                 gross_income=money(row["gross_income"]),
                 total_expense=money(row["total_expense"]),
                 transaction_count=row["transaction_count"],
+                income_transaction_count=row["income_transaction_count"],
+                expense_transaction_count=row["expense_transaction_count"],
             )
             for row in rows
         )
@@ -370,6 +380,7 @@ class AnalyticsRepository:
         period: AnalyticsPeriod,
         currency: str,
         limit: int = MAX_ANALYTICS_DIMENSION_ROWS,
+        transaction_type: TransactionType | None = None,
     ) -> tuple[AccountAggregate, ...]:
         """Return bounded external cash flow by owned historical account."""
         _dimension_limit(limit)
@@ -388,6 +399,12 @@ class AnalyticsRepository:
                 income.label("gross_income"),
                 expense.label("total_expense"),
                 func.count().label("transaction_count"),
+                _count_if(
+                    Transaction.transaction_type == TransactionType.INCOME
+                ).label("income_transaction_count"),
+                _count_if(
+                    Transaction.transaction_type == TransactionType.EXPENSE
+                ).label("expense_transaction_count"),
             )
             .select_from(Transaction)
             .join(Account, _owned_account_join())
@@ -396,7 +413,7 @@ class AnalyticsRepository:
                 *_in_period(period),
                 Account.currency == _currency(currency),
                 Transaction.status == TransactionStatus.POSTED,
-                Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+                _cash_flow_type_filter(transaction_type),
             )
             .group_by(
                 Account.id,
@@ -415,6 +432,8 @@ class AnalyticsRepository:
                 gross_income=money(row["gross_income"]),
                 total_expense=money(row["total_expense"]),
                 transaction_count=row["transaction_count"],
+                income_transaction_count=row["income_transaction_count"],
+                expense_transaction_count=row["expense_transaction_count"],
             )
             for row in rows
         )
@@ -457,6 +476,16 @@ def _money_sum(predicate: ColumnElement[bool]) -> ColumnElement[Decimal]:
 
 def _count_if(predicate: ColumnElement[bool]) -> ColumnElement[int]:
     return func.count().filter(predicate)
+
+
+def _cash_flow_type_filter(
+    transaction_type: TransactionType | None,
+) -> ColumnElement[bool]:
+    if transaction_type is None:
+        return Transaction.transaction_type.in_(_CASH_FLOW_TYPES)
+    if transaction_type not in _CASH_FLOW_TYPES:
+        raise ValueError("Analytics dimensions support income or expense only.")
+    return Transaction.transaction_type == transaction_type
 
 
 def _currency(value: str) -> str:
