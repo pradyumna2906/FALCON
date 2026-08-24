@@ -124,6 +124,7 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
                 transaction_type=TransactionType.EXPENSE,
                 amount="999999.0000",
                 merchant="Must Not Leak",
+                transaction_date="2026-08-03",
             )
             headers = {"Authorization": f"Bearer {token}"}
             params = {
@@ -175,6 +176,52 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
             assert spending_body["accounts"][0]["amount"]["value"] == (
                 "2500.0000"
             )
+
+            for observed in ("2026-06-01", "2026-07-01", "2026-08-01"):
+                _post_transaction(
+                    client,
+                    token=token,
+                    account_id=account_id,
+                    transaction_type=TransactionType.EXPENSE,
+                    amount="799.0000",
+                    merchant="Netflix",
+                    transaction_date=observed,
+                )
+            for observed in ("2026-06-03", "2026-07-03"):
+                _post_transaction(
+                    client,
+                    token=other_token,
+                    account_id=other_account_id,
+                    transaction_type=TransactionType.EXPENSE,
+                    amount="999999.0000",
+                    merchant="Must Not Leak",
+                    transaction_date=observed,
+                )
+
+            recurring = client.get(
+                "/api/v1/analytics/recurring",
+                headers=headers,
+                params={
+                    "date_from": "2026-05-01",
+                    "date_to": "2026-08-24",
+                    "minimum_occurrences": "3",
+                },
+            )
+            assert recurring.status_code == 200, recurring.text
+            recurring_body = recurring.json()
+            assert recurring_body["summary"]["candidate_pattern_count"] == 1
+            assert recurring_body["summary"]["detected_pattern_count"] == 1
+            assert recurring_body["summary"][
+                "detected_expense_observed"
+            ]["value"] == "2397.0000"
+            assert len(recurring_body["patterns"]) == 1
+            assert recurring_body["patterns"][0]["normalized_merchant"] == (
+                "netflix"
+            )
+            assert recurring_body["patterns"][0]["pattern_type"] == (
+                "repeated_merchant"
+            )
+            assert recurring_body["patterns"][0]["decision"] == "detected"
     finally:
         if user_ids:
             asyncio.run(_delete_users(integration_settings(), *user_ids))
@@ -419,6 +466,7 @@ def _post_transaction(
     transaction_type: TransactionType,
     amount: str,
     merchant: str,
+    transaction_date: str = "2026-08-24",
 ) -> None:
     response = client.post(
         "/api/v1/transactions",
@@ -428,7 +476,7 @@ def _post_transaction(
             "category_id": None,
             "transaction_type": transaction_type.value,
             "amount": amount,
-            "transaction_date": "2026-08-24",
+            "transaction_date": transaction_date,
             "description": f"Analytics API {transaction_type.value}",
             "merchant_name": merchant,
         },

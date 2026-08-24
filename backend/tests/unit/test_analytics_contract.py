@@ -2,7 +2,11 @@
 
 from pathlib import Path
 
-from falcon_api.schemas.analytics import AnalyticsContext, AnalyticsRangeQuery
+from falcon_api.schemas.analytics import (
+    AnalyticsContext,
+    AnalyticsRangeQuery,
+    RecurringAnalyticsQuery,
+)
 
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -64,4 +68,40 @@ def test_phase_document_freezes_the_approved_analytics_contract() -> None:
     )
 
     for statement in required_statements:
+        assert statement in content
+
+
+def test_recurring_contract_is_bounded_private_and_documented() -> None:
+    properties = set(RecurringAnalyticsQuery.model_json_schema()["properties"])
+
+    assert properties == {
+        "date_from",
+        "date_to",
+        "currency",
+        "minimum_occurrences",
+        "limit",
+        "include_abstained",
+    }
+    for private_field in {
+        "user_id",
+        "timezone",
+        "transaction_ids",
+        "confidence",
+        "interval_tolerance",
+        "amount_tolerance",
+    }:
+        assert private_field not in properties
+
+    content = _IMPLEMENTATION_DOCUMENT.read_text(encoding="utf-8").lower()
+    for statement in (
+        "get /api/v1/analytics/recurring",
+        "minimum_occurrences",
+        "repeated_merchant",
+        "5–9 days",
+        "25–35 days",
+        "0.65 × interval consistency + 0.35 × amount consistency",
+        "explicitly `abstained`",
+        "not a forecast",
+        "at most two sql statements",
+    ):
         assert statement in content

@@ -14,6 +14,7 @@ from falcon_api.analytics.application import (
     FinancialAnalyticsService,
 )
 from falcon_api.analytics.repository import AnalyticsRepository
+from falcon_api.analytics.recurring import RecurringDecision
 from falcon_api.analytics.semantics import AnalyticsComparisonMode
 from falcon_api.analytics.types import (
     AccountAggregate,
@@ -22,6 +23,7 @@ from falcon_api.analytics.types import (
     CashFlowBucketAggregate,
     CategoryAggregate,
     MerchantAggregate,
+    RecurringTransactionRecord,
 )
 from falcon_api.core.errors import ApplicationError
 from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
@@ -295,3 +297,155 @@ def test_spending_zero_data_is_successful_and_empty() -> None:
     assert result.merchants == ()
     assert result.accounts == ()
     assert result.context.completeness.classification_coverage is None
+
+
+def test_recurring_composes_owner_scoped_evidence_and_hides_abstentions() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = _summary(expense="3196")
+    stable = tuple(
+        RecurringTransactionRecord(
+            transaction_date=observed,
+            transaction_type=TransactionType.EXPENSE,
+            amount=Decimal("799"),
+            normalized_merchant="netflix",
+            display_name="Netflix",
+            classification_code="streaming",
+            category_name="Streaming",
+        )
+        for observed in (
+            date(2026, 5, 1),
+            date(2026, 6, 1),
+            date(2026, 7, 1),
+            date(2026, 8, 1),
+        )
+    )
+    irregular = tuple(
+        RecurringTransactionRecord(
+            transaction_date=observed,
+            transaction_type=TransactionType.EXPENSE,
+            amount=Decimal("100"),
+            normalized_merchant="irregular",
+            display_name="Irregular",
+            classification_code=None,
+            category_name=None,
+        )
+        for observed in (
+            date(2026, 5, 2),
+            date(2026, 5, 3),
+            date(2026, 8, 20),
+        )
+    )
+    repository.list_recurring_transactions.return_value = stable + irregular
+    session = AsyncMock(spec=AsyncSession)
+    user_id = uuid4()
+
+    result = asyncio.run(
+        _service(repository).recurring(
+            session,
+            user_id=user_id,
+            trusted_timezone="Asia/Kolkata",
+            default_currency="INR",
+            selection=_selection(
+                date_from=date(2026, 5, 1),
+                date_to=date(2026, 8, 24),
+            ),
+            minimum_occurrences=3,
+            limit=25,
+            include_abstained=False,
+        )
+    )
+
+    assert result.context.comparison_period is None
+    assert result.summary.candidate_pattern_count == 2
+    assert result.summary.detected_pattern_count == 1
+    assert result.summary.abstained_pattern_count == 1
+    assert result.summary.returned_pattern_count == 1
+    assert result.summary.truncated is False
+    assert result.summary.detected_expense_observed.value == Decimal(
+        "3196.0000"
+    )
+    assert result.summary.detected_income_observed.value == Decimal("0.0000")
+    assert result.patterns[0].decision is RecurringDecision.DETECTED
+    repository.get_summary.assert_awaited_once()
+    repository.list_recurring_transactions.assert_awaited_once_with(
+        session,
+        user_id=user_id,
+        period=repository.get_summary.await_args.kwargs["period"],
+        currency="INR",
+    )
+
+
+def test_recurring_zero_data_and_limit_are_successful_and_bounded() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = _summary(
+        income="0",
+        expense="0",
+        eligible=0,
+        categorized=0,
+    )
+    repository.list_recurring_transactions.return_value = ()
+
+    result = asyncio.run(
+        _service(repository).recurring(
+            AsyncMock(spec=AsyncSession),
+            user_id=uuid4(),
+            trusted_timezone="UTC",
+            default_currency="INR",
+            selection=_selection(),
+            minimum_occurrences=3,
+            limit=1,
+            include_abstained=True,
+        )
+    )
+
+    assert result.summary.candidate_pattern_count == 0
+    assert result.summary.returned_pattern_count == 0
+    assert result.summary.truncated is False
+    assert result.patterns == ()
+
+
+def test_recurring_applies_pattern_limit_after_complete_detection() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = _summary()
+    records = []
+    for merchant, amount in (("alpha", "100"), ("beta", "200")):
+        records.extend(
+            RecurringTransactionRecord(
+                transaction_date=observed,
+                transaction_type=TransactionType.EXPENSE,
+                amount=Decimal(amount),
+                normalized_merchant=merchant,
+                display_name=merchant.title(),
+                classification_code=None,
+                category_name=None,
+            )
+            for observed in (
+                date(2026, 6, 1),
+                date(2026, 7, 1),
+                date(2026, 8, 1),
+            )
+        )
+    repository.list_recurring_transactions.return_value = tuple(records)
+
+    result = asyncio.run(
+        _service(repository).recurring(
+            AsyncMock(spec=AsyncSession),
+            user_id=uuid4(),
+            trusted_timezone="UTC",
+            default_currency="INR",
+            selection=_selection(
+                date_from=date(2026, 6, 1),
+                date_to=date(2026, 8, 24),
+            ),
+            minimum_occurrences=3,
+            limit=1,
+            include_abstained=True,
+        )
+    )
+
+    assert result.summary.candidate_pattern_count == 2
+    assert result.summary.detected_pattern_count == 2
+    assert result.summary.returned_pattern_count == 1
+    assert result.summary.truncated is True
+    assert result.summary.detected_expense_observed.value == Decimal("900.0000")
+    assert result.patterns[0].normalized_merchant == "beta"

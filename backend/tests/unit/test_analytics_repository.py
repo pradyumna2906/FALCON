@@ -19,6 +19,7 @@ from falcon_api.analytics import (
     CashFlowBucketAggregate,
     CategoryAggregate,
     MerchantAggregate,
+    RecurringTransactionRecord,
 )
 from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
 
@@ -349,6 +350,59 @@ def test_account_aggregation_includes_archived_owned_accounts() -> None:
     assert "GROUP BY accounts.id" in query
 
 
+def test_recurring_source_is_owner_scoped_canonical_and_description_free() -> None:
+    session = _session_with_all(
+        [
+            {
+                "transaction_date": date(2026, 8, 1),
+                "transaction_type": TransactionType.EXPENSE,
+                "amount": Decimal("799"),
+                "normalized_merchant": "netflix",
+                "display_name": "Netflix",
+                "classification_code": "streaming",
+                "category_name": "Streaming",
+            }
+        ]
+    )
+    user_id = uuid4()
+
+    result = asyncio.run(
+        AnalyticsRepository().list_recurring_transactions(
+            session,
+            user_id=user_id,
+            period=_PERIOD,
+            currency="inr",
+        )
+    )
+
+    assert result == (
+        RecurringTransactionRecord(
+            transaction_date=date(2026, 8, 1),
+            transaction_type=TransactionType.EXPENSE,
+            amount=Decimal("799.0000"),
+            normalized_merchant="netflix",
+            display_name="Netflix",
+            classification_code="streaming",
+            category_name="Streaming",
+        ),
+    )
+    query, params = _compiled(session)
+    assert "transactions.user_id =" in query
+    assert "accounts.user_id = transactions.user_id" in query
+    assert "transactions.transaction_date >=" in query
+    assert "transactions.transaction_date <=" in query
+    assert "accounts.currency =" in query
+    assert "transactions.status =" in query
+    assert "transactions.transaction_type IN" in query
+    assert "categories.kind = transactions.transaction_type" in query
+    assert "categories.user_id =" in query
+    assert "lower(trim(transactions.merchant_name))" in query
+    assert "ORDER BY transactions.transaction_date" in query
+    assert "transactions.description" not in query
+    assert user_id in params.values()
+    assert "INR" in params.values()
+
+
 @pytest.mark.parametrize("currency", ["", "IN", "USDT", "1NR", "ÄBC"])
 def test_repository_rejects_invalid_internal_currency(currency: str) -> None:
     session = _session_with_one(_summary_row())
@@ -386,7 +440,7 @@ def test_dimension_queries_reject_unbounded_limits(limit: int) -> None:
 
 def test_each_aggregate_surface_uses_one_database_statement() -> None:
     summary_session = _session_with_one(_summary_row())
-    empty_sessions = [_session_with_all([]) for _ in range(4)]
+    empty_sessions = [_session_with_all([]) for _ in range(5)]
     repository = AnalyticsRepository()
     user_id = uuid4()
 
@@ -426,6 +480,14 @@ def test_each_aggregate_surface_uses_one_database_statement() -> None:
     asyncio.run(
         repository.list_account_aggregates(
             empty_sessions[3],
+            user_id=user_id,
+            period=_PERIOD,
+            currency="INR",
+        )
+    )
+    asyncio.run(
+        repository.list_recurring_transactions(
+            empty_sessions[4],
             user_id=user_id,
             period=_PERIOD,
             currency="INR",

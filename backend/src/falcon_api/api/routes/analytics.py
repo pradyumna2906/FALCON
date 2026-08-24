@@ -1,4 +1,4 @@
-"""Authenticated cash-flow and spending analytics routes."""
+"""Authenticated cash-flow, spending, and recurrence analytics routes."""
 
 from typing import Annotated, cast
 
@@ -8,6 +8,7 @@ from falcon_api.analytics.application import (
     AnalyticsSelection,
     FinancialAnalyticsService,
 )
+from falcon_api.analytics.semantics import AnalyticsComparisonMode
 from falcon_api.api.routes.auth import (
     CurrentPrincipalDependency,
     DatabaseSession,
@@ -15,6 +16,8 @@ from falcon_api.api.routes.auth import (
 from falcon_api.schemas.analytics import (
     CashFlowAnalyticsQuery,
     CashFlowAnalyticsResponse,
+    RecurringAnalyticsQuery,
+    RecurringAnalyticsResponse,
     SpendingAnalyticsQuery,
     SpendingAnalyticsResponse,
 )
@@ -41,6 +44,7 @@ AnalyticsServiceDependency = Annotated[
 ]
 CashFlowQueryDependency = Annotated[CashFlowAnalyticsQuery, Query()]
 SpendingQueryDependency = Annotated[SpendingAnalyticsQuery, Query()]
+RecurringQueryDependency = Annotated[RecurringAnalyticsQuery, Query()]
 
 _AUTHENTICATION_ERROR = {
     "model": ErrorResponse,
@@ -103,6 +107,40 @@ async def get_spending_analytics(
         default_currency=principal.default_currency,
         selection=_selection(query),
         limit=query.limit,
+    )
+
+
+@analytics_router.get(
+    "/recurring",
+    response_model=RecurringAnalyticsResponse,
+    operation_id="get_recurring_analytics",
+    summary="Return recurring transaction evidence and abstentions",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: _AUTHENTICATION_ERROR,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: _VALIDATION_ERROR,
+    },
+)
+async def get_recurring_analytics(
+    query: RecurringQueryDependency,
+    session: DatabaseSession,
+    service: AnalyticsServiceDependency,
+    principal: CurrentPrincipalDependency,
+) -> RecurringAnalyticsResponse:
+    """Detect recurring patterns using trusted owner and timezone context."""
+    return await service.recurring(
+        session,
+        user_id=principal.user_id,
+        trusted_timezone=principal.timezone,
+        default_currency=principal.default_currency,
+        selection=AnalyticsSelection(
+            date_from=query.date_from,
+            date_to=query.date_to,
+            currency=query.currency,
+            comparison=AnalyticsComparisonMode.NONE,
+        ),
+        minimum_occurrences=query.minimum_occurrences,
+        limit=query.limit,
+        include_abstained=query.include_abstained,
     )
 
 

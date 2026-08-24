@@ -18,6 +18,18 @@ from pydantic import (
 )
 
 from falcon_api.analytics.periods import AnalyticsPeriod
+from falcon_api.analytics.recurring import (
+    MAX_RECURRING_OCCURRENCES,
+    MAX_RECURRING_PATTERNS,
+    MIN_RECURRING_OCCURRENCES,
+    RECURRING_POLICY_VERSION,
+    RecurringCadence,
+    RecurringConfidenceBand,
+    RecurringDecision,
+    RecurringPattern,
+    RecurringPatternType,
+    RecurringReasonCode,
+)
 from falcon_api.analytics.types import (
     MAX_ANALYTICS_DIMENSION_ROWS,
     AccountAggregate,
@@ -34,7 +46,7 @@ from falcon_api.analytics.semantics import (
     AnalyticsConfidenceLevel,
     classification_completeness,
 )
-from falcon_api.models.enums import AccountType, CategoryKind
+from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
 
 
 CurrencyCode = Annotated[
@@ -80,17 +92,9 @@ class AnalyticsRangeQuery(AnalyticsSchema):
     @model_validator(mode="after")
     def validate_date_window(self) -> "AnalyticsRangeQuery":
         """Require a complete, ordered, bounded explicit range."""
-        if (self.date_from is None) != (self.date_to is None):
-            raise ValueError("date_from and date_to must be supplied together.")
-        if self.date_from is None or self.date_to is None:
+        day_count = _validate_date_range(self.date_from, self.date_to)
+        if day_count is None:
             return self
-        if self.date_to < self.date_from:
-            raise ValueError("date_to must not be earlier than date_from.")
-        day_count = (self.date_to - self.date_from).days + 1
-        if day_count > MAX_ANALYTICS_RANGE_DAYS:
-            raise ValueError(
-                f"Analytics ranges cannot exceed {MAX_ANALYTICS_RANGE_DAYS} days."
-            )
         if self.comparison is AnalyticsComparisonMode.PREVIOUS_PERIOD:
             try:
                 self.date_from - timedelta(days=day_count)
@@ -111,6 +115,33 @@ class SpendingAnalyticsQuery(AnalyticsRangeQuery):
     """Select bounded expense distributions and comparison."""
 
     limit: int = Field(default=25, ge=1, le=MAX_ANALYTICS_DIMENSION_ROWS)
+
+
+class RecurringAnalyticsQuery(AnalyticsSchema):
+    """Select bounded live recurring-pattern evidence."""
+
+    date_from: date | None = None
+    date_to: date | None = None
+    currency: CurrencyCode | None = None
+    minimum_occurrences: int = Field(
+        default=MIN_RECURRING_OCCURRENCES,
+        ge=MIN_RECURRING_OCCURRENCES,
+        le=MAX_RECURRING_OCCURRENCES,
+    )
+    limit: int = Field(default=25, ge=1, le=MAX_RECURRING_PATTERNS)
+    include_abstained: bool = True
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str | None) -> str | None:
+        """Use canonical uppercase currency identifiers."""
+        return value.upper() if value is not None else None
+
+    @model_validator(mode="after")
+    def validate_date_window(self) -> "RecurringAnalyticsQuery":
+        """Apply the frozen inclusive analytics range contract."""
+        _validate_date_range(self.date_from, self.date_to)
+        return self
 
 
 class AnalyticsPeriodResponse(AnalyticsSchema):
@@ -473,3 +504,143 @@ class SpendingAnalyticsResponse(AnalyticsSchema):
     categories: tuple[SpendingCategory, ...]
     merchants: tuple[SpendingMerchant, ...]
     accounts: tuple[SpendingAccount, ...]
+
+
+class RecurringPatternResponse(AnalyticsSchema):
+    """One detected or explicitly abstained recurring candidate."""
+
+    pattern_type: RecurringPatternType
+    transaction_type: TransactionType
+    normalized_merchant: str | None = Field(default=None, max_length=200)
+    display_name: str | None = Field(default=None, max_length=200)
+    classification_code: str | None = Field(default=None, max_length=64)
+    category_name: str | None = Field(default=None, max_length=100)
+    cadence: RecurringCadence
+    decision: RecurringDecision
+    confidence: RateMetric
+    confidence_band: RecurringConfidenceBand
+    reason_codes: tuple[RecurringReasonCode, ...]
+    occurrence_count: int = Field(ge=MIN_RECURRING_OCCURRENCES)
+    first_observed_date: date
+    last_observed_date: date
+    median_interval_days: Decimal = Field(ge=0, decimal_places=2)
+    median_amount: MoneyMetric
+    minimum_amount: MoneyMetric
+    maximum_amount: MoneyMetric
+    observed_total: MoneyMetric
+    explanation: str = Field(min_length=1, max_length=200)
+
+    @classmethod
+    def from_pattern(
+        cls,
+        pattern: RecurringPattern,
+    ) -> "RecurringPatternResponse":
+        """Map deterministic evidence without exposing source transactions."""
+        return cls(
+            pattern_type=pattern.pattern_type,
+            transaction_type=pattern.transaction_type,
+            normalized_merchant=pattern.normalized_merchant,
+            display_name=pattern.display_name,
+            classification_code=pattern.classification_code,
+            category_name=pattern.category_name,
+            cadence=pattern.cadence,
+            decision=pattern.decision,
+            confidence=RateMetric(value=pattern.confidence),
+            confidence_band=pattern.confidence_band,
+            reason_codes=pattern.reason_codes,
+            occurrence_count=pattern.occurrence_count,
+            first_observed_date=pattern.first_observed_date,
+            last_observed_date=pattern.last_observed_date,
+            median_interval_days=pattern.median_interval_days,
+            median_amount=MoneyMetric(value=pattern.median_amount),
+            minimum_amount=MoneyMetric(value=pattern.minimum_amount),
+            maximum_amount=MoneyMetric(value=pattern.maximum_amount),
+            observed_total=MoneyMetric(value=pattern.observed_total),
+            explanation=pattern.explanation,
+        )
+
+    @model_validator(mode="after")
+    def validate_observed_evidence(self) -> "RecurringPatternResponse":
+        """Reject inconsistent server-generated recurrence evidence."""
+        if self.transaction_type not in {
+            TransactionType.INCOME,
+            TransactionType.EXPENSE,
+        }:
+            raise ValueError("Recurring patterns support income or expense only.")
+        if self.last_observed_date < self.first_observed_date:
+            raise ValueError("Recurring observation dates must be ordered.")
+        if not (
+            self.minimum_amount.value
+            <= self.median_amount.value
+            <= self.maximum_amount.value
+        ):
+            raise ValueError("Recurring amount bounds must contain the median.")
+        if self.observed_total.value < self.maximum_amount.value:
+            raise ValueError(
+                "Recurring observed total cannot be below its maximum amount."
+            )
+        return self
+
+
+class RecurringAnalyticsSummary(AnalyticsSchema):
+    """Bounded totals describing recurrence detection output."""
+
+    candidate_pattern_count: int = Field(ge=0)
+    detected_pattern_count: int = Field(ge=0)
+    abstained_pattern_count: int = Field(ge=0)
+    returned_pattern_count: int = Field(ge=0)
+    truncated: bool
+    detected_income_observed: MoneyMetric
+    detected_expense_observed: MoneyMetric
+
+    @model_validator(mode="after")
+    def validate_counts_and_amounts(self) -> "RecurringAnalyticsSummary":
+        """Keep recurrence summary subsets and observed totals consistent."""
+        if (
+            self.detected_pattern_count + self.abstained_pattern_count
+            != self.candidate_pattern_count
+        ):
+            raise ValueError(
+                "Detected and abstained patterns must equal candidate patterns."
+            )
+        if self.returned_pattern_count > self.candidate_pattern_count:
+            raise ValueError(
+                "Returned patterns cannot exceed candidate patterns."
+            )
+        if (
+            self.detected_income_observed.value < 0
+            or self.detected_expense_observed.value < 0
+        ):
+            raise ValueError("Recurring observed totals cannot be negative.")
+        return self
+
+
+class RecurringAnalyticsResponse(AnalyticsSchema):
+    """Owner-scoped recurring intelligence with explicit abstention."""
+
+    context: AnalyticsContext
+    policy_version: Literal["2026.1"] = RECURRING_POLICY_VERSION
+    minimum_occurrences: int = Field(
+        ge=MIN_RECURRING_OCCURRENCES,
+        le=MAX_RECURRING_OCCURRENCES,
+    )
+    summary: RecurringAnalyticsSummary
+    patterns: tuple[RecurringPatternResponse, ...]
+
+
+def _validate_date_range(
+    date_from: date | None,
+    date_to: date | None,
+) -> int | None:
+    if (date_from is None) != (date_to is None):
+        raise ValueError("date_from and date_to must be supplied together.")
+    if date_from is None or date_to is None:
+        return None
+    if date_to < date_from:
+        raise ValueError("date_to must not be earlier than date_from.")
+    day_count = (date_to - date_from).days + 1
+    if day_count > MAX_ANALYTICS_RANGE_DAYS:
+        raise ValueError(
+            f"Analytics ranges cannot exceed {MAX_ANALYTICS_RANGE_DAYS} days."
+        )
+    return day_count

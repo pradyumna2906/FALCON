@@ -31,6 +31,8 @@ from falcon_api.schemas.analytics import (
     CashFlowPoint,
     MoneyMetric,
     RateMetric,
+    RecurringAnalyticsResponse,
+    RecurringAnalyticsSummary,
     SpendingAnalyticsResponse,
 )
 
@@ -151,6 +153,24 @@ def _spending_response() -> SpendingAnalyticsResponse:
     )
 
 
+def _recurring_response() -> RecurringAnalyticsResponse:
+    context = _context().model_copy(update={"comparison_period": None})
+    return RecurringAnalyticsResponse(
+        context=context,
+        minimum_occurrences=3,
+        summary=RecurringAnalyticsSummary(
+            candidate_pattern_count=0,
+            detected_pattern_count=0,
+            abstained_pattern_count=0,
+            returned_pattern_count=0,
+            truncated=False,
+            detected_income_observed=MoneyMetric(value=Decimal("0")),
+            detected_expense_observed=MoneyMetric(value=Decimal("0")),
+        ),
+        patterns=(),
+    )
+
+
 def test_cash_flow_route_uses_authenticated_context_and_safe_query(
     client: TestClient,
     analytics_dependencies,
@@ -210,6 +230,39 @@ def test_spending_route_passes_bounded_limit_and_authenticated_owner(
     assert call.kwargs["limit"] == 10
 
 
+def test_recurring_route_passes_only_trusted_owner_and_bounded_controls(
+    client: TestClient,
+    analytics_dependencies,
+) -> None:
+    service, _, session, principal = analytics_dependencies
+    service.recurring.return_value = _recurring_response()
+
+    response = client.get(
+        "/api/v1/analytics/recurring",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+        params={
+            "date_from": "2026-05-01",
+            "date_to": "2026-08-24",
+            "currency": "inr",
+            "minimum_occurrences": "4",
+            "limit": "10",
+            "include_abstained": "false",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["policy_version"] == "2026.1"
+    call = service.recurring.await_args
+    assert call.args == (session,)
+    assert call.kwargs["user_id"] == principal.user_id
+    assert call.kwargs["trusted_timezone"] == principal.timezone
+    assert call.kwargs["selection"].currency == "INR"
+    assert call.kwargs["selection"].comparison.value == "none"
+    assert call.kwargs["minimum_occurrences"] == 4
+    assert call.kwargs["limit"] == 10
+    assert call.kwargs["include_abstained"] is False
+
+
 @pytest.mark.parametrize(
     ("path", "params"),
     [
@@ -219,6 +272,9 @@ def test_spending_route_passes_bounded_limit_and_authenticated_owner(
         ("/api/v1/analytics/cash-flow", {"granularity": "week"}),
         ("/api/v1/analytics/spending", {"limit": "101"}),
         ("/api/v1/analytics/spending", {"currency": "RUPEE"}),
+        ("/api/v1/analytics/recurring", {"user_id": str(uuid4())}),
+        ("/api/v1/analytics/recurring", {"minimum_occurrences": "2"}),
+        ("/api/v1/analytics/recurring", {"limit": "101"}),
     ],
 )
 def test_analytics_routes_reject_untrusted_or_invalid_query_fields(
@@ -239,6 +295,7 @@ def test_analytics_routes_reject_untrusted_or_invalid_query_fields(
     assert response.json()["error"]["code"] == "validation_error"
     service.cash_flow.assert_not_awaited()
     service.spending.assert_not_awaited()
+    service.recurring.assert_not_awaited()
 
 
 def test_analytics_routes_require_authentication(
@@ -259,11 +316,12 @@ def test_analytics_routes_require_authentication(
     service.cash_flow.assert_not_awaited()
 
 
-def test_openapi_documents_both_analytics_operations(client: TestClient) -> None:
+def test_openapi_documents_all_analytics_operations(client: TestClient) -> None:
     document = client.get("/openapi.json").json()
 
     assert "get" in document["paths"]["/api/v1/analytics/cash-flow"]
     assert "get" in document["paths"]["/api/v1/analytics/spending"]
+    assert "get" in document["paths"]["/api/v1/analytics/recurring"]
     assert (
         document["paths"]["/api/v1/analytics/cash-flow"]["get"]["operationId"]
         == "get_cash_flow_analytics"
@@ -271,4 +329,8 @@ def test_openapi_documents_both_analytics_operations(client: TestClient) -> None
     assert (
         document["paths"]["/api/v1/analytics/spending"]["get"]["operationId"]
         == "get_spending_analytics"
+    )
+    assert (
+        document["paths"]["/api/v1/analytics/recurring"]["get"]["operationId"]
+        == "get_recurring_analytics"
     )

@@ -18,6 +18,7 @@ from falcon_api.analytics.types import (
     CashFlowBucketAggregate,
     CategoryAggregate,
     MerchantAggregate,
+    RecurringTransactionRecord,
     money,
 )
 from falcon_api.classification.types import ClassificationDecision
@@ -434,6 +435,63 @@ class AnalyticsRepository:
                 transaction_count=row["transaction_count"],
                 income_transaction_count=row["income_transaction_count"],
                 expense_transaction_count=row["expense_transaction_count"],
+            )
+            for row in rows
+        )
+
+    async def list_recurring_transactions(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        period: AnalyticsPeriod,
+        currency: str,
+    ) -> tuple[RecurringTransactionRecord, ...]:
+        """Return bounded recurrence evidence in one owner-scoped statement."""
+        normalized_merchant = func.nullif(
+            func.lower(func.trim(Transaction.merchant_name)),
+            "",
+        )
+        display_name = func.nullif(func.trim(Transaction.merchant_name), "")
+        valid_category = _valid_category(user_id=user_id)
+        classification_code = case(
+            (valid_category, Category.classification_code),
+            else_=None,
+        )
+        category_name = case((valid_category, Category.name), else_=None)
+        statement = (
+            select(
+                Transaction.transaction_date.label("transaction_date"),
+                Transaction.transaction_type.label("transaction_type"),
+                func.abs(Transaction.amount).label("amount"),
+                normalized_merchant.label("normalized_merchant"),
+                display_name.label("display_name"),
+                classification_code.label("classification_code"),
+                category_name.label("category_name"),
+            )
+            .select_from(Transaction)
+            .join(Account, _owned_account_join())
+            .outerjoin(Category, Category.id == Transaction.category_id)
+            .where(
+                Transaction.user_id == user_id,
+                *_in_period(period),
+                Account.currency == _currency(currency),
+                Transaction.status == TransactionStatus.POSTED,
+                Transaction.transaction_type.in_(_CASH_FLOW_TYPES),
+                or_(normalized_merchant.is_not(None), valid_category),
+            )
+            .order_by(Transaction.transaction_date.asc(), Transaction.id.asc())
+        )
+        rows = (await session.execute(statement)).mappings().all()
+        return tuple(
+            RecurringTransactionRecord(
+                transaction_date=row["transaction_date"],
+                transaction_type=TransactionType(row["transaction_type"]),
+                amount=money(row["amount"]),
+                normalized_merchant=row["normalized_merchant"],
+                display_name=row["display_name"],
+                classification_code=row["classification_code"],
+                category_name=row["category_name"],
             )
             for row in rows
         )

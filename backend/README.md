@@ -175,6 +175,7 @@ The current endpoints are:
 | `GET` | `/api/v1/imports/{job_id}` | Returns one owned import reconciliation result |
 | `GET` | `/api/v1/analytics/cash-flow` | Returns exact cash-flow metrics, trends, and prior-period values |
 | `GET` | `/api/v1/analytics/spending` | Returns bounded category, merchant, and account expense distributions |
+| `GET` | `/api/v1/analytics/recurring` | Returns explainable recurring patterns and explicit abstentions |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |
@@ -433,9 +434,13 @@ canonical categories, normalized merchants, and historical accounts. Every
 surface uses one bounded SQL statement and archived ledger history remains
 eligible. Phase 8.3 exposes authenticated cash-flow and expense-only spending
 responses with trusted period/currency defaults, previous-period values,
-completeness/freshness context, exact ratios, and bounded dimensions. No
-materialized snapshot, anomaly model, budget, score, recommendation, or
-forecast has been introduced yet.
+completeness/freshness context, exact ratios, and bounded dimensions.
+Phase 8.4 adds live recurrence intelligence for canonical salary, rent, EMI,
+SIP, insurance, utilities, subscriptions, and repeated merchants. It uses
+reviewed timing and amount tolerances, deterministic evidence scores, and
+explicit abstention instead of forcing uncertain patterns. No materialized
+snapshot, anomaly model, budget, score, recommendation, or forecast has been
+introduced yet.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/analytics/PHASE_8_IMPLEMENTATION.md`](../docs/analytics/PHASE_8_IMPLEMENTATION.md).

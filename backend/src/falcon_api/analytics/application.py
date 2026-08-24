@@ -15,6 +15,10 @@ from falcon_api.analytics.periods import (
     resolve_analytics_period,
 )
 from falcon_api.analytics.repository import AnalyticsRepository
+from falcon_api.analytics.recurring import (
+    RecurringDecision,
+    detect_recurring_patterns,
+)
 from falcon_api.analytics.semantics import (
     RATIO_QUANTUM,
     AnalyticsComparisonMode,
@@ -35,6 +39,9 @@ from falcon_api.schemas.analytics import (
     CashFlowMetrics,
     CashFlowPoint,
     MoneyMetric,
+    RecurringAnalyticsResponse,
+    RecurringAnalyticsSummary,
+    RecurringPatternResponse,
     SpendingAccount,
     SpendingAnalyticsResponse,
     SpendingCategory,
@@ -220,6 +227,98 @@ class FinancialAnalyticsService:
                     share=_share(item.total_expense, total_expense),
                 )
                 for item in accounts
+            ),
+        )
+
+    async def recurring(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        trusted_timezone: str,
+        default_currency: str,
+        selection: AnalyticsSelection,
+        minimum_occurrences: int,
+        limit: int,
+        include_abstained: bool,
+    ) -> RecurringAnalyticsResponse:
+        """Return detected patterns plus bounded explicit abstentions."""
+        now = self._clock.now()
+        period = resolve_analytics_period(
+            date_from=selection.date_from,
+            date_to=selection.date_to,
+            trusted_timezone=trusted_timezone,
+            now=now,
+        )
+        currency = _resolve_currency(
+            requested=selection.currency,
+            default=default_currency,
+        )
+        summary = await self._repository.get_summary(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+        )
+        records = await self._repository.list_recurring_transactions(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+        )
+        candidates = detect_recurring_patterns(
+            records,
+            minimum_occurrences=minimum_occurrences,
+        )
+        visible = tuple(
+            pattern
+            for pattern in candidates
+            if include_abstained
+            or pattern.decision is RecurringDecision.DETECTED
+        )
+        returned = visible[:limit]
+        detected = tuple(
+            pattern
+            for pattern in candidates
+            if pattern.decision is RecurringDecision.DETECTED
+        )
+        detected_income = sum(
+            (
+                pattern.observed_total
+                for pattern in detected
+                if pattern.transaction_type is TransactionType.INCOME
+            ),
+            start=Decimal("0"),
+        )
+        detected_expense = sum(
+            (
+                pattern.observed_total
+                for pattern in detected
+                if pattern.transaction_type is TransactionType.EXPENSE
+            ),
+            start=Decimal("0"),
+        )
+        return RecurringAnalyticsResponse(
+            context=_context(
+                period=period,
+                comparison=None,
+                currency=currency,
+                summary=summary,
+                calculated_at=now,
+            ),
+            minimum_occurrences=minimum_occurrences,
+            summary=RecurringAnalyticsSummary(
+                candidate_pattern_count=len(candidates),
+                detected_pattern_count=len(detected),
+                abstained_pattern_count=len(candidates) - len(detected),
+                returned_pattern_count=len(returned),
+                truncated=len(visible) > len(returned),
+                detected_income_observed=MoneyMetric(value=detected_income),
+                detected_expense_observed=MoneyMetric(value=detected_expense),
+            ),
+            patterns=tuple(
+                RecurringPatternResponse.from_pattern(pattern)
+                for pattern in returned
             ),
         )
 

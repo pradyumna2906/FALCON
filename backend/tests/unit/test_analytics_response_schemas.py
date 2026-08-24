@@ -1,5 +1,6 @@
 """Strict schemas for the Checkpoint 8.3 analytics responses."""
 
+from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
@@ -12,12 +13,21 @@ from falcon_api.analytics.types import (
     AnalyticsSummaryAggregate,
     CategoryAggregate,
     MerchantAggregate,
+    RecurringTransactionRecord,
 )
-from falcon_api.models.enums import AccountType, CategoryKind
+from falcon_api.analytics.recurring import detect_recurring_patterns
+from falcon_api.models.enums import (
+    AccountType,
+    CategoryKind,
+    TransactionType,
+)
 from falcon_api.schemas.analytics import (
     CashFlowAnalyticsQuery,
     CashFlowAnalyticsResponse,
     CashFlowMetrics,
+    RecurringAnalyticsQuery,
+    RecurringAnalyticsSummary,
+    RecurringPatternResponse,
     SpendingAccount,
     SpendingAnalyticsQuery,
     SpendingAnalyticsResponse,
@@ -166,3 +176,95 @@ def test_response_models_exclude_owner_and_raw_transaction_fields() -> None:
         SpendingAnalyticsQuery(limit=101)
     with pytest.raises(ValidationError, match="between zero and one"):
         ShareMetric(value=Decimal("1.000001"))
+
+
+def test_recurring_query_exposes_only_bounded_detection_controls() -> None:
+    properties = set(RecurringAnalyticsQuery.model_json_schema()["properties"])
+
+    assert properties == {
+        "date_from",
+        "date_to",
+        "currency",
+        "minimum_occurrences",
+        "limit",
+        "include_abstained",
+    }
+    query = RecurringAnalyticsQuery(currency="inr")
+    assert query.currency == "INR"
+    assert query.minimum_occurrences == 3
+    assert query.limit == 25
+    assert query.include_abstained is True
+    for values in (
+        {"minimum_occurrences": 2},
+        {"minimum_occurrences": 13},
+        {"limit": 101},
+        {"date_from": date(2026, 8, 1)},
+    ):
+        with pytest.raises(ValidationError):
+            RecurringAnalyticsQuery.model_validate(values)
+
+
+def test_recurring_pattern_schema_is_exact_and_transaction_private() -> None:
+    records = tuple(
+        RecurringTransactionRecord(
+            transaction_date=observed,
+            transaction_type=TransactionType.EXPENSE,
+            amount=Decimal("799"),
+            normalized_merchant="netflix",
+            display_name="Netflix",
+            classification_code="streaming",
+            category_name="Streaming",
+        )
+        for observed in (
+            date(2026, 5, 1),
+            date(2026, 6, 1),
+            date(2026, 7, 1),
+        )
+    )
+
+    response = RecurringPatternResponse.from_pattern(
+        detect_recurring_patterns(records)[0]
+    )
+    dumped = response.model_dump(mode="json")
+
+    assert dumped["pattern_type"] == "subscription"
+    assert dumped["confidence"]["value"] == "1.000000"
+    assert dumped["median_interval_days"] == "30.50"
+    assert dumped["median_amount"]["value"] == "799.0000"
+    assert dumped["observed_total"]["value"] == "2397.0000"
+    assert "transaction_ids" not in dumped
+    assert "descriptions" not in dumped
+
+    with pytest.raises(ValidationError, match="dates must be ordered"):
+        RecurringPatternResponse.model_validate(
+            dumped
+            | {
+                "first_observed_date": "2026-08-01",
+                "last_observed_date": "2026-06-01",
+            }
+        )
+
+
+def test_recurring_summary_rejects_impossible_subsets_and_negative_totals() -> None:
+    valid = {
+        "candidate_pattern_count": 1,
+        "detected_pattern_count": 1,
+        "abstained_pattern_count": 0,
+        "returned_pattern_count": 1,
+        "truncated": False,
+        "detected_income_observed": {"value": "100.0000"},
+        "detected_expense_observed": {"value": "0.0000"},
+    }
+
+    with pytest.raises(ValidationError, match="must equal candidate"):
+        RecurringAnalyticsSummary.model_validate(
+            valid | {"abstained_pattern_count": 1}
+        )
+    with pytest.raises(ValidationError, match="cannot be negative"):
+        RecurringAnalyticsSummary.model_validate(
+            valid | {"detected_income_observed": {"value": "-1.0000"}}
+        )
+    with pytest.raises(ValidationError, match="cannot exceed candidate"):
+        RecurringAnalyticsSummary.model_validate(
+            valid | {"returned_pattern_count": 2}
+        )

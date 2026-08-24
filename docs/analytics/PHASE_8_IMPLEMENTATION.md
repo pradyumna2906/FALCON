@@ -1,7 +1,7 @@
 # Phase 8 — Financial Analytics and Spending Intelligence
 
 **Phase status:** in progress
-**Current checkpoint:** 8.3 complete
+**Current checkpoint:** 8.4 complete after validation
 Analytics contract version: `2026.1`
 
 ## 1. Purpose
@@ -233,8 +233,10 @@ bounded and privacy safe.
   without changing its meanings.
 - **Checkpoint 8.3 (complete after validation):** authenticated dashboard
   cash-flow and spending summary APIs.
-- **Checkpoints 8.4–8.8:** recurring intelligence, leak/anomaly detection,
-  bounded budget risk, explainable health score, and prioritized insights.
+- **Checkpoint 8.4 (complete after validation):** explainable recurring
+  transaction and subscription intelligence with explicit abstention.
+- **Checkpoints 8.5–8.8:** leak/anomaly detection, bounded budget risk,
+  explainable health score, and prioritized insights.
 - **Checkpoint 8.9:** snapshot policy, invalidation, monitoring, maximum-range
   performance, full regression, and Phase 8 closure.
 
@@ -431,3 +433,117 @@ generation, whitespace, line-ending, final-newline, merge-marker, large-file,
 case-conflict, illegal-Windows-name, submodule, and private-key checks passed.
 No migration is required because Checkpoint 8.3 composes the existing live
 aggregation foundation into authenticated read-only responses.
+
+## 18. Checkpoint 8.4 recurring intelligence
+
+Checkpoint 8.4 exposes one authenticated live read operation:
+
+```text
+GET /api/v1/analytics/recurring
+```
+
+The request accepts the frozen inclusive `date_from`, `date_to`, and `currency`
+controls plus three bounded recurrence controls: `minimum_occurrences` from 3
+through 12, a response `limit` from 1 through 100, and
+`include_abstained`. The defaults are 3, 25, and true. Clients cannot select an
+owner, override the trusted timezone, provide transaction IDs, change interval
+or amount tolerances, inject a confidence value, or request an unbounded source
+history. The normal no-date behavior remains the frozen current-month-to-date
+period; a useful monthly recurrence review should normally select a longer
+explicit range, up to the existing 366-day maximum.
+
+Only owned, posted income and expense transactions from one account currency
+and the selected inclusive period enter recurrence analysis. Pending entries,
+transfers, adjustments, foreign-currency rows, and another user's ledger are
+excluded in PostgreSQL. The source query reads dates, absolute amounts,
+transaction direction, normalized merchant display data, and valid canonical
+category metadata. It never reads descriptions, transaction IDs, import
+provenance, feature vectors, model paths, or prediction confidence.
+
+Transactions are grouped by exact normalized merchant and direction. When a
+merchant is unavailable, a valid canonical classification code is the bounded
+fallback. Records with neither signal are ignored because merging them would
+create an unexplainable cross-merchant pattern. Category metadata is accepted
+only when it is system-owned or belongs to the authenticated user and its kind
+matches the transaction direction. Multiple same-merchant entries on one
+calendar date are consolidated into one daily amount, so duplicates or split
+charges cannot inflate the minimum occurrence count.
+
+Canonical classification codes provide these reviewed behavioral meanings:
+
+| Canonical code | Recurring meaning |
+| --- | --- |
+| `salary` | Salary |
+| `rent` | Rent |
+| `emi_loan_payment` | EMI |
+| `mutual_fund` | SIP |
+| `health_insurance`, `other_insurance` | Insurance |
+| `utilities` | Utilities |
+| `streaming` | Subscription |
+
+Any sufficiently regular merchant without one of those canonical meanings is
+reported only as `repeated_merchant`; merchant text is never used to guess a
+regulated or financial meaning. A merchant group adopts a canonical meaning
+only when that classification code covers a strict majority of its observed
+dates. This avoids labeling a whole pattern as rent, EMI, insurance,
+subscription, or investment from one isolated category or a name fragment.
+
+The first policy version recognizes weekly (5–9 days), biweekly (12–16 days),
+monthly (25–35 days), and quarterly (80–100 days) cadence bands. It calculates
+the exact median interval, the share of intervals inside the selected band, the
+exact median/minimum/maximum/total amount, and the share of amounts inside the
+reviewed tolerance. The normal amount tolerance is 15%; salary permits 25%,
+utilities 50%, and unclassified repeated merchants 20% because those behaviors
+have materially different expected variability.
+
+The deterministic evidence score is:
+
+```text
+0.65 × interval consistency + 0.35 × amount consistency
+```
+
+The score uses exact six-decimal arithmetic and is an evidence ratio, not a
+probability or averaged Phase 7 model confidence. A pattern is `detected` only
+when it has a recognized cadence and a score of at least `0.700000`; otherwise
+the service explicitly `abstained`. Evidence bands are low below 0.70, medium
+at or above 0.70, and high at or above 0.90 with at least four observations.
+Bounded reason codes and a privacy-safe explanation identify canonical versus
+merchant evidence, regular versus irregular timing, and stable versus variable
+amounts.
+
+The response includes the normal analytics context and freshness/completeness
+metadata, policy version `2026.1`, candidate/detected/abstained/returned counts,
+whether the response limit truncated visible patterns, observed detected income
+and expense totals, and bounded pattern details. Observed totals cover only the
+selected history; they are not a forecast, next-payment prediction, budget,
+recommendation, or annualized estimate. Zero data returns `200` with zero
+counts, exact zero amounts, and an empty pattern list.
+
+The endpoint uses at most two SQL statements: the existing owner-scoped summary
+and one ordered recurrence-evidence query. Detection performs no query per
+merchant or transaction. It adds no table, migration, snapshot, cache,
+background job, fuzzy match, anomaly detector, duplicate detector, budget,
+health score, recommendation, next-due-date prediction, or Phase 9 forecast.
+
+## 19. Checkpoint 8.4 validation
+
+Focused recurrence, repository, schema, service, route, contract, application,
+and integration-collection coverage passed 115 tests while skipping the two
+explicitly PostgreSQL-gated analytics scenarios. The complete backend
+collection passed 1,022 tests and skipped 37 explicitly PostgreSQL-gated tests.
+The complete backend unit coverage gate passed at 95.47%, above the required
+90% threshold. The recurrence policy reached 97% statement and branch coverage;
+the analytics repository and internal result types remained fully covered.
+
+The PostgreSQL-gated authenticated API lifecycle now creates recurring
+transactions for two owners, verifies an exact monthly pattern for the first
+owner, and proves the second owner's high-value recurring merchant cannot leak
+into counts, amounts, or returned patterns. No PostgreSQL service was listening
+locally on ports 5432 or 5433, so this real-database scenario remains collected
+for the existing PostgreSQL CI job.
+
+Direct module-import order, source compilation, OpenAPI generation, offline
+Alembic upgrade and downgrade SQL, whitespace, line-ending, final-newline,
+merge-marker, large-file, case-conflict, illegal-Windows-name, submodule, and
+private-key checks passed. No migration is required because Checkpoint 8.4 is a
+live, read-only policy and API over the existing indexed transaction ledger.

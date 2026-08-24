@@ -9,7 +9,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from falcon_api.analytics.semantics import RATIO_QUANTUM
-from falcon_api.models.enums import AccountType, CategoryKind
+from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
 
 
 MONEY_QUANTUM = Decimal("0.0001")
@@ -121,3 +121,16 @@ class AccountAggregate:
     transaction_count: int
     income_transaction_count: int
     expense_transaction_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class RecurringTransactionRecord:
+    """One bounded ledger observation used for recurrence detection."""
+
+    transaction_date: date
+    transaction_type: TransactionType
+    amount: Decimal
+    normalized_merchant: str | None
+    display_name: str | None
+    classification_code: str | None
+    category_name: str | None
