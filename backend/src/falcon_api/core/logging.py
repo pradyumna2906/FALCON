@@ -21,6 +21,15 @@ _STRUCTURED_FIELDS = (
     "classification_source_counts",
     "classification_reason_counts",
     "classification_taxonomy_version",
+    "analytics_operation",
+    "analytics_policy_version",
+    "analytics_snapshot_mode",
+    "analytics_range_band",
+    "analytics_query_count",
+    "analytics_query_budget",
+    "analytics_item_count",
+    "analytics_item_count_capped",
+    "analytics_result_state",
 )
 
 

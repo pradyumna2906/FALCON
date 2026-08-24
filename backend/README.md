@@ -23,6 +23,13 @@ The current backend provides:
 - Authenticated, bounded CSV/XLSX/digital-PDF statement import and reconciliation APIs.
 - A versioned Phase 7 transaction-classification taxonomy and strict confidence,
   abstention, provenance, batch-selection, and correction contracts.
+- A versioned Phase 8 financial-analytics contract with exact metric, period,
+  currency, completeness, confidence, and zero-data semantics, plus
+  owner-scoped live PostgreSQL aggregation for summaries, trends, categories,
+  merchants, accounts, recurring evidence, spending signals, budget variance,
+  an explainable versioned financial-health score, and deterministic prioritized
+  recommendations, with a consolidated dashboard export, fixed query budgets,
+  live freshness, and privacy-safe aggregate monitoring.
 
 ## Requirements
 
@@ -169,6 +176,14 @@ The current endpoints are:
 | `POST` | `/api/v1/transfers` | Creates an atomic internal transfer |
 | `POST` | `/api/v1/imports` | Imports one bounded CSV/XLSX/digital-PDF statement into an owned account |
 | `GET` | `/api/v1/imports/{job_id}` | Returns one owned import reconciliation result |
+| `GET` | `/api/v1/analytics/cash-flow` | Returns exact cash-flow metrics, trends, and prior-period values |
+| `GET` | `/api/v1/analytics/spending` | Returns bounded category, merchant, and account expense distributions |
+| `GET` | `/api/v1/analytics/recurring` | Returns explainable recurring patterns and explicit abstentions |
+| `GET` | `/api/v1/analytics/spending-signals` | Returns explainable spending-leak and anomaly evidence |
+| `GET` | `/api/v1/analytics/budgets/{budget_id}` | Returns budget variance and bounded overspend-risk evidence |
+| `GET` | `/api/v1/analytics/health-score` | Returns a versioned explainable financial-health planning score |
+| `GET` | `/api/v1/analytics/insights` | Returns bounded, deduplicated, prioritized financial review actions |
+| `GET` | `/api/v1/analytics/dashboard` | Exports a five-query core dashboard bundle with shared summary semantics |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |
@@ -416,3 +431,30 @@ model remains provisional and cannot automatically assign model-only results.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/classification/PHASE_7_IMPLEMENTATION.md`](../docs/classification/PHASE_7_IMPLEMENTATION.md).
+
+## Financial analytics implementation
+
+Phase 8.1 freezes versioned metric, date-window, currency, transaction-status,
+classification-completeness, confidence, freshness, comparison, and zero-data
+semantics. Phase 8.2 implements those meanings as exact, owner-scoped live
+PostgreSQL aggregations for summary metrics, observed daily/monthly cash flow,
+canonical categories, normalized merchants, and historical accounts. Every
+surface uses one bounded SQL statement and archived ledger history remains
+eligible. Phase 8.3 exposes authenticated cash-flow and expense-only spending
+responses with trusted period/currency defaults, previous-period values,
+completeness/freshness context, exact ratios, and bounded dimensions.
+Phase 8.4 adds live recurrence intelligence for canonical salary, rent, EMI,
+SIP, insurance, utilities, subscriptions, and repeated merchants. Phase 8.5
+adds robust spending-leak and anomaly evidence; Phase 8.6 adds exact budget
+variance and bounded pace risk; Phase 8.7 adds the seven-factor explainable
+financial-health score. Phase 8.8 converts those existing signals into fixed,
+deduplicated, prioritized review actions with severity, urgency, confidence,
+reason codes, cautious impact semantics, and no investment advice or forecast.
+Phase 8.9 closes the phase with an explicit live-only snapshot policy,
+read-after-commit invalidation, fixed per-operation SQL budgets, privacy-safe
+aggregate telemetry, a consolidated dashboard export, and maximum-range
+performance and full-regression gates. Persistent snapshots and process caches
+remain deferred until production measurements justify their invalidation cost.
+
+The authoritative contract and checkpoint record is documented in
+[`docs/analytics/PHASE_8_IMPLEMENTATION.md`](../docs/analytics/PHASE_8_IMPLEMENTATION.md).
