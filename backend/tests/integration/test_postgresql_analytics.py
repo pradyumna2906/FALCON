@@ -563,8 +563,9 @@ async def _exercise_live_aggregates() -> None:
             session.add_all(
                 [inr_account, transfer_account, usd_account, other_account]
             )
-            session.add_all([income_category, expense_category, transfer_group])
+            session.add_all([income_category, expense_category])
         async with transaction_scope(resources.session_factory) as session:
+            session.add(transfer_group)
             session.add_all(
                 [
                     _transaction(
