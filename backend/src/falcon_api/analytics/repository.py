@@ -15,6 +15,9 @@ from falcon_api.analytics.types import (
     AccountAggregate,
     AnalyticsGranularity,
     AnalyticsSummaryAggregate,
+    BudgetCategoryLimitDefinition,
+    BudgetCategorySpendingAggregate,
+    BudgetDefinition,
     CashFlowBucketAggregate,
     CategoryAggregate,
     MerchantAggregate,
@@ -33,6 +36,7 @@ from falcon_api.models.enums import (
     TransactionType,
 )
 from falcon_api.models.ledger import Transaction
+from falcon_api.models.planning import Budget, BudgetLimit
 
 
 _CASH_FLOW_TYPES = (TransactionType.INCOME, TransactionType.EXPENSE)
@@ -551,6 +555,156 @@ class AnalyticsRepository:
             for row in rows
         )
 
+    async def get_budget_definition(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        budget_id: UUID,
+    ) -> BudgetDefinition | None:
+        """Load one owned budget and all valid category limits in one query."""
+        statement = (
+            select(
+                Budget.id.label("budget_id"),
+                Budget.name.label("budget_name"),
+                Budget.period_start_date,
+                Budget.period_end_date,
+                Budget.currency,
+                Budget.overall_limit,
+                Budget.archived_at,
+                BudgetLimit.id.label("budget_limit_id"),
+                BudgetLimit.category_id,
+                BudgetLimit.limit_amount,
+                Category.name.label("category_name"),
+                Category.classification_code,
+                Category.kind.label("category_kind"),
+                Category.user_id.label("category_user_id"),
+                Category.is_system.label("category_is_system"),
+            )
+            .select_from(Budget)
+            .outerjoin(
+                BudgetLimit,
+                and_(
+                    BudgetLimit.user_id == Budget.user_id,
+                    BudgetLimit.budget_id == Budget.id,
+                ),
+            )
+            .outerjoin(Category, Category.id == BudgetLimit.category_id)
+            .where(Budget.user_id == user_id, Budget.id == budget_id)
+            .order_by(BudgetLimit.id.asc().nulls_last())
+        )
+        rows = (await session.execute(statement)).mappings().all()
+        if not rows:
+            return None
+        limits = []
+        for row in rows:
+            if row["budget_limit_id"] is None:
+                continue
+            visible_category = (
+                row["category_is_system"] is True
+                and row["category_user_id"] is None
+            ) or (
+                row["category_is_system"] is False
+                and row["category_user_id"] == user_id
+            )
+            if (
+                row["category_id"] is None
+                or row["category_name"] is None
+                or row["category_kind"] != CategoryKind.EXPENSE
+                or not visible_category
+            ):
+                raise ValueError("Budget limit category integrity is invalid.")
+            limits.append(
+                BudgetCategoryLimitDefinition(
+                    category_id=row["category_id"],
+                    name=row["category_name"],
+                    classification_code=row["classification_code"],
+                    limit_amount=money(row["limit_amount"]),
+                )
+            )
+        first = rows[0]
+        return BudgetDefinition(
+            budget_id=first["budget_id"],
+            name=first["budget_name"],
+            period_start_date=first["period_start_date"],
+            period_end_date=first["period_end_date"],
+            currency=first["currency"],
+            overall_limit=(
+                money(first["overall_limit"])
+                if first["overall_limit"] is not None
+                else None
+            ),
+            archived_at=first["archived_at"],
+            category_limits=tuple(limits),
+        )
+
+    async def list_budget_category_spending(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        budget_id: UUID,
+        period: AnalyticsPeriod,
+    ) -> tuple[BudgetCategorySpendingAggregate, ...]:
+        """Aggregate every configured category without a query per limit."""
+        eligible_transaction = and_(
+            Transaction.user_id == user_id,
+            Transaction.category_id == BudgetLimit.category_id,
+            *_in_period(period),
+            Transaction.status == TransactionStatus.POSTED,
+            Transaction.transaction_type == TransactionType.EXPENSE,
+        )
+        owned_currency_account = and_(
+            Account.user_id == Transaction.user_id,
+            Account.id == Transaction.account_id,
+            Account.currency == Budget.currency,
+        )
+        valid_account = Account.id.is_not(None)
+        amount = func.coalesce(
+            func.sum(
+                case(
+                    (valid_account, func.abs(Transaction.amount)),
+                    else_=0,
+                )
+            ),
+            0,
+        )
+        statement = (
+            select(
+                BudgetLimit.category_id,
+                amount.label("amount"),
+                _count_if(valid_account).label("transaction_count"),
+            )
+            .select_from(BudgetLimit)
+            .join(
+                Budget,
+                and_(
+                    Budget.user_id == BudgetLimit.user_id,
+                    Budget.id == BudgetLimit.budget_id,
+                ),
+            )
+            .join(Category, Category.id == BudgetLimit.category_id)
+            .outerjoin(Transaction, eligible_transaction)
+            .outerjoin(Account, owned_currency_account)
+            .where(
+                BudgetLimit.user_id == user_id,
+                BudgetLimit.budget_id == budget_id,
+                Budget.user_id == user_id,
+                _valid_budget_category(user_id=user_id),
+            )
+            .group_by(BudgetLimit.category_id)
+            .order_by(BudgetLimit.category_id.asc())
+        )
+        rows = (await session.execute(statement)).mappings().all()
+        return tuple(
+            BudgetCategorySpendingAggregate(
+                category_id=row["category_id"],
+                amount=money(row["amount"]),
+                transaction_count=row["transaction_count"],
+            )
+            for row in rows
+        )
+
 
 def _owned_account_join() -> ColumnElement[bool]:
     return and_(
@@ -576,6 +730,18 @@ def _valid_category(*, user_id: UUID) -> ColumnElement[bool]:
     return and_(
         Category.id.is_not(None),
         Category.kind == Transaction.transaction_type,
+        allowed_owner,
+    )
+
+
+def _valid_budget_category(*, user_id: UUID) -> ColumnElement[bool]:
+    allowed_owner = or_(
+        and_(Category.is_system.is_(True), Category.user_id.is_(None)),
+        and_(Category.is_system.is_(False), Category.user_id == user_id),
+    )
+    return and_(
+        Category.id.is_not(None),
+        Category.kind == CategoryKind.EXPENSE,
         allowed_owner,
     )
 

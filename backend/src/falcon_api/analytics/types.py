@@ -146,3 +146,36 @@ class SpendingSignalTransactionRecord:
     display_name: str | None
     classification_code: str | None
     category_name: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetCategoryLimitDefinition:
+    """One valid canonical expense-category limit in an owned budget."""
+
+    category_id: UUID
+    name: str
+    classification_code: str | None
+    limit_amount: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetDefinition:
+    """One owner-scoped stored plan plus its immutable read-time limits."""
+
+    budget_id: UUID
+    name: str
+    period_start_date: date
+    period_end_date: date
+    currency: str
+    overall_limit: Decimal | None
+    archived_at: datetime | None
+    category_limits: tuple[BudgetCategoryLimitDefinition, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetCategorySpendingAggregate:
+    """Observed posted spending allocated to one configured category limit."""
+
+    category_id: UUID
+    amount: Decimal
+    transaction_count: int

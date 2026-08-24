@@ -5,6 +5,7 @@ from pathlib import Path
 from falcon_api.schemas.analytics import (
     AnalyticsContext,
     AnalyticsRangeQuery,
+    BudgetAnalyticsResponse,
     RecurringAnalyticsQuery,
     SpendingSignalAnalyticsQuery,
 )
@@ -138,5 +139,36 @@ def test_spending_signal_contract_is_fixed_private_and_cautious() -> None:
         "not a probability",
         "not confirmed fraud",
         "at most two sql statements",
+    ):
+        assert statement in content
+
+
+def test_budget_contract_is_owner_private_bounded_and_non_forecasting() -> None:
+    properties = set(BudgetAnalyticsResponse.model_json_schema()["properties"])
+    for private_field in {
+        "user_id",
+        "transaction_ids",
+        "descriptions",
+        "model_confidence",
+        "forecast_probability",
+    }:
+        assert private_field not in properties
+
+    content = _IMPLEMENTATION_DOCUMENT.read_text(encoding="utf-8").lower()
+    for statement in (
+        "get /api/v1/analytics/budgets/{budget_id}",
+        "remaining allowance",
+        "utilization ratio",
+        "daily burn rate",
+        "expected spend to date",
+        "pace variance",
+        "pace-projected spend",
+        "projected overspend amount",
+        "not a probability",
+        "not a phase 9 forecast",
+        "at most three sql statements",
+        "budget_not_found",
+        "budget_not_started",
+        "budget_period_unsupported",
     ):
         assert statement in content

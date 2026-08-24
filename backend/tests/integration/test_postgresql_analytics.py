@@ -35,6 +35,7 @@ from falcon_api.models.enums import (
     UserStatus,
 )
 from falcon_api.models.ledger import Transaction, TransferGroup
+from falcon_api.models.planning import Budget, BudgetLimit
 from falcon_api.models.user import User
 
 
@@ -267,6 +268,69 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
             )
             assert signal_body["signals"][0]["normalized_merchant"] == "food app"
             assert "must not leak" not in str(signal_body).lower()
+
+            (
+                owner_budget_id,
+                owner_category_id,
+                other_budget_id,
+                other_category_id,
+            ) = asyncio.run(
+                _create_budget_fixtures(
+                    integration_settings(),
+                    owner_id=owner_id,
+                    other_id=other_id,
+                )
+            )
+            _post_transaction(
+                client,
+                token=token,
+                account_id=account_id,
+                transaction_type=TransactionType.EXPENSE,
+                amount="1000.0000",
+                merchant="Budgeted Merchant",
+                transaction_date="2026-08-12",
+                category_id=owner_category_id,
+            )
+            _post_transaction(
+                client,
+                token=other_token,
+                account_id=other_account_id,
+                transaction_type=TransactionType.EXPENSE,
+                amount="777777.0000",
+                merchant="Other Budget Merchant",
+                transaction_date="2026-08-12",
+                category_id=other_category_id,
+            )
+
+            budget = client.get(
+                f"/api/v1/analytics/budgets/{owner_budget_id}",
+                headers=headers,
+            )
+            assert budget.status_code == 200, budget.text
+            budget_body = budget.json()
+            assert budget_body["budget"]["budget_id"] == str(owner_budget_id)
+            assert budget_body["overall"]["spent_amount"]["value"] == (
+                "5539.0000"
+            )
+            assert budget_body["configured_category_spend"]["value"] == (
+                "1000.0000"
+            )
+            assert budget_body["outside_configured_categories"]["value"] == (
+                "4539.0000"
+            )
+            assert len(budget_body["categories"]) == 1
+            assert budget_body["categories"][0]["transaction_count"] == 1
+            assert budget_body["categories"][0]["performance"]["spent_amount"][
+                "value"
+            ] == "1000.0000"
+            assert "777777" not in str(budget_body)
+
+            foreign_budget = client.get(
+                f"/api/v1/analytics/budgets/{other_budget_id}",
+                headers=headers,
+            )
+            assert foreign_budget.status_code == 404
+            assert foreign_budget.json()["error"]["code"] == "budget_not_found"
     finally:
         if user_ids:
             asyncio.run(_delete_users(integration_settings(), *user_ids))
@@ -512,13 +576,14 @@ def _post_transaction(
     amount: str,
     merchant: str,
     transaction_date: str = "2026-08-24",
+    category_id: UUID | None = None,
 ) -> None:
     response = client.post(
         "/api/v1/transactions",
         headers={"Authorization": f"Bearer {token}"},
         json={
             "account_id": str(account_id),
-            "category_id": None,
+            "category_id": str(category_id) if category_id is not None else None,
             "transaction_type": transaction_type.value,
             "amount": amount,
             "transaction_date": transaction_date,
@@ -527,6 +592,49 @@ def _post_transaction(
         },
     )
     assert response.status_code == 201, response.text
+
+
+async def _create_budget_fixtures(
+    settings: Settings,
+    *,
+    owner_id: UUID,
+    other_id: UUID,
+) -> tuple[UUID, UUID, UUID, UUID]:
+    resources = create_database_resources(settings)
+    owner_category = _category(owner_id, "Budget Dining", CategoryKind.EXPENSE)
+    other_category = _category(other_id, "Other Budget", CategoryKind.EXPENSE)
+    owner_budget = _budget(owner_id, "Owner August", overall_limit="10000")
+    other_budget = _budget(other_id, "Other August", overall_limit="900000")
+    try:
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([owner_category, other_category])
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([owner_budget, other_budget])
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all(
+                [
+                    _budget_limit(
+                        owner_id,
+                        owner_budget.id,
+                        owner_category.id,
+                        "3000",
+                    ),
+                    _budget_limit(
+                        other_id,
+                        other_budget.id,
+                        other_category.id,
+                        "800000",
+                    ),
+                ]
+            )
+        return (
+            owner_budget.id,
+            owner_category.id,
+            other_budget.id,
+            other_category.id,
+        )
+    finally:
+        await resources.dispose()
 
 
 async def _delete_users(settings: Settings, *user_ids: UUID) -> None:
@@ -581,6 +689,38 @@ def _category(user_id: UUID, name: str, kind: CategoryKind) -> Category:
         is_system=False,
         display_order=0,
         archived_at=None,
+        created_at=_NOW,
+        updated_at=_NOW,
+    )
+
+
+def _budget(user_id: UUID, name: str, *, overall_limit: str) -> Budget:
+    return Budget(
+        id=uuid4(),
+        user_id=user_id,
+        name=f"{name} {uuid4().hex[:8]}",
+        period_start_date=date(2026, 8, 1),
+        period_end_date=date(2026, 8, 31),
+        currency="INR",
+        overall_limit=Decimal(overall_limit),
+        archived_at=None,
+        created_at=_NOW,
+        updated_at=_NOW,
+    )
+
+
+def _budget_limit(
+    user_id: UUID,
+    budget_id: UUID,
+    category_id: UUID,
+    amount: str,
+) -> BudgetLimit:
+    return BudgetLimit(
+        id=uuid4(),
+        user_id=user_id,
+        budget_id=budget_id,
+        category_id=category_id,
+        limit_amount=Decimal(amount),
         created_at=_NOW,
         updated_at=_NOW,
     )

@@ -1,7 +1,7 @@
 # Phase 8 — Financial Analytics and Spending Intelligence
 
 **Phase status:** in progress
-**Current checkpoint:** 8.5 complete after validation
+**Current checkpoint:** 8.6 complete after validation
 Analytics contract version: `2026.1`
 
 ## 1. Purpose
@@ -237,8 +237,9 @@ bounded and privacy safe.
   transaction and subscription intelligence with explicit abstention.
 - **Checkpoint 8.5 (complete after validation):** deterministic spending-leak and
   anomaly signals with robust personal baselines and cautious evidence.
-- **Checkpoints 8.6–8.8:** bounded budget risk, explainable health score, and
-  prioritized insights.
+- **Checkpoint 8.6 (complete after validation):** budget variance and bounded
+  overspend-risk pace arithmetic.
+- **Checkpoints 8.7–8.8:** explainable health score and prioritized insights.
 - **Checkpoint 8.9:** snapshot policy, invalidation, monitoring, maximum-range
   performance, full regression, and Phase 8 closure.
 
@@ -648,3 +649,117 @@ final-newline, merge-marker, large-file, case-conflict, illegal-Windows-name,
 submodule, and private-key checks passed. No migration is required because
 Checkpoint 8.5 is a live, read-only policy and API over the existing indexed
 transaction ledger.
+
+## 22. Checkpoint 8.6 budget variance and overspend risk
+
+Checkpoint 8.6 exposes one authenticated read operation:
+
+```text
+GET /api/v1/analytics/budgets/{budget_id}
+```
+
+The path accepts only a UUID budget identifier. The authenticated principal
+supplies the owner and trusted IANA timezone; the stored budget supplies its
+fixed currency, full period, overall limit, and canonical category limits.
+Clients cannot select another owner, override the timezone or currency, provide
+an as-of timestamp, alter thresholds, inject spending, or request a future
+calculation date. A missing or cross-owner identifier returns the same
+`404 budget_not_found` response and reveals no ownership information.
+
+The endpoint analyzes persisted Phase 2 budgets rather than creating another
+budget representation. Historical archived budgets remain readable because
+archiving must not rewrite their financial history. A budget that has not
+started returns `422 budget_not_started`. The first policy supports stored
+periods of at most 366 inclusive days; a longer plan returns
+`422 budget_period_unsupported` instead of silently truncating evidence.
+
+The observation window begins on the stored budget start and ends on the
+earlier of the trusted local current date and stored budget end. Only owned,
+posted expense transactions from accounts in the budget's stored currency enter
+overall usage. Pending transactions, income, transfers, adjustments,
+foreign-currency rows, and another user's ledger are excluded. Overall spending
+does not depend on category coverage. Each category limit receives only posted
+expenses whose canonical `transactions.category_id` matches its valid expense
+category. Suggested or abstained classifications without a canonical category
+remain in overall spending but outside configured category limits.
+
+For an overall or category limit `L`, observed spending `S`, elapsed inclusive
+days `e`, and total budget days `d`, policy version `2026.1` calculates:
+
+| Metric | Exact meaning |
+| --- | --- |
+| Remaining allowance | `L - S`; negative means the stored limit is exceeded |
+| Utilization ratio | `S / L` |
+| Period progress ratio | `e / d` |
+| Daily burn rate | `S / e` using exact decimal arithmetic |
+| Expected spend to date | `L × (e / d)` |
+| Pace variance | Expected spend to date minus observed spending; negative means spending is ahead of even pace |
+| Pace-projected spend | `S / e × d` while active; realized `S` after completion |
+| Projected variance | `L - pace-projected spend` |
+| Projected overspend amount | `max(0, pace-projected spend - L)` |
+
+Money values serialize at four decimal places and ratios at six. The overall
+response also separates spending assigned to configured category limits from
+spending outside configured categories. These amounts add exactly to overall
+budget usage; no money is omitted merely because classification is incomplete.
+If `overall_limit` is absent, overall spending, progress, and daily burn remain
+available, while limit-dependent values and overall overspend risk are null or
+`unavailable`. Category limits remain independently evaluable.
+
+The deterministic risk and warning policy is:
+
+| Evidence | Risk | Warning |
+| --- | --- | --- |
+| Current spending exceeds the limit | `high` | `over_limit` |
+| Pace projection is at least 110% of the limit | `high` | `projected_overspend` |
+| Pace projection exceeds the limit but is below 110% | `medium` | `projected_overspend` |
+| Projection is within limit and utilization is at least 80% | `low` | `approaching_limit` |
+| Projection and utilization remain below those guards | `low` | `within_budget` |
+| No stored overall limit | `unavailable` | `unavailable` |
+
+Risk is a deterministic evidence band, not a probability, credit assessment,
+or averaged model confidence. Pace-projected spend is transparent linear
+month/period-progress arithmetic, not a Phase 9 forecast, seasonal model, or
+claim about future behavior. A completed budget uses realized spending instead
+of extrapolation; a completed budget within its limit is `within_budget`, while
+a realized excess is `over_limit`. Checkpoint 8.6 exposes warnings but sends no
+notification and makes no recommendation.
+
+The endpoint uses at most three SQL statements: one owner-scoped budget and
+limit definition query, the existing owner/date/currency summary, and one
+set-based category-spending query. It performs no query per category or
+transaction. A budget with no spending returns `200` with exact zeros. A budget
+with no category limits returns an empty category list and assigns all spending
+outside configured categories.
+
+Checkpoint 8.6 adds no table, migration, budget CRUD, write operation, cache,
+snapshot, background job, alert delivery, ML model, health score,
+recommendation, goal optimization, scenario simulation, forecast, or UI.
+Checkpoint 8.7 owns the explainable health score, Checkpoint 8.8 owns prioritized
+recommendations, and Phase 9 owns forecasting.
+
+## 23. Checkpoint 8.6 validation
+
+Focused budget policy, repository, schema, service, route, contract, and
+integration-collection coverage passed 151 tests while skipping the two
+explicitly PostgreSQL-gated analytics scenarios. The complete backend
+collection passed 1,064 tests and skipped 37 explicitly PostgreSQL-gated tests.
+The complete backend statement and branch coverage gate passed at 95.30%, above
+the required 90% threshold. The new budget policy reached 99%; the expanded
+analytics repository reached 99% and its private result types remained fully
+covered.
+
+The PostgreSQL-gated authenticated lifecycle creates independent budgets,
+category limits, accounts, and expenses for two owners. It verifies the first
+owner's exact overall usage, configured-category usage, outside-category usage,
+category transaction count, pace metrics, and response currency, while proving
+the second owner's much larger spending and budget cannot leak. Fetching the
+second owner's budget identifier through the first owner's token returns the
+same `budget_not_found` response as a missing identifier.
+
+Source compilation, Ruff static checks for the touched Python surface, OpenAPI
+generation, offline Alembic upgrade and downgrade SQL, whitespace, line-ending,
+final-newline, merge-marker, large-file, case-conflict, illegal-Windows-name,
+submodule, and private-key checks passed. No migration is required because
+Checkpoint 8.6 derives read-only metrics from the existing budget, category,
+account, and transaction schema.

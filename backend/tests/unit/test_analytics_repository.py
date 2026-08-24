@@ -16,6 +16,9 @@ from falcon_api.analytics import (
     AnalyticsPeriod,
     AnalyticsRepository,
     AnalyticsSummaryAggregate,
+    BudgetCategoryLimitDefinition,
+    BudgetCategorySpendingAggregate,
+    BudgetDefinition,
     CashFlowBucketAggregate,
     CategoryAggregate,
     MerchantAggregate,
@@ -454,6 +457,159 @@ def test_spending_signal_source_is_expense_only_owner_scoped_and_private() -> No
     assert "INR" in params.values()
 
 
+def test_budget_definition_maps_owned_plan_and_valid_category_limits() -> None:
+    budget_id = uuid4()
+    category_id = uuid4()
+    user_id = uuid4()
+    session = _session_with_all(
+        [
+            {
+                "budget_id": budget_id,
+                "budget_name": "August plan",
+                "period_start_date": date(2026, 8, 1),
+                "period_end_date": date(2026, 8, 31),
+                "currency": "INR",
+                "overall_limit": Decimal("10000"),
+                "archived_at": None,
+                "budget_limit_id": uuid4(),
+                "category_id": category_id,
+                "limit_amount": Decimal("3000"),
+                "category_name": "Food Delivery",
+                "classification_code": "food_delivery",
+                "category_kind": CategoryKind.EXPENSE,
+                "category_user_id": None,
+                "category_is_system": True,
+            }
+        ]
+    )
+
+    result = asyncio.run(
+        AnalyticsRepository().get_budget_definition(
+            session,
+            user_id=user_id,
+            budget_id=budget_id,
+        )
+    )
+
+    assert result == BudgetDefinition(
+        budget_id=budget_id,
+        name="August plan",
+        period_start_date=date(2026, 8, 1),
+        period_end_date=date(2026, 8, 31),
+        currency="INR",
+        overall_limit=Decimal("10000.0000"),
+        archived_at=None,
+        category_limits=(
+            BudgetCategoryLimitDefinition(
+                category_id=category_id,
+                name="Food Delivery",
+                classification_code="food_delivery",
+                limit_amount=Decimal("3000.0000"),
+            ),
+        ),
+    )
+    query, params = _compiled(session)
+    assert "budgets.user_id =" in query
+    assert "budgets.id =" in query
+    assert "budget_limits.user_id = budgets.user_id" in query
+    assert "budget_limits.budget_id = budgets.id" in query
+    assert "ORDER BY budget_limits.id" in query
+    assert user_id in params.values()
+    assert budget_id in params.values()
+
+
+def test_budget_definition_returns_none_and_rejects_invalid_category() -> None:
+    missing = _session_with_all([])
+    assert (
+        asyncio.run(
+            AnalyticsRepository().get_budget_definition(
+                missing,
+                user_id=uuid4(),
+                budget_id=uuid4(),
+            )
+        )
+        is None
+    )
+
+    invalid = _session_with_all(
+        [
+            {
+                "budget_id": uuid4(),
+                "budget_name": "Invalid",
+                "period_start_date": date(2026, 8, 1),
+                "period_end_date": date(2026, 8, 31),
+                "currency": "INR",
+                "overall_limit": None,
+                "archived_at": None,
+                "budget_limit_id": uuid4(),
+                "category_id": uuid4(),
+                "limit_amount": Decimal("100"),
+                "category_name": "Salary",
+                "classification_code": "salary",
+                "category_kind": CategoryKind.INCOME,
+                "category_user_id": None,
+                "category_is_system": True,
+            }
+        ]
+    )
+    with pytest.raises(ValueError, match="integrity"):
+        asyncio.run(
+            AnalyticsRepository().get_budget_definition(
+                invalid,
+                user_id=uuid4(),
+                budget_id=uuid4(),
+            )
+        )
+
+
+def test_budget_category_spending_is_owner_currency_and_period_scoped() -> None:
+    category_id = uuid4()
+    user_id = uuid4()
+    budget_id = uuid4()
+    session = _session_with_all(
+        [
+            {
+                "category_id": category_id,
+                "amount": Decimal("1250.5"),
+                "transaction_count": 3,
+            }
+        ]
+    )
+
+    result = asyncio.run(
+        AnalyticsRepository().list_budget_category_spending(
+            session,
+            user_id=user_id,
+            budget_id=budget_id,
+            period=_PERIOD,
+        )
+    )
+
+    assert result == (
+        BudgetCategorySpendingAggregate(
+            category_id=category_id,
+            amount=Decimal("1250.5000"),
+            transaction_count=3,
+        ),
+    )
+    query, params = _compiled(session)
+    assert "budget_limits.user_id =" in query
+    assert "budget_limits.budget_id =" in query
+    assert "budgets.user_id =" in query
+    assert "transactions.user_id =" in query
+    assert "transactions.category_id = budget_limits.category_id" in query
+    assert "transactions.transaction_date >=" in query
+    assert "transactions.transaction_date <=" in query
+    assert "transactions.status =" in query
+    assert "transactions.transaction_type =" in query
+    assert "accounts.currency = budgets.currency" in query
+    assert "categories.kind =" in query
+    assert "GROUP BY budget_limits.category_id" in query
+    assert user_id in params.values()
+    assert budget_id in params.values()
+    assert TransactionType.EXPENSE in params.values()
+
+
 @pytest.mark.parametrize("currency", ["", "IN", "USDT", "1NR", "ÄBC"])
 def test_repository_rejects_invalid_internal_currency(currency: str) -> None:
     session = _session_with_one(_summary_row())
@@ -491,7 +647,7 @@ def test_dimension_queries_reject_unbounded_limits(limit: int) -> None:
 
 def test_each_aggregate_surface_uses_one_database_statement() -> None:
     summary_session = _session_with_one(_summary_row())
-    empty_sessions = [_session_with_all([]) for _ in range(6)]
+    empty_sessions = [_session_with_all([]) for _ in range(8)]
     repository = AnalyticsRepository()
     user_id = uuid4()
 
@@ -550,6 +706,21 @@ def test_each_aggregate_surface_uses_one_database_statement() -> None:
             user_id=user_id,
             period=_PERIOD,
             currency="INR",
+        )
+    )
+    asyncio.run(
+        repository.get_budget_definition(
+            empty_sessions[6],
+            user_id=user_id,
+            budget_id=uuid4(),
+        )
+    )
+    asyncio.run(
+        repository.list_budget_category_spending(
+            empty_sessions[7],
+            user_id=user_id,
+            budget_id=uuid4(),
+            period=_PERIOD,
         )
     )
 

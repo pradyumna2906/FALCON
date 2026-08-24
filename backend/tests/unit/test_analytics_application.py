@@ -20,6 +20,9 @@ from falcon_api.analytics.types import (
     AccountAggregate,
     AnalyticsGranularity,
     AnalyticsSummaryAggregate,
+    BudgetCategoryLimitDefinition,
+    BudgetCategorySpendingAggregate,
+    BudgetDefinition,
     CashFlowBucketAggregate,
     CategoryAggregate,
     MerchantAggregate,
@@ -534,3 +537,133 @@ def test_spending_signals_zero_data_is_successful_and_explicit() -> None:
     assert result.summary.detected_signal_count == 0
     assert result.signals == ()
     assert all(item.status.value == "insufficient_data" for item in result.evaluations)
+
+
+def _budget_definition(
+    *,
+    start: date = date(2026, 8, 1),
+    end: date = date(2026, 8, 31),
+) -> BudgetDefinition:
+    return BudgetDefinition(
+        budget_id=uuid4(),
+        name="August plan",
+        period_start_date=start,
+        period_end_date=end,
+        currency="INR",
+        overall_limit=Decimal("10000"),
+        archived_at=None,
+        category_limits=(
+            BudgetCategoryLimitDefinition(
+                category_id=uuid4(),
+                name="Food Delivery",
+                classification_code="food_delivery",
+                limit_amount=Decimal("3000"),
+            ),
+        ),
+    )
+
+
+def test_budget_composes_owner_scoped_plan_summary_and_category_usage() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    definition = _budget_definition()
+    repository.get_budget_definition.return_value = definition
+    repository.get_summary.return_value = _summary(expense="4000")
+    repository.list_budget_category_spending.return_value = (
+        BudgetCategorySpendingAggregate(
+            category_id=definition.category_limits[0].category_id,
+            amount=Decimal("1200"),
+            transaction_count=3,
+        ),
+    )
+    session = AsyncMock(spec=AsyncSession)
+    user_id = uuid4()
+
+    result = asyncio.run(
+        _service(repository).budget(
+            session,
+            user_id=user_id,
+            trusted_timezone="Asia/Kolkata",
+            budget_id=definition.budget_id,
+        )
+    )
+
+    assert result.context.currency == "INR"
+    assert result.context.period.date_from == date(2026, 8, 1)
+    assert result.context.period.date_to == date(2026, 8, 24)
+    assert result.budget.budget_id == definition.budget_id
+    assert result.status.value == "active"
+    assert result.overall.spent_amount.value == Decimal("4000.0000")
+    assert result.overall.pace_projected_spend is not None
+    assert result.overall.pace_projected_spend.value == Decimal("5166.6667")
+    assert result.overall.risk_level.value == "low"
+    assert result.configured_category_spend.value == Decimal("1200.0000")
+    assert result.outside_configured_categories.value == Decimal("2800.0000")
+    assert result.categories[0].transaction_count == 3
+    repository.get_budget_definition.assert_awaited_once_with(
+        session,
+        user_id=user_id,
+        budget_id=definition.budget_id,
+    )
+    repository.get_summary.assert_awaited_once_with(
+        session,
+        user_id=user_id,
+        period=repository.get_summary.await_args.kwargs["period"],
+        currency="INR",
+    )
+    repository.list_budget_category_spending.assert_awaited_once_with(
+        session,
+        user_id=user_id,
+        budget_id=definition.budget_id,
+        period=repository.get_summary.await_args.kwargs["period"],
+    )
+
+
+def test_budget_missing_future_and_unsupported_period_fail_safely() -> None:
+    session = AsyncMock(spec=AsyncSession)
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_budget_definition.return_value = None
+    with pytest.raises(ApplicationError) as missing:
+        asyncio.run(
+            _service(repository).budget(
+                session,
+                user_id=uuid4(),
+                trusted_timezone="UTC",
+                budget_id=uuid4(),
+            )
+        )
+    assert missing.value.code == "budget_not_found"
+    assert missing.value.status_code == 404
+
+    repository.reset_mock()
+    repository.get_budget_definition.return_value = _budget_definition(
+        start=date(2026, 8, 25),
+        end=date(2026, 9, 24),
+    )
+    with pytest.raises(ApplicationError) as future:
+        asyncio.run(
+            _service(repository).budget(
+                session,
+                user_id=uuid4(),
+                trusted_timezone="UTC",
+                budget_id=uuid4(),
+            )
+        )
+    assert future.value.code == "budget_not_started"
+
+    repository.reset_mock()
+    repository.get_budget_definition.return_value = _budget_definition(
+        start=date(2025, 1, 1),
+        end=date(2026, 8, 24),
+    )
+    with pytest.raises(ApplicationError) as unsupported:
+        asyncio.run(
+            _service(repository).budget(
+                session,
+                user_id=uuid4(),
+                trusted_timezone="UTC",
+                budget_id=uuid4(),
+            )
+        )
+    assert unsupported.value.code == "budget_period_unsupported"
+    repository.get_summary.assert_not_awaited()
+    repository.list_budget_category_spending.assert_not_awaited()

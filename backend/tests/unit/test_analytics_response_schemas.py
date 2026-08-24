@@ -11,12 +11,16 @@ from falcon_api.analytics.types import (
     AccountAggregate,
     AnalyticsGranularity,
     AnalyticsSummaryAggregate,
+    BudgetCategoryLimitDefinition,
+    BudgetCategorySpendingAggregate,
+    BudgetDefinition,
     CategoryAggregate,
     MerchantAggregate,
     RecurringTransactionRecord,
     SpendingSignalTransactionRecord,
 )
 from falcon_api.analytics.periods import AnalyticsPeriod
+from falcon_api.analytics.budgeting import evaluate_budget
 from falcon_api.analytics.recurring import detect_recurring_patterns
 from falcon_api.analytics.spending_signals import detect_spending_signals
 from falcon_api.models.enums import (
@@ -28,6 +32,7 @@ from falcon_api.schemas.analytics import (
     CashFlowAnalyticsQuery,
     CashFlowAnalyticsResponse,
     CashFlowMetrics,
+    BudgetPerformanceResponse,
     RecurringAnalyticsQuery,
     RecurringAnalyticsSummary,
     RecurringPatternResponse,
@@ -353,4 +358,86 @@ def test_spending_signal_summary_rejects_impossible_counts() -> None:
     with pytest.raises(ValidationError, match="cannot exceed detected"):
         SpendingSignalAnalyticsSummary.model_validate(
             valid | {"returned_signal_count": 3}
+        )
+
+
+def test_budget_performance_schema_preserves_exact_pace_metrics() -> None:
+    category_id = uuid4()
+    definition = BudgetDefinition(
+        budget_id=uuid4(),
+        name="August plan",
+        period_start_date=date(2026, 8, 1),
+        period_end_date=date(2026, 8, 31),
+        currency="INR",
+        overall_limit=Decimal("10000"),
+        archived_at=None,
+        category_limits=(
+            BudgetCategoryLimitDefinition(
+                category_id=category_id,
+                name="Food Delivery",
+                classification_code="food_delivery",
+                limit_amount=Decimal("3000"),
+            ),
+        ),
+    )
+    analysis = evaluate_budget(
+        definition,
+        (
+            BudgetCategorySpendingAggregate(
+                category_id=category_id,
+                amount=Decimal("1200"),
+                transaction_count=3,
+            ),
+        ),
+        total_expense=Decimal("2000"),
+        local_today=date(2026, 8, 10),
+    )
+
+    dumped = BudgetPerformanceResponse.from_performance(
+        analysis.overall
+    ).model_dump(mode="json")
+
+    assert dumped["limit_amount"]["value"] == "10000.0000"
+    assert dumped["spent_amount"]["value"] == "2000.0000"
+    assert dumped["remaining_allowance"]["value"] == "8000.0000"
+    assert dumped["period_progress_ratio"]["value"] == "0.322581"
+    assert dumped["daily_burn_rate"]["value"] == "200.0000"
+    assert dumped["pace_projected_spend"]["value"] == "6200.0000"
+    assert dumped["risk_level"] == "low"
+    assert dumped["warning_status"] == "within_budget"
+
+
+def test_budget_performance_schema_rejects_limit_relationship_mismatch() -> None:
+    unavailable = {
+        "limit_amount": None,
+        "spent_amount": {"value": "100.0000"},
+        "remaining_allowance": None,
+        "utilization_ratio": {"value": None},
+        "period_progress_ratio": {"value": "0.500000"},
+        "elapsed_days": 15,
+        "remaining_days": 16,
+        "daily_burn_rate": {"value": "6.6667"},
+        "expected_spend_to_date": None,
+        "pace_variance": None,
+        "pace_projected_spend": None,
+        "projected_variance": None,
+        "projected_overspend_amount": None,
+        "risk_level": "unavailable",
+        "warning_status": "unavailable",
+    }
+    assert BudgetPerformanceResponse.model_validate(unavailable).limit_amount is None
+
+    with pytest.raises(ValidationError, match="require a stored limit"):
+        BudgetPerformanceResponse.model_validate(
+            unavailable
+            | {"pace_projected_spend": {"value": "200.0000"}}
+        )
+    with pytest.raises(ValidationError, match="complete budget performance"):
+        BudgetPerformanceResponse.model_validate(
+            unavailable
+            | {
+                "limit_amount": {"value": "1000.0000"},
+                "risk_level": "low",
+                "warning_status": "within_budget",
+            }
         )

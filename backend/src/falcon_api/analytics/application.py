@@ -14,12 +14,14 @@ from falcon_api.analytics.periods import (
     previous_period,
     resolve_analytics_period,
 )
+from falcon_api.analytics.budgeting import evaluate_budget
 from falcon_api.analytics.repository import AnalyticsRepository
 from falcon_api.analytics.recurring import (
     RecurringDecision,
     detect_recurring_patterns,
 )
 from falcon_api.analytics.semantics import (
+    MAX_ANALYTICS_RANGE_DAYS,
     RATIO_QUANTUM,
     AnalyticsComparisonMode,
 )
@@ -32,6 +34,7 @@ from falcon_api.analytics.types import (
     AnalyticsSummaryAggregate,
 )
 from falcon_api.auth.clock import Clock, SystemClock
+from falcon_api.core.errors import ApplicationError
 from falcon_api.models.enums import TransactionType
 from falcon_api.schemas.analytics import (
     AnalyticsCompleteness,
@@ -39,6 +42,7 @@ from falcon_api.schemas.analytics import (
     AnalyticsExclusions,
     AnalyticsFreshness,
     AnalyticsPeriodResponse,
+    BudgetAnalyticsResponse,
     CashFlowAnalyticsResponse,
     CashFlowMetrics,
     CashFlowPoint,
@@ -397,6 +401,89 @@ class FinancialAnalyticsService:
             signals=tuple(
                 SpendingSignalResponse.from_signal(item) for item in returned
             ),
+        )
+
+    async def budget(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        trusted_timezone: str,
+        budget_id: UUID,
+    ) -> BudgetAnalyticsResponse:
+        """Return exact usage and bounded pace risk for one owned budget."""
+        definition = await self._repository.get_budget_definition(
+            session,
+            user_id=user_id,
+            budget_id=budget_id,
+        )
+        if definition is None:
+            raise ApplicationError(
+                code="budget_not_found",
+                message="The requested budget was not found.",
+                status_code=404,
+            )
+        now = self._clock.now()
+        local_today = resolve_analytics_period(
+            date_from=None,
+            date_to=None,
+            trusted_timezone=trusted_timezone,
+            now=now,
+        ).date_to
+        if definition.period_start_date > local_today:
+            raise ApplicationError(
+                code="budget_not_started",
+                message="Budget analytics are unavailable before the budget starts.",
+                status_code=422,
+            )
+        budget_day_count = (
+            definition.period_end_date - definition.period_start_date
+        ).days + 1
+        if budget_day_count > MAX_ANALYTICS_RANGE_DAYS:
+            raise ApplicationError(
+                code="budget_period_unsupported",
+                message=(
+                    "Budget analytics support periods of at most "
+                    f"{MAX_ANALYTICS_RANGE_DAYS} days."
+                ),
+                status_code=422,
+            )
+        period = resolve_analytics_period(
+            date_from=definition.period_start_date,
+            date_to=min(local_today, definition.period_end_date),
+            trusted_timezone=trusted_timezone,
+            now=now,
+        )
+        summary = await self._repository.get_summary(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=definition.currency,
+        )
+        category_spending = (
+            await self._repository.list_budget_category_spending(
+                session,
+                user_id=user_id,
+                budget_id=budget_id,
+                period=period,
+            )
+        )
+        analysis = evaluate_budget(
+            definition,
+            category_spending,
+            total_expense=summary.total_expense,
+            local_today=local_today,
+        )
+        return BudgetAnalyticsResponse.from_analysis(
+            context=_context(
+                period=period,
+                comparison=None,
+                currency=definition.currency,
+                summary=summary,
+                calculated_at=now,
+            ),
+            definition=definition,
+            analysis=analysis,
         )
 
 

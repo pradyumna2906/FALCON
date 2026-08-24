@@ -17,6 +17,15 @@ from pydantic import (
     model_validator,
 )
 
+from falcon_api.analytics.budgeting import (
+    BUDGET_POLICY_VERSION,
+    BudgetAnalysis,
+    BudgetAnalysisStatus,
+    BudgetCategoryPerformance,
+    BudgetPerformance,
+    BudgetRiskLevel,
+    BudgetWarningStatus,
+)
 from falcon_api.analytics.periods import AnalyticsPeriod
 from falcon_api.analytics.recurring import (
     MAX_RECURRING_OCCURRENCES,
@@ -35,6 +44,7 @@ from falcon_api.analytics.types import (
     AccountAggregate,
     AnalyticsGranularity,
     AnalyticsSummaryAggregate,
+    BudgetDefinition,
     CashFlowBucketAggregate,
     CategoryAggregate,
     MerchantAggregate,
@@ -790,6 +800,215 @@ class SpendingSignalAnalyticsResponse(AnalyticsSchema):
         if len(self.signals) != self.summary.returned_signal_count:
             raise ValueError("Returned signal count must match the response list.")
         return self
+
+
+class BudgetDescriptor(AnalyticsSchema):
+    """Stored budget identity and period without exposing its owner."""
+
+    budget_id: UUID
+    name: str = Field(min_length=1, max_length=120)
+    currency: CurrencyCode
+    period_start_date: date
+    period_end_date: date
+    archived: bool
+
+    @model_validator(mode="after")
+    def validate_budget_period(self) -> "BudgetDescriptor":
+        if self.period_end_date < self.period_start_date:
+            raise ValueError("Budget period dates must be ordered.")
+        return self
+
+
+class BudgetPerformanceResponse(AnalyticsSchema):
+    """Current usage plus transparent straight-line pace arithmetic."""
+
+    limit_amount: MoneyMetric | None
+    spent_amount: MoneyMetric
+    remaining_allowance: MoneyMetric | None
+    utilization_ratio: RateMetric
+    period_progress_ratio: RateMetric
+    elapsed_days: int = Field(ge=1, le=MAX_ANALYTICS_RANGE_DAYS)
+    remaining_days: int = Field(ge=0, le=MAX_ANALYTICS_RANGE_DAYS)
+    daily_burn_rate: MoneyMetric
+    expected_spend_to_date: MoneyMetric | None
+    pace_variance: MoneyMetric | None
+    pace_projected_spend: MoneyMetric | None
+    projected_variance: MoneyMetric | None
+    projected_overspend_amount: MoneyMetric | None
+    risk_level: BudgetRiskLevel
+    warning_status: BudgetWarningStatus
+
+    @classmethod
+    def from_performance(
+        cls,
+        performance: BudgetPerformance,
+    ) -> "BudgetPerformanceResponse":
+        return cls(
+            limit_amount=_optional_money(performance.limit_amount),
+            spent_amount=MoneyMetric(value=performance.spent_amount),
+            remaining_allowance=_optional_money(
+                performance.remaining_allowance
+            ),
+            utilization_ratio=RateMetric(
+                value=performance.utilization_ratio
+            ),
+            period_progress_ratio=RateMetric(
+                value=performance.period_progress_ratio
+            ),
+            elapsed_days=performance.elapsed_days,
+            remaining_days=performance.remaining_days,
+            daily_burn_rate=MoneyMetric(value=performance.daily_burn_rate),
+            expected_spend_to_date=_optional_money(
+                performance.expected_spend_to_date
+            ),
+            pace_variance=_optional_money(performance.pace_variance),
+            pace_projected_spend=_optional_money(
+                performance.pace_projected_spend
+            ),
+            projected_variance=_optional_money(
+                performance.projected_variance
+            ),
+            projected_overspend_amount=_optional_money(
+                performance.projected_overspend_amount
+            ),
+            risk_level=performance.risk_level,
+            warning_status=performance.warning_status,
+        )
+
+    @model_validator(mode="after")
+    def validate_limit_relationships(self) -> "BudgetPerformanceResponse":
+        if self.spent_amount.value < 0 or self.daily_burn_rate.value < 0:
+            raise ValueError("Budget spending and burn rate cannot be negative.")
+        if self.elapsed_days + self.remaining_days < 1:
+            raise ValueError("Budget progress must contain at least one day.")
+        progress = self.period_progress_ratio.value
+        if progress is None or not Decimal("0") < progress <= Decimal("1"):
+            raise ValueError("Budget period progress must be inside (0, 1].")
+        limited_values = (
+            self.remaining_allowance,
+            self.utilization_ratio.value,
+            self.expected_spend_to_date,
+            self.pace_variance,
+            self.pace_projected_spend,
+            self.projected_variance,
+            self.projected_overspend_amount,
+        )
+        if self.limit_amount is None:
+            if any(value is not None for value in limited_values):
+                raise ValueError(
+                    "Limit-dependent budget metrics require a stored limit."
+                )
+            if (
+                self.risk_level is not BudgetRiskLevel.UNAVAILABLE
+                or self.warning_status is not BudgetWarningStatus.UNAVAILABLE
+            ):
+                raise ValueError("A missing limit requires unavailable risk.")
+        elif (
+            self.limit_amount.value <= 0
+            or any(value is None for value in limited_values)
+            or self.risk_level is BudgetRiskLevel.UNAVAILABLE
+            or self.warning_status is BudgetWarningStatus.UNAVAILABLE
+        ):
+            raise ValueError(
+                "A positive limit requires complete budget performance metrics."
+            )
+        return self
+
+
+class BudgetCategoryPerformanceResponse(AnalyticsSchema):
+    """Canonical category-limit performance within one budget."""
+
+    category_id: UUID
+    name: str = Field(min_length=1, max_length=100)
+    classification_code: str | None = Field(default=None, max_length=64)
+    transaction_count: int = Field(ge=0)
+    performance: BudgetPerformanceResponse
+
+    @classmethod
+    def from_category(
+        cls,
+        category: BudgetCategoryPerformance,
+    ) -> "BudgetCategoryPerformanceResponse":
+        return cls(
+            category_id=category.category_id,
+            name=category.name,
+            classification_code=category.classification_code,
+            transaction_count=category.transaction_count,
+            performance=BudgetPerformanceResponse.from_performance(
+                category.performance
+            ),
+        )
+
+
+class BudgetAnalyticsResponse(AnalyticsSchema):
+    """Owner-scoped budget variance and bounded overspend-risk response."""
+
+    context: AnalyticsContext
+    policy_version: Literal["2026.1"] = BUDGET_POLICY_VERSION
+    budget: BudgetDescriptor
+    status: BudgetAnalysisStatus
+    observed_to: date
+    overall: BudgetPerformanceResponse
+    configured_category_spend: MoneyMetric
+    outside_configured_categories: MoneyMetric
+    categories: tuple[BudgetCategoryPerformanceResponse, ...]
+
+    @classmethod
+    def from_analysis(
+        cls,
+        *,
+        context: AnalyticsContext,
+        definition: BudgetDefinition,
+        analysis: BudgetAnalysis,
+    ) -> "BudgetAnalyticsResponse":
+        return cls(
+            context=context,
+            budget=BudgetDescriptor(
+                budget_id=definition.budget_id,
+                name=definition.name,
+                currency=definition.currency,
+                period_start_date=definition.period_start_date,
+                period_end_date=definition.period_end_date,
+                archived=definition.archived_at is not None,
+            ),
+            status=analysis.status,
+            observed_to=analysis.observed_to,
+            overall=BudgetPerformanceResponse.from_performance(
+                analysis.overall
+            ),
+            configured_category_spend=MoneyMetric(
+                value=analysis.configured_category_spend
+            ),
+            outside_configured_categories=MoneyMetric(
+                value=analysis.outside_configured_categories
+            ),
+            categories=tuple(
+                BudgetCategoryPerformanceResponse.from_category(item)
+                for item in analysis.categories
+            ),
+        )
+
+    @model_validator(mode="after")
+    def validate_budget_context(self) -> "BudgetAnalyticsResponse":
+        if self.context.currency != self.budget.currency:
+            raise ValueError("Budget and analytics context currencies must match.")
+        if self.context.period.date_from != self.budget.period_start_date:
+            raise ValueError("Budget analytics must begin at the budget start.")
+        if self.context.period.date_to != self.observed_to:
+            raise ValueError("Budget observed_to must match the context period.")
+        if (
+            self.configured_category_spend.value
+            + self.outside_configured_categories.value
+            != self.overall.spent_amount.value
+        ):
+            raise ValueError(
+                "Configured and outside-category spending must equal total usage."
+            )
+        return self
+
+
+def _optional_money(value: Decimal | None) -> MoneyMetric | None:
+    return MoneyMetric(value=value) if value is not None else None
 
 
 def _validate_date_range(

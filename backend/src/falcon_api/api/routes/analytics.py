@@ -1,6 +1,7 @@
 """Authenticated financial analytics routes."""
 
 from typing import Annotated, cast
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
 
@@ -16,6 +17,7 @@ from falcon_api.api.routes.auth import (
 from falcon_api.schemas.analytics import (
     CashFlowAnalyticsQuery,
     CashFlowAnalyticsResponse,
+    BudgetAnalyticsResponse,
     RecurringAnalyticsQuery,
     RecurringAnalyticsResponse,
     SpendingAnalyticsQuery,
@@ -56,6 +58,10 @@ _AUTHENTICATION_ERROR = {
 _VALIDATION_ERROR = {
     "model": ErrorResponse,
     "description": "The analytics selection violates the bounded contract.",
+}
+_NOT_FOUND_ERROR = {
+    "model": ErrorResponse,
+    "description": "The requested owner-scoped budget was not found.",
 }
 
 
@@ -176,6 +182,32 @@ async def get_spending_signal_analytics(
             comparison=AnalyticsComparisonMode.NONE,
         ),
         limit=query.limit,
+    )
+
+
+@analytics_router.get(
+    "/budgets/{budget_id}",
+    response_model=BudgetAnalyticsResponse,
+    operation_id="get_budget_analytics",
+    summary="Return budget variance and bounded overspend risk",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: _AUTHENTICATION_ERROR,
+        status.HTTP_404_NOT_FOUND: _NOT_FOUND_ERROR,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: _VALIDATION_ERROR,
+    },
+)
+async def get_budget_analytics(
+    budget_id: UUID,
+    session: DatabaseSession,
+    service: AnalyticsServiceDependency,
+    principal: CurrentPrincipalDependency,
+) -> BudgetAnalyticsResponse:
+    """Analyze one budget using only its authenticated owner context."""
+    return await service.budget(
+        session,
+        user_id=principal.user_id,
+        trusted_timezone=principal.timezone,
+        budget_id=budget_id,
     )
 
 

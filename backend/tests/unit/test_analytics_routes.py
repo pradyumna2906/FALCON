@@ -11,7 +11,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from falcon_api.analytics.application import FinancialAnalyticsService
+from falcon_api.analytics.budgeting import evaluate_budget
 from falcon_api.analytics.types import AnalyticsGranularity
+from falcon_api.analytics.types import BudgetDefinition
 from falcon_api.analytics.spending_signals import (
     SpendingSignalEvaluationStatus,
     SpendingSignalType,
@@ -33,6 +35,7 @@ from falcon_api.schemas.analytics import (
     CashFlowAnalyticsResponse,
     CashFlowMetrics,
     CashFlowPoint,
+    BudgetAnalyticsResponse,
     MoneyMetric,
     RateMetric,
     RecurringAnalyticsResponse,
@@ -203,6 +206,31 @@ def _spending_signal_response() -> SpendingSignalAnalyticsResponse:
     )
 
 
+def _budget_response() -> BudgetAnalyticsResponse:
+    definition = BudgetDefinition(
+        budget_id=uuid4(),
+        name="August plan",
+        period_start_date=date(2026, 8, 1),
+        period_end_date=date(2026, 8, 31),
+        currency="INR",
+        overall_limit=Decimal("10000"),
+        archived_at=None,
+        category_limits=(),
+    )
+    analysis = evaluate_budget(
+        definition,
+        (),
+        total_expense=Decimal("6250"),
+        local_today=date(2026, 8, 24),
+    )
+    context = _context().model_copy(update={"comparison_period": None})
+    return BudgetAnalyticsResponse.from_analysis(
+        context=context,
+        definition=definition,
+        analysis=analysis,
+    )
+
+
 def test_cash_flow_route_uses_authenticated_context_and_safe_query(
     client: TestClient,
     analytics_dependencies,
@@ -324,6 +352,29 @@ def test_spending_signal_route_passes_only_trusted_owner_and_limit(
     assert call.kwargs["limit"] == 10
 
 
+def test_budget_route_passes_authenticated_owner_and_path_identifier(
+    client: TestClient,
+    analytics_dependencies,
+) -> None:
+    service, _, session, principal = analytics_dependencies
+    response_model = _budget_response()
+    service.budget.return_value = response_model
+
+    response = client.get(
+        f"/api/v1/analytics/budgets/{response_model.budget.budget_id}",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["policy_version"] == "2026.1"
+    assert response.json()["overall"]["spent_amount"]["value"] == "6250.0000"
+    call = service.budget.await_args
+    assert call.args == (session,)
+    assert call.kwargs["user_id"] == principal.user_id
+    assert call.kwargs["trusted_timezone"] == principal.timezone
+    assert call.kwargs["budget_id"] == response_model.budget.budget_id
+
+
 @pytest.mark.parametrize(
     ("path", "params"),
     [
@@ -339,6 +390,7 @@ def test_spending_signal_route_passes_only_trusted_owner_and_limit(
         ("/api/v1/analytics/spending-signals", {"user_id": str(uuid4())}),
         ("/api/v1/analytics/spending-signals", {"threshold": "0.5"}),
         ("/api/v1/analytics/spending-signals", {"limit": "101"}),
+        ("/api/v1/analytics/budgets/not-a-uuid", {}),
     ],
 )
 def test_analytics_routes_reject_untrusted_or_invalid_query_fields(
@@ -361,6 +413,7 @@ def test_analytics_routes_reject_untrusted_or_invalid_query_fields(
     service.spending.assert_not_awaited()
     service.recurring.assert_not_awaited()
     service.spending_signals.assert_not_awaited()
+    service.budget.assert_not_awaited()
 
 
 def test_analytics_routes_require_authentication(
@@ -388,6 +441,7 @@ def test_openapi_documents_all_analytics_operations(client: TestClient) -> None:
     assert "get" in document["paths"]["/api/v1/analytics/spending"]
     assert "get" in document["paths"]["/api/v1/analytics/recurring"]
     assert "get" in document["paths"]["/api/v1/analytics/spending-signals"]
+    assert "get" in document["paths"]["/api/v1/analytics/budgets/{budget_id}"]
     assert (
         document["paths"]["/api/v1/analytics/cash-flow"]["get"]["operationId"]
         == "get_cash_flow_analytics"
@@ -405,3 +459,12 @@ def test_openapi_documents_all_analytics_operations(client: TestClient) -> None:
         ["operationId"]
         == "get_spending_signal_analytics"
     )
+    assert (
+        document["paths"]["/api/v1/analytics/budgets/{budget_id}"]["get"]
+        ["operationId"]
+        == "get_budget_analytics"
+    )
+    assert set(
+        document["paths"]["/api/v1/analytics/budgets/{budget_id}"]["get"]
+        ["responses"]
+    ) >= {"200", "401", "404", "422"}

@@ -5,6 +5,16 @@ from falcon_api.analytics.periods import (
     previous_period,
     resolve_analytics_period,
 )
+from falcon_api.analytics.budgeting import (
+    BUDGET_POLICY_VERSION,
+    BudgetAnalysis,
+    BudgetAnalysisStatus,
+    BudgetCategoryPerformance,
+    BudgetPerformance,
+    BudgetRiskLevel,
+    BudgetWarningStatus,
+    evaluate_budget,
+)
 from falcon_api.analytics.recurring import (
     RECURRING_POLICY_VERSION,
     RecurringCadence,
@@ -45,6 +55,9 @@ from falcon_api.analytics.types import (
     AccountAggregate,
     AnalyticsGranularity,
     AnalyticsSummaryAggregate,
+    BudgetCategoryLimitDefinition,
+    BudgetCategorySpendingAggregate,
+    BudgetDefinition,
     CashFlowBucketAggregate,
     CategoryAggregate,
     MerchantAggregate,
@@ -54,6 +67,7 @@ from falcon_api.analytics.types import (
 
 __all__ = (
     "ANALYTICS_CONTRACT_VERSION",
+    "BUDGET_POLICY_VERSION",
     "MAX_ANALYTICS_RANGE_DAYS",
     "MAX_ANALYTICS_DIMENSION_ROWS",
     "RECURRING_POLICY_VERSION",
@@ -68,6 +82,15 @@ __all__ = (
     "AnalyticsGranularity",
     "AnalyticsRepository",
     "AnalyticsSummaryAggregate",
+    "BudgetAnalysis",
+    "BudgetAnalysisStatus",
+    "BudgetCategoryLimitDefinition",
+    "BudgetCategoryPerformance",
+    "BudgetCategorySpendingAggregate",
+    "BudgetDefinition",
+    "BudgetPerformance",
+    "BudgetRiskLevel",
+    "BudgetWarningStatus",
     "CashFlowBucketAggregate",
     "CategoryAggregate",
     "MerchantAggregate",
@@ -91,6 +114,7 @@ __all__ = (
     "classification_completeness",
     "detect_recurring_patterns",
     "detect_spending_signals",
+    "evaluate_budget",
     "metric_definition",
     "previous_period",
     "resolve_analytics_period",
