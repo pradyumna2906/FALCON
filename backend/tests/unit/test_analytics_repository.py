@@ -7,9 +7,6 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.dialects import postgresql
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from falcon_api.analytics import (
     AccountAggregate,
     AnalyticsGranularity,
@@ -21,12 +18,19 @@ from falcon_api.analytics import (
     BudgetDefinition,
     CashFlowBucketAggregate,
     CategoryAggregate,
+    FinancialHealthProfileAggregate,
     MerchantAggregate,
     RecurringTransactionRecord,
     SpendingSignalTransactionRecord,
 )
-from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
-
+from falcon_api.models.enums import (
+    AccountType,
+    CategoryKind,
+    ProfileCompletionStatus,
+    TransactionType,
+)
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.asyncio import AsyncSession
 
 _PERIOD = AnalyticsPeriod(
     date_from=date(2026, 8, 1),
@@ -145,6 +149,52 @@ def test_summary_sql_is_owner_date_currency_and_category_safe() -> None:
     assert "accounts.archived_at" not in query
     assert user_id in params.values()
     assert _PERIOD.date_from in params.values()
+    assert _PERIOD.date_to in params.values()
+    assert "INR" in params.values()
+
+
+def test_financial_health_profile_maps_owner_scoped_live_evidence() -> None:
+    session = _session_with_one(
+        {
+            "profile_completion_status": ProfileCompletionStatus.COMPLETE,
+            "emergency_fund_target_months": Decimal("6.00"),
+            "liquid_balance": Decimal("125000.50"),
+            "liability_account_count": 2,
+            "liability_payment_count": 2,
+            "monthly_debt_payment": Decimal("8500"),
+            "source_last_updated_at": _UPDATED_AT,
+        }
+    )
+    user_id = uuid4()
+
+    result = asyncio.run(
+        AnalyticsRepository().get_financial_health_profile(
+            session,
+            user_id=user_id,
+            as_of=_PERIOD.date_to,
+            currency="inr",
+        )
+    )
+
+    assert result == FinancialHealthProfileAggregate(
+        profile_completion_status=ProfileCompletionStatus.COMPLETE,
+        emergency_fund_target_months=Decimal("6.00"),
+        liquid_balance=Decimal("125000.5000"),
+        liability_account_count=2,
+        liability_payment_count=2,
+        monthly_debt_payment=Decimal("8500.0000"),
+        source_last_updated_at=_UPDATED_AT,
+    )
+    query, params = _compiled(session)
+    assert "financial_profiles.user_id =" in query
+    assert "accounts.user_id =" in query
+    assert "accounts.currency =" in query
+    assert "accounts.archived_at IS NULL" in query
+    assert "transactions.user_id = accounts.user_id" in query
+    assert "transactions.account_id = accounts.id" in query
+    assert "transactions.transaction_date <=" in query
+    assert "liability_details.user_id = accounts.user_id" in query
+    assert user_id in params.values()
     assert _PERIOD.date_to in params.values()
     assert "INR" in params.values()
 

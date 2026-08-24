@@ -7,14 +7,12 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from falcon_api.analytics.application import (
     AnalyticsSelection,
     FinancialAnalyticsService,
 )
-from falcon_api.analytics.repository import AnalyticsRepository
 from falcon_api.analytics.recurring import RecurringDecision
+from falcon_api.analytics.repository import AnalyticsRepository
 from falcon_api.analytics.semantics import AnalyticsComparisonMode
 from falcon_api.analytics.types import (
     AccountAggregate,
@@ -25,13 +23,19 @@ from falcon_api.analytics.types import (
     BudgetDefinition,
     CashFlowBucketAggregate,
     CategoryAggregate,
+    FinancialHealthProfileAggregate,
     MerchantAggregate,
     RecurringTransactionRecord,
     SpendingSignalTransactionRecord,
 )
 from falcon_api.core.errors import ApplicationError
-from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
-
+from falcon_api.models.enums import (
+    AccountType,
+    CategoryKind,
+    ProfileCompletionStatus,
+    TransactionType,
+)
+from sqlalchemy.ext.asyncio import AsyncSession
 
 _NOW = datetime(2026, 8, 24, 8, tzinfo=UTC)
 
@@ -667,3 +671,151 @@ def test_budget_missing_future_and_unsupported_period_fail_safely() -> None:
     assert unsupported.value.code == "budget_period_unsupported"
     repository.get_summary.assert_not_awaited()
     repository.list_budget_category_spending.assert_not_awaited()
+
+
+def _health_profile() -> FinancialHealthProfileAggregate:
+    return FinancialHealthProfileAggregate(
+        profile_completion_status=ProfileCompletionStatus.COMPLETE,
+        emergency_fund_target_months=Decimal("3"),
+        liquid_balance=Decimal("50000"),
+        liability_account_count=0,
+        liability_payment_count=0,
+        monthly_debt_payment=Decimal("0"),
+        source_last_updated_at=_NOW,
+    )
+
+
+def test_financial_health_score_composes_owner_scoped_factor_evidence() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = _summary(expense="7000")
+    repository.list_cash_flow_buckets.return_value = (
+        CashFlowBucketAggregate(
+            period_start=date(2026, 8, 1),
+            gross_income=Decimal("10000"),
+            total_expense=Decimal("7000"),
+            transaction_count=40,
+        ),
+    )
+    repository.list_category_aggregates.return_value = (
+        CategoryAggregate(
+            category_id=uuid4(),
+            parent_category_id=None,
+            name="Food",
+            classification_code="groceries",
+            kind=CategoryKind.EXPENSE,
+            amount=Decimal("3500"),
+            transaction_count=20,
+        ),
+        CategoryAggregate(
+            category_id=uuid4(),
+            parent_category_id=None,
+            name="Housing",
+            classification_code="rent",
+            kind=CategoryKind.EXPENSE,
+            amount=Decimal("3500"),
+            transaction_count=16,
+        ),
+    )
+    repository.get_financial_health_profile.return_value = _health_profile()
+    session = AsyncMock(spec=AsyncSession)
+    user_id = uuid4()
+
+    result = asyncio.run(
+        _service(repository).financial_health_score(
+            session,
+            user_id=user_id,
+            trusted_timezone="Asia/Kolkata",
+            default_currency="INR",
+            selection=_selection(comparison=AnalyticsComparisonMode.NONE),
+            budget_id=None,
+        )
+    )
+
+    assert result.status.value == "partial"
+    assert result.score is not None
+    assert result.available_weight == Decimal("75.00")
+    assert result.context.comparison_period is None
+    assert result.context.freshness.source_last_updated_at == _NOW
+    repository.get_financial_health_profile.assert_awaited_once_with(
+        session,
+        user_id=user_id,
+        as_of=date(2026, 8, 24),
+        currency="INR",
+    )
+    repository.list_cash_flow_buckets.assert_awaited_once()
+    repository.list_category_aggregates.assert_awaited_once()
+    repository.get_budget_definition.assert_not_awaited()
+
+
+def test_financial_health_score_uses_only_an_aligned_owned_budget() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = _summary(expense="4000")
+    repository.list_cash_flow_buckets.return_value = ()
+    repository.list_category_aggregates.return_value = ()
+    repository.get_financial_health_profile.return_value = _health_profile()
+    definition = _budget_definition()
+    repository.get_budget_definition.return_value = definition
+    session = AsyncMock(spec=AsyncSession)
+    user_id = uuid4()
+
+    result = asyncio.run(
+        _service(repository).financial_health_score(
+            session,
+            user_id=user_id,
+            trusted_timezone="Asia/Kolkata",
+            default_currency="INR",
+            selection=_selection(comparison=AnalyticsComparisonMode.NONE),
+            budget_id=definition.budget_id,
+        )
+    )
+
+    budget = next(
+        item for item in result.factors if item.factor.value == "budget_adherence"
+    )
+    assert budget.status.value == "available"
+    assert budget.observed_value == Decimal("0.516667")
+    repository.get_budget_definition.assert_awaited_once_with(
+        session,
+        user_id=user_id,
+        budget_id=definition.budget_id,
+    )
+
+
+def test_financial_health_score_rejects_missing_or_misaligned_budget() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = _summary()
+    repository.list_cash_flow_buckets.return_value = ()
+    repository.list_category_aggregates.return_value = ()
+    repository.get_financial_health_profile.return_value = _health_profile()
+    session = AsyncMock(spec=AsyncSession)
+
+    repository.get_budget_definition.return_value = None
+    with pytest.raises(ApplicationError) as missing:
+        asyncio.run(
+            _service(repository).financial_health_score(
+                session,
+                user_id=uuid4(),
+                trusted_timezone="UTC",
+                default_currency="INR",
+                selection=_selection(comparison=AnalyticsComparisonMode.NONE),
+                budget_id=uuid4(),
+            )
+        )
+    assert missing.value.code == "budget_not_found"
+
+    repository.get_budget_definition.return_value = _budget_definition(
+        start=date(2026, 7, 1),
+    )
+    with pytest.raises(ApplicationError) as mismatch:
+        asyncio.run(
+            _service(repository).financial_health_score(
+                session,
+                user_id=uuid4(),
+                trusted_timezone="UTC",
+                default_currency="INR",
+                selection=_selection(comparison=AnalyticsComparisonMode.NONE),
+                budget_id=uuid4(),
+            )
+        )
+    assert mismatch.value.code == "health_budget_period_mismatch"
+    assert mismatch.value.status_code == 422

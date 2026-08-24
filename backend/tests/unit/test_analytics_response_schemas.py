@@ -5,8 +5,15 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-from pydantic import ValidationError
-
+from falcon_api.analytics.budgeting import evaluate_budget
+from falcon_api.analytics.health_score import (
+    FinancialHealthFactor,
+    FinancialHealthFactorStatus,
+    FinancialHealthReasonCode,
+)
+from falcon_api.analytics.periods import AnalyticsPeriod
+from falcon_api.analytics.recurring import detect_recurring_patterns
+from falcon_api.analytics.spending_signals import detect_spending_signals
 from falcon_api.analytics.types import (
     AccountAggregate,
     AnalyticsGranularity,
@@ -19,23 +26,22 @@ from falcon_api.analytics.types import (
     RecurringTransactionRecord,
     SpendingSignalTransactionRecord,
 )
-from falcon_api.analytics.periods import AnalyticsPeriod
-from falcon_api.analytics.budgeting import evaluate_budget
-from falcon_api.analytics.recurring import detect_recurring_patterns
-from falcon_api.analytics.spending_signals import detect_spending_signals
 from falcon_api.models.enums import (
     AccountType,
     CategoryKind,
     TransactionType,
 )
 from falcon_api.schemas.analytics import (
+    BudgetPerformanceResponse,
     CashFlowAnalyticsQuery,
     CashFlowAnalyticsResponse,
     CashFlowMetrics,
-    BudgetPerformanceResponse,
+    FinancialHealthAnalyticsQuery,
+    FinancialHealthFactorResponse,
     RecurringAnalyticsQuery,
     RecurringAnalyticsSummary,
     RecurringPatternResponse,
+    ShareMetric,
     SpendingAccount,
     SpendingAnalyticsQuery,
     SpendingAnalyticsResponse,
@@ -44,8 +50,8 @@ from falcon_api.schemas.analytics import (
     SpendingSignalAnalyticsQuery,
     SpendingSignalAnalyticsSummary,
     SpendingSignalResponse,
-    ShareMetric,
 )
+from pydantic import ValidationError
 
 
 def _summary() -> AnalyticsSummaryAggregate:
@@ -439,5 +445,41 @@ def test_budget_performance_schema_rejects_limit_relationship_mismatch() -> None
                 "limit_amount": {"value": "1000.0000"},
                 "risk_level": "low",
                 "warning_status": "within_budget",
+            }
+        )
+
+
+def test_health_query_and_factor_schema_keep_policy_controls_server_owned() -> None:
+    properties = set(FinancialHealthAnalyticsQuery.model_json_schema()["properties"])
+    assert properties == {"date_from", "date_to", "currency", "budget_id"}
+    assert FinancialHealthAnalyticsQuery(currency="inr").currency == "INR"
+    for values in (
+        {"date_from": date(2026, 8, 1)},
+        {"budget_id": "not-a-uuid"},
+        {"weight": 99},
+    ):
+        with pytest.raises(ValidationError):
+            FinancialHealthAnalyticsQuery.model_validate(values)
+
+    unavailable = FinancialHealthFactorResponse(
+        factor=FinancialHealthFactor.BUDGET_ADHERENCE,
+        configured_weight=Decimal("15"),
+        status=FinancialHealthFactorStatus.UNAVAILABLE,
+        factor_score=None,
+        observed_value=None,
+        benchmark_value=None,
+        effective_weight=Decimal("0"),
+        contribution_points=Decimal("0"),
+        reason_codes=(FinancialHealthReasonCode.BUDGET_NOT_SELECTED,),
+        explanation="No aligned budget was selected.",
+    )
+    assert unavailable.model_dump(mode="json")["configured_weight"] == "15"
+
+    with pytest.raises(ValidationError, match="cannot contribute"):
+        FinancialHealthFactorResponse.model_validate(
+            unavailable.model_dump()
+            | {
+                "effective_weight": Decimal("15"),
+                "contribution_points": Decimal("10"),
             }
         )

@@ -11,9 +11,6 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from fastapi.testclient import TestClient
-from sqlalchemy import delete
-
 from falcon_api.analytics import (
     AnalyticsGranularity,
     AnalyticsPeriod,
@@ -37,7 +34,8 @@ from falcon_api.models.enums import (
 from falcon_api.models.ledger import Transaction, TransferGroup
 from falcon_api.models.planning import Budget, BudgetLimit
 from falcon_api.models.user import User
-
+from fastapi.testclient import TestClient
+from sqlalchemy import delete
 
 pytestmark = [
     pytest.mark.integration,
@@ -331,6 +329,60 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
             )
             assert foreign_budget.status_code == 404
             assert foreign_budget.json()["error"]["code"] == "budget_not_found"
+
+            for index in range(4):
+                _post_transaction(
+                    client,
+                    token=token,
+                    account_id=account_id,
+                    transaction_type=TransactionType.EXPENSE,
+                    amount="100.0000",
+                    merchant=f"Health Evidence {index}",
+                    transaction_date=f"2026-08-{14 + index:02d}",
+                    category_id=owner_category_id,
+                )
+                _post_transaction(
+                    client,
+                    token=other_token,
+                    account_id=other_account_id,
+                    transaction_type=TransactionType.EXPENSE,
+                    amount="666666.0000",
+                    merchant="Other Health Evidence",
+                    transaction_date=f"2026-08-{14 + index:02d}",
+                    category_id=other_category_id,
+                )
+
+            health_score = client.get(
+                "/api/v1/analytics/health-score",
+                headers=headers,
+                params={
+                    "date_from": "2026-08-01",
+                    "date_to": "2026-08-24",
+                    "budget_id": str(owner_budget_id),
+                },
+            )
+            assert health_score.status_code == 200, health_score.text
+            health_body = health_score.json()
+            assert health_body["policy_version"] == "2026.1"
+            assert health_body["status"] == "partial"
+            assert health_body["score"] is not None
+            assert len(health_body["factors"]) == 7
+            budget_factor = next(
+                factor
+                for factor in health_body["factors"]
+                if factor["factor"] == "budget_adherence"
+            )
+            assert budget_factor["status"] == "available"
+            assert "666666" not in str(health_body)
+            assert "other health evidence" not in str(health_body).lower()
+
+            foreign_health_budget = client.get(
+                "/api/v1/analytics/health-score",
+                headers=headers,
+                params={"budget_id": str(other_budget_id)},
+            )
+            assert foreign_health_budget.status_code == 404
+            assert foreign_health_budget.json()["error"]["code"] == ("budget_not_found")
     finally:
         if user_ids:
             asyncio.run(_delete_users(integration_settings(), *user_ids))

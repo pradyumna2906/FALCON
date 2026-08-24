@@ -1,7 +1,7 @@
 # Phase 8 — Financial Analytics and Spending Intelligence
 
 **Phase status:** in progress
-**Current checkpoint:** 8.6 complete after validation
+**Current checkpoint:** 8.7 complete after validation
 Analytics contract version: `2026.1`
 
 ## 1. Purpose
@@ -239,7 +239,9 @@ bounded and privacy safe.
   anomaly signals with robust personal baselines and cautious evidence.
 - **Checkpoint 8.6 (complete after validation):** budget variance and bounded
   overspend-risk pace arithmetic.
-- **Checkpoints 8.7–8.8:** explainable health score and prioritized insights.
+- **Checkpoint 8.7 (complete after validation):** versioned, explainable
+  financial-health score with factor-level contributions and abstention.
+- **Checkpoint 8.8:** prioritized insights and recommendations.
 - **Checkpoint 8.9:** snapshot policy, invalidation, monitoring, maximum-range
   performance, full regression, and Phase 8 closure.
 
@@ -763,3 +765,96 @@ final-newline, merge-marker, large-file, case-conflict, illegal-Windows-name,
 submodule, and private-key checks passed. No migration is required because
 Checkpoint 8.6 derives read-only metrics from the existing budget, category,
 account, and transaction schema.
+
+## 24. Checkpoint 8.7 explainable financial health score v1
+
+Checkpoint 8.7 adds the authenticated read-only endpoint:
+
+```text
+GET /api/v1/analytics/health-score
+```
+
+The query accepts only `date_from`, `date_to`, `currency`, and an optional
+owner-scoped `budget_id`. It accepts no user identifier, timezone override,
+weight, threshold, factor result, transaction identifier, model confidence,
+or score override. Date, future-day, range, currency, posted-status, transfer,
+adjustment, correction-precedence, and zero-data behavior reuse analytics
+contract `2026.1` exactly.
+
+Financial-health policy `2026.1` uses seven stable factors whose configured
+weights total 100:
+
+| Factor | Weight | Versioned evidence and scoring rule |
+| --- | ---: | --- |
+| Savings rate (25) | 25 | Uses the contract cash-flow savings rate. A non-positive rate scores 0; 10% scores 40, 20% scores 70, and 30% or more scores 100, with linear interpolation between anchors. Zero income makes the factor unavailable. |
+| Emergency-fund readiness (20) | 20 | Positive balances in active bank, cash, and wallet accounts are divided by the selected period's monthly-equivalent expense. Readiness is capped at the user's positive emergency target; otherwise the disclosed policy default is three months. Zero observed expense makes the factor unavailable. |
+| Debt-service burden (15) | 15 | Stored minimum payments on active loan and credit-card accounts are divided by monthly-equivalent gross income. No debt accounts score 100. If any debt account lacks a minimum payment, the factor abstains rather than understating debt. Burden receives full points through 10%, declines to 80 at 20%, 50 at 30%, and 0 at 50%. |
+| Budget adherence (15) | 15 | Available only when the request selects an owned budget aligned to the score currency, start date, and observed end date and the budget has an overall limit. The larger of actual and transparent pace-projected utilization scores 100 through the limit and declines linearly to 0 at 150%. |
+| Cash-flow stability (10) | 10 | Requires at least 90 selected days, three complete observed calendar-month buckets, and positive average income. Partial boundary months are excluded. The index combines non-negative monthly cash-flow frequency (60%) and one minus mean-absolute-deviation divided by average income (40%). |
+| Spending concentration (5) | 5 | Requires at least five canonically categorized expense transactions. The largest category share scores 100 at 25% or less and declines linearly to 0 at 75% or more. Uncategorized spending remains disclosed through normal completeness metadata. |
+| Data completeness (10) | 10 | Combines canonical category coverage (50%), sample adequacy capped at 30 eligible transactions (30%), and financial-profile completion (20%). It is evidence quality, not averaged ML confidence. |
+
+Money, counts, profile fields, budgets, and categories are read only from
+trusted owner-scoped sources. Liquid balance is the opening balance plus posted
+signed ledger movements through the selected end date for active liquid
+accounts in the selected currency. Negative liquid-account balances cannot
+inflate emergency readiness. Archived debt or liquid accounts do not enter the
+live readiness assessment. Historical score reproducibility is intentionally
+deferred to Checkpoint 8.9 snapshots.
+
+Every factor returns its stable identifier, configured weight, availability,
+0–100 factor score when available, observed value, benchmark, effective weight,
+contribution points, bounded reason codes, and deterministic explanation.
+Unavailable factors receive zero effective weight and zero contribution; the
+remaining available factors are reweighted to total 100. This prevents missing
+budget or liability evidence from being silently interpreted as good or bad.
+
+A composite requires at least 10 eligible transactions and at least 50
+available configured weight points. Otherwise `status = unavailable`, the
+score is null, and all factor evidence remains visible. A score is `complete`
+only when all 100 configured weight points are available; otherwise it is
+`partial`. The rounded contribution points add exactly to the public score.
+
+An optional budget must belong to the authenticated user. A missing or
+cross-owner identifier returns the uniform `budget_not_found` response. A
+budget whose currency, start date, or observed end date does not align with the
+score range returns `health_budget_period_mismatch`. A selected aligned budget
+without an overall limit leaves only the budget factor unavailable.
+
+The endpoint uses at most five SQL statements: the existing summary, monthly
+cash-flow buckets, bounded canonical expense categories, one combined live
+profile/liquidity/liability query, and the optional owned-budget definition.
+There is no query per transaction, account, category, liability, or factor.
+
+The score is a deterministic planning indicator. It is not a credit score and
+not an investment recommendation. It is not a diagnosis of financial solvency,
+not a probability, and not a forecast. Checkpoint 8.7 adds no recommendation engine,
+alert delivery, lending decision, automated financial action, ML model,
+materialized snapshot, background job, table, migration, or Phase 9 behavior.
+Checkpoint 8.8 owns prioritized insights and recommendations; Checkpoint 8.9
+owns score snapshots, invalidation, performance closure, and monitoring.
+
+## 25. Checkpoint 8.7 validation
+
+Focused analytics policy, repository, schema, application, route, contract,
+and integration-collection coverage passed 174 tests while skipping the two
+explicitly PostgreSQL-gated analytics scenarios. The complete backend
+collection passed 1,087 tests and skipped 37 explicitly PostgreSQL-gated tests.
+The complete backend statement and branch coverage gate passed at 95.09%, above
+the required 90% threshold. The new financial-health policy reached 96%.
+
+The PostgreSQL-gated authenticated scenario extends the existing two-owner
+analytics lifecycle. It verifies a seven-factor partial score, aligned owned
+budget evidence, the fixed policy version, and the absence of another user's
+transactions and amounts. Supplying the other owner's budget identifier
+returns the same `budget_not_found` response as a missing identifier. Local
+PostgreSQL was unavailable on ports 5432 and 5433, so the scenario was
+collected and skipped locally and remains enabled for the repository's
+PostgreSQL CI service.
+
+Source compilation, focused Ruff import/error checks, OpenAPI generation,
+offline Alembic upgrade and downgrade SQL, whitespace, line-ending,
+final-newline, merge-marker, large-file, case-conflict, illegal-Windows-name,
+submodule, and private-key checks passed. No migration is required because
+Checkpoint 8.7 derives live read-only evidence from existing profiles,
+accounts, liabilities, transactions, categories, and budgets.

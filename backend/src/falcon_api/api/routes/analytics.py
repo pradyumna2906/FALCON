@@ -15,9 +15,11 @@ from falcon_api.api.routes.auth import (
     DatabaseSession,
 )
 from falcon_api.schemas.analytics import (
+    BudgetAnalyticsResponse,
     CashFlowAnalyticsQuery,
     CashFlowAnalyticsResponse,
-    BudgetAnalyticsResponse,
+    FinancialHealthAnalyticsQuery,
+    FinancialHealthScoreResponse,
     RecurringAnalyticsQuery,
     RecurringAnalyticsResponse,
     SpendingAnalyticsQuery,
@@ -26,7 +28,6 @@ from falcon_api.schemas.analytics import (
     SpendingSignalAnalyticsResponse,
 )
 from falcon_api.schemas.errors import ErrorResponse
-
 
 analytics_router = APIRouter(
     prefix="/analytics",
@@ -50,6 +51,7 @@ CashFlowQueryDependency = Annotated[CashFlowAnalyticsQuery, Query()]
 SpendingQueryDependency = Annotated[SpendingAnalyticsQuery, Query()]
 RecurringQueryDependency = Annotated[RecurringAnalyticsQuery, Query()]
 SpendingSignalQueryDependency = Annotated[SpendingSignalAnalyticsQuery, Query()]
+FinancialHealthQueryDependency = Annotated[FinancialHealthAnalyticsQuery, Query()]
 
 _AUTHENTICATION_ERROR = {
     "model": ErrorResponse,
@@ -208,6 +210,39 @@ async def get_budget_analytics(
         user_id=principal.user_id,
         trusted_timezone=principal.timezone,
         budget_id=budget_id,
+    )
+
+
+@analytics_router.get(
+    "/health-score",
+    response_model=FinancialHealthScoreResponse,
+    operation_id="get_financial_health_score",
+    summary="Return an explainable financial-health score",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: _AUTHENTICATION_ERROR,
+        status.HTTP_404_NOT_FOUND: _NOT_FOUND_ERROR,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: _VALIDATION_ERROR,
+    },
+)
+async def get_financial_health_score(
+    query: FinancialHealthQueryDependency,
+    session: DatabaseSession,
+    service: AnalyticsServiceDependency,
+    principal: CurrentPrincipalDependency,
+) -> FinancialHealthScoreResponse:
+    """Score owner-scoped evidence without accepting weights or thresholds."""
+    return await service.financial_health_score(
+        session,
+        user_id=principal.user_id,
+        trusted_timezone=principal.timezone,
+        default_currency=principal.default_currency,
+        selection=AnalyticsSelection(
+            date_from=query.date_from,
+            date_to=query.date_to,
+            currency=query.currency,
+            comparison=AnalyticsComparisonMode.NONE,
+        ),
+        budget_id=query.budget_id,
     )
 
 

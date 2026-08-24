@@ -4,13 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal, ROUND_HALF_EVEN
+from decimal import ROUND_HALF_EVEN, Decimal
 from enum import StrEnum
 from uuid import UUID
 
 from falcon_api.analytics.semantics import RATIO_QUANTUM
-from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
-
+from falcon_api.models.enums import (
+    AccountType,
+    CategoryKind,
+    ProfileCompletionStatus,
+    TransactionType,
+)
 
 MONEY_QUANTUM = Decimal("0.0001")
 MAX_ANALYTICS_DIMENSION_ROWS = 100
@@ -179,3 +183,16 @@ class BudgetCategorySpendingAggregate:
     category_id: UUID
     amount: Decimal
     transaction_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialHealthProfileAggregate:
+    """Live owner-scoped profile, liquidity, and debt-service evidence."""
+
+    profile_completion_status: ProfileCompletionStatus | None
+    emergency_fund_target_months: Decimal | None
+    liquid_balance: Decimal
+    liability_account_count: int
+    liability_payment_count: int
+    monthly_debt_payment: Decimal
+    source_last_updated_at: datetime | None

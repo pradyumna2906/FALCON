@@ -26,6 +26,15 @@ from falcon_api.analytics.budgeting import (
     BudgetRiskLevel,
     BudgetWarningStatus,
 )
+from falcon_api.analytics.health_score import (
+    FINANCIAL_HEALTH_POLICY_VERSION,
+    FinancialHealthAnalysis,
+    FinancialHealthFactor,
+    FinancialHealthFactorResult,
+    FinancialHealthFactorStatus,
+    FinancialHealthReasonCode,
+    FinancialHealthScoreStatus,
+)
 from falcon_api.analytics.periods import AnalyticsPeriod
 from falcon_api.analytics.recurring import (
     MAX_RECURRING_OCCURRENCES,
@@ -38,16 +47,6 @@ from falcon_api.analytics.recurring import (
     RecurringPattern,
     RecurringPatternType,
     RecurringReasonCode,
-)
-from falcon_api.analytics.types import (
-    MAX_ANALYTICS_DIMENSION_ROWS,
-    AccountAggregate,
-    AnalyticsGranularity,
-    AnalyticsSummaryAggregate,
-    BudgetDefinition,
-    CashFlowBucketAggregate,
-    CategoryAggregate,
-    MerchantAggregate,
 )
 from falcon_api.analytics.semantics import (
     ANALYTICS_CONTRACT_VERSION,
@@ -67,8 +66,17 @@ from falcon_api.analytics.spending_signals import (
     SpendingSignalSeverity,
     SpendingSignalType,
 )
+from falcon_api.analytics.types import (
+    MAX_ANALYTICS_DIMENSION_ROWS,
+    AccountAggregate,
+    AnalyticsGranularity,
+    AnalyticsSummaryAggregate,
+    BudgetDefinition,
+    CashFlowBucketAggregate,
+    CategoryAggregate,
+    MerchantAggregate,
+)
 from falcon_api.models.enums import AccountType, CategoryKind, TransactionType
-
 
 CurrencyCode = Annotated[
     str,
@@ -181,6 +189,27 @@ class SpendingSignalAnalyticsQuery(AnalyticsSchema):
 
     @model_validator(mode="after")
     def validate_date_window(self) -> "SpendingSignalAnalyticsQuery":
+        """Apply the frozen inclusive analytics range contract."""
+        _validate_date_range(self.date_from, self.date_to)
+        return self
+
+
+class FinancialHealthAnalyticsQuery(AnalyticsSchema):
+    """Select bounded health-score evidence without owner-controlled inputs."""
+
+    date_from: date | None = None
+    date_to: date | None = None
+    currency: CurrencyCode | None = None
+    budget_id: UUID | None = None
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str | None) -> str | None:
+        """Use canonical uppercase currency identifiers."""
+        return value.upper() if value is not None else None
+
+    @model_validator(mode="after")
+    def validate_date_window(self) -> "FinancialHealthAnalyticsQuery":
         """Apply the frozen inclusive analytics range contract."""
         _validate_date_range(self.date_from, self.date_to)
         return self
@@ -1004,6 +1033,149 @@ class BudgetAnalyticsResponse(AnalyticsSchema):
             raise ValueError(
                 "Configured and outside-category spending must equal total usage."
             )
+        return self
+
+
+class FinancialHealthFactorResponse(AnalyticsSchema):
+    """One factor's evidence, configured weight, and effective contribution."""
+
+    factor: FinancialHealthFactor
+    configured_weight: Decimal = Field(ge=0, le=100, decimal_places=2)
+    status: FinancialHealthFactorStatus
+    factor_score: Decimal | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        decimal_places=2,
+    )
+    observed_value: Decimal | None = Field(default=None, decimal_places=6)
+    benchmark_value: Decimal | None = Field(default=None, decimal_places=6)
+    effective_weight: Decimal = Field(ge=0, le=100, decimal_places=2)
+    contribution_points: Decimal = Field(ge=0, le=100, decimal_places=2)
+    reason_codes: tuple[FinancialHealthReasonCode, ...] = Field(min_length=1)
+    explanation: str = Field(min_length=1, max_length=240)
+
+    @classmethod
+    def from_result(
+        cls,
+        result: FinancialHealthFactorResult,
+    ) -> "FinancialHealthFactorResponse":
+        return cls(
+            factor=result.factor,
+            configured_weight=result.configured_weight,
+            status=result.status,
+            factor_score=result.factor_score,
+            observed_value=result.observed_value,
+            benchmark_value=result.benchmark_value,
+            effective_weight=result.effective_weight,
+            contribution_points=result.contribution_points,
+            reason_codes=result.reason_codes,
+            explanation=result.explanation,
+        )
+
+    @model_validator(mode="after")
+    def validate_availability(self) -> "FinancialHealthFactorResponse":
+        if self.status is FinancialHealthFactorStatus.UNAVAILABLE:
+            if (
+                self.factor_score is not None
+                or self.observed_value is not None
+                or self.benchmark_value is not None
+                or self.effective_weight != 0
+                or self.contribution_points != 0
+            ):
+                raise ValueError(
+                    "Unavailable health factors cannot contribute to the score."
+                )
+        elif (
+            self.factor_score is None
+            or self.observed_value is None
+            or self.benchmark_value is None
+        ):
+            raise ValueError("Available health factors require complete evidence.")
+        return self
+
+
+class FinancialHealthScoreResponse(AnalyticsSchema):
+    """Versioned explainable financial-health planning indicator."""
+
+    context: AnalyticsContext
+    policy_version: Literal["2026.1"] = FINANCIAL_HEALTH_POLICY_VERSION
+    status: FinancialHealthScoreStatus
+    score: Decimal | None = Field(default=None, ge=0, le=100, decimal_places=2)
+    available_weight: Decimal = Field(ge=0, le=100, decimal_places=2)
+    factors: tuple[FinancialHealthFactorResponse, ...]
+    explanation: str = Field(min_length=1, max_length=240)
+
+    @classmethod
+    def from_analysis(
+        cls,
+        *,
+        context: AnalyticsContext,
+        analysis: FinancialHealthAnalysis,
+    ) -> "FinancialHealthScoreResponse":
+        return cls(
+            context=context,
+            status=analysis.status,
+            score=analysis.score,
+            available_weight=analysis.available_weight,
+            factors=tuple(
+                FinancialHealthFactorResponse.from_result(item)
+                for item in analysis.factors
+            ),
+            explanation=analysis.explanation,
+        )
+
+    @model_validator(mode="after")
+    def validate_score_composition(self) -> "FinancialHealthScoreResponse":
+        expected_factors = tuple(FinancialHealthFactor)
+        if tuple(item.factor for item in self.factors) != expected_factors:
+            raise ValueError("Health-score factors must use the stable policy order.")
+        configured_total = sum(
+            (item.configured_weight for item in self.factors), Decimal("0")
+        )
+        if configured_total != Decimal("100"):
+            raise ValueError("Configured health-score weights must total 100.")
+        available_total = sum(
+            (
+                item.configured_weight
+                for item in self.factors
+                if item.status is FinancialHealthFactorStatus.AVAILABLE
+            ),
+            Decimal("0"),
+        )
+        if available_total != self.available_weight:
+            raise ValueError(
+                "available_weight must equal the available configured weights."
+            )
+        if self.status is FinancialHealthScoreStatus.UNAVAILABLE:
+            if self.score is not None:
+                raise ValueError("An unavailable health score must be null.")
+            if any(
+                item.effective_weight != 0 or item.contribution_points != 0
+                for item in self.factors
+            ):
+                raise ValueError("An unavailable score cannot have contributions.")
+            return self
+        if self.score is None:
+            raise ValueError("An available health score cannot be null.")
+        if (
+            self.status is FinancialHealthScoreStatus.COMPLETE
+            and self.available_weight != Decimal("100")
+        ) or (
+            self.status is FinancialHealthScoreStatus.PARTIAL
+            and self.available_weight >= Decimal("100")
+        ):
+            raise ValueError("Health-score status must match evidence availability.")
+        contribution_total = sum(
+            (item.contribution_points for item in self.factors), Decimal("0")
+        )
+        if contribution_total != self.score:
+            raise ValueError("Factor contributions must equal the composite score.")
+        effective_total = sum(
+            (item.effective_weight for item in self.factors), Decimal("0")
+        )
+        if not Decimal("99.98") <= effective_total <= Decimal("100.02"):
+            raise ValueError("Effective health-score weights must total 100.")
         return self
 
 

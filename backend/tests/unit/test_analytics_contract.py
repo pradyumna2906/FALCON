@@ -6,10 +6,11 @@ from falcon_api.schemas.analytics import (
     AnalyticsContext,
     AnalyticsRangeQuery,
     BudgetAnalyticsResponse,
+    FinancialHealthAnalyticsQuery,
+    FinancialHealthScoreResponse,
     RecurringAnalyticsQuery,
     SpendingSignalAnalyticsQuery,
 )
-
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _IMPLEMENTATION_DOCUMENT = (
@@ -170,5 +171,49 @@ def test_budget_contract_is_owner_private_bounded_and_non_forecasting() -> None:
         "budget_not_found",
         "budget_not_started",
         "budget_period_unsupported",
+    ):
+        assert statement in content
+
+
+def test_health_score_contract_is_fixed_explainable_and_non_advisory() -> None:
+    query_properties = set(
+        FinancialHealthAnalyticsQuery.model_json_schema()["properties"]
+    )
+    assert query_properties == {
+        "date_from",
+        "date_to",
+        "currency",
+        "budget_id",
+    }
+    response_properties = set(
+        FinancialHealthScoreResponse.model_json_schema()["properties"]
+    )
+    for private_field in {
+        "user_id",
+        "weights",
+        "thresholds",
+        "transaction_ids",
+        "credit_score",
+        "forecast_probability",
+    }:
+        assert private_field not in query_properties
+        assert private_field not in response_properties
+
+    content = _IMPLEMENTATION_DOCUMENT.read_text(encoding="utf-8").lower()
+    for statement in (
+        "get /api/v1/analytics/health-score",
+        "savings rate (25)",
+        "emergency-fund readiness (20)",
+        "debt-service burden (15)",
+        "budget adherence (15)",
+        "cash-flow stability (10)",
+        "spending concentration (5)",
+        "data completeness (10)",
+        "at least 10 eligible transactions",
+        "reweighted",
+        "not a credit score",
+        "not an investment recommendation",
+        "not a forecast",
+        "at most five sql statements",
     ):
         assert statement in content

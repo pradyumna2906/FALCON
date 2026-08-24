@@ -4,22 +4,26 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal, ROUND_HALF_EVEN
+from decimal import ROUND_HALF_EVEN, Decimal
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from falcon_api.analytics.budgeting import evaluate_budget
+from falcon_api.analytics.health_score import (
+    BudgetHealthEvidence,
+    evaluate_financial_health,
+)
 from falcon_api.analytics.periods import (
     AnalyticsPeriod,
     previous_period,
     resolve_analytics_period,
 )
-from falcon_api.analytics.budgeting import evaluate_budget
-from falcon_api.analytics.repository import AnalyticsRepository
 from falcon_api.analytics.recurring import (
     RecurringDecision,
     detect_recurring_patterns,
 )
+from falcon_api.analytics.repository import AnalyticsRepository
 from falcon_api.analytics.semantics import (
     MAX_ANALYTICS_RANGE_DAYS,
     RATIO_QUANTUM,
@@ -30,6 +34,7 @@ from falcon_api.analytics.spending_signals import (
     detect_spending_signals,
 )
 from falcon_api.analytics.types import (
+    MAX_ANALYTICS_DIMENSION_ROWS,
     AnalyticsGranularity,
     AnalyticsSummaryAggregate,
 )
@@ -46,6 +51,7 @@ from falcon_api.schemas.analytics import (
     CashFlowAnalyticsResponse,
     CashFlowMetrics,
     CashFlowPoint,
+    FinancialHealthScoreResponse,
     MoneyMetric,
     RecurringAnalyticsResponse,
     RecurringAnalyticsSummary,
@@ -53,11 +59,11 @@ from falcon_api.schemas.analytics import (
     SpendingAccount,
     SpendingAnalyticsResponse,
     SpendingCategory,
+    SpendingMerchant,
     SpendingSignalAnalyticsResponse,
     SpendingSignalAnalyticsSummary,
     SpendingSignalEvaluationResponse,
     SpendingSignalResponse,
-    SpendingMerchant,
 )
 
 
@@ -486,6 +492,124 @@ class FinancialAnalyticsService:
             analysis=analysis,
         )
 
+    async def financial_health_score(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        trusted_timezone: str,
+        default_currency: str,
+        selection: AnalyticsSelection,
+        budget_id: UUID | None,
+    ) -> FinancialHealthScoreResponse:
+        """Return a bounded composite with every factor contribution exposed."""
+        now = self._clock.now()
+        period, _ = _resolve_periods(
+            selection=selection,
+            trusted_timezone=trusted_timezone,
+            now=now,
+        )
+        currency = _resolve_currency(
+            requested=selection.currency,
+            default=default_currency,
+        )
+        summary = await self._repository.get_summary(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+        )
+        buckets = await self._repository.list_cash_flow_buckets(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+            granularity=AnalyticsGranularity.MONTH,
+        )
+        categories = await self._repository.list_category_aggregates(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+            limit=MAX_ANALYTICS_DIMENSION_ROWS,
+            transaction_type=TransactionType.EXPENSE,
+        )
+        profile = await self._repository.get_financial_health_profile(
+            session,
+            user_id=user_id,
+            as_of=period.date_to,
+            currency=currency,
+        )
+
+        budget_evidence = None
+        if budget_id is not None:
+            definition = await self._repository.get_budget_definition(
+                session,
+                user_id=user_id,
+                budget_id=budget_id,
+            )
+            if definition is None:
+                raise ApplicationError(
+                    code="budget_not_found",
+                    message="The requested budget was not found.",
+                    status_code=404,
+                )
+            local_today = resolve_analytics_period(
+                date_from=None,
+                date_to=None,
+                trusted_timezone=trusted_timezone,
+                now=now,
+            ).date_to
+            expected_observed_to = min(local_today, definition.period_end_date)
+            if (
+                definition.currency != currency
+                or definition.period_start_date != period.date_from
+                or expected_observed_to != period.date_to
+            ):
+                raise ApplicationError(
+                    code="health_budget_period_mismatch",
+                    message=(
+                        "The selected budget must match the score currency, "
+                        "start date, and observed end date."
+                    ),
+                    status_code=422,
+                )
+            budget_analysis = evaluate_budget(
+                definition,
+                (),
+                total_expense=summary.total_expense,
+                local_today=local_today,
+            )
+            budget_evidence = BudgetHealthEvidence(
+                limit_amount=definition.overall_limit,
+                observed_spending=budget_analysis.overall.spent_amount,
+                pace_projected_spending=(
+                    budget_analysis.overall.pace_projected_spend
+                    or summary.total_expense
+                ),
+            )
+
+        analysis = evaluate_financial_health(
+            summary=summary,
+            cash_flow_buckets=buckets,
+            expense_categories=categories,
+            profile=profile,
+            period_date_from=period.date_from,
+            period_date_to=period.date_to,
+            budget=budget_evidence,
+        )
+        return FinancialHealthScoreResponse.from_analysis(
+            context=_context(
+                period=period,
+                comparison=None,
+                currency=currency,
+                summary=summary,
+                calculated_at=now,
+                additional_source_updated_at=profile.source_last_updated_at,
+            ),
+            analysis=analysis,
+        )
+
 
 def _resolve_periods(
     *,
@@ -518,7 +642,14 @@ def _context(
     currency: str,
     summary: AnalyticsSummaryAggregate,
     calculated_at: datetime,
+    additional_source_updated_at: datetime | None = None,
 ) -> AnalyticsContext:
+    source_last_updated_at = summary.source_last_updated_at
+    if additional_source_updated_at is not None and (
+        source_last_updated_at is None
+        or additional_source_updated_at > source_last_updated_at
+    ):
+        source_last_updated_at = additional_source_updated_at
     return AnalyticsContext(
         currency=currency,
         period=AnalyticsPeriodResponse.from_period(period),

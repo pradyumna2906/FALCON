@@ -1,10 +1,5 @@
 """Versioned financial-analytics contracts and metric semantics."""
 
-from falcon_api.analytics.periods import (
-    AnalyticsPeriod,
-    previous_period,
-    resolve_analytics_period,
-)
 from falcon_api.analytics.budgeting import (
     BUDGET_POLICY_VERSION,
     BudgetAnalysis,
@@ -14,6 +9,22 @@ from falcon_api.analytics.budgeting import (
     BudgetRiskLevel,
     BudgetWarningStatus,
     evaluate_budget,
+)
+from falcon_api.analytics.health_score import (
+    FINANCIAL_HEALTH_POLICY_VERSION,
+    BudgetHealthEvidence,
+    FinancialHealthAnalysis,
+    FinancialHealthFactor,
+    FinancialHealthFactorResult,
+    FinancialHealthFactorStatus,
+    FinancialHealthReasonCode,
+    FinancialHealthScoreStatus,
+    evaluate_financial_health,
+)
+from falcon_api.analytics.periods import (
+    AnalyticsPeriod,
+    previous_period,
+    resolve_analytics_period,
 )
 from falcon_api.analytics.recurring import (
     RECURRING_POLICY_VERSION,
@@ -25,6 +36,7 @@ from falcon_api.analytics.recurring import (
     RecurringReasonCode,
     detect_recurring_patterns,
 )
+from falcon_api.analytics.repository import AnalyticsRepository
 from falcon_api.analytics.semantics import (
     ANALYTICS_CONTRACT_VERSION,
     MAX_ANALYTICS_RANGE_DAYS,
@@ -49,7 +61,6 @@ from falcon_api.analytics.spending_signals import (
     SpendingSignalType,
     detect_spending_signals,
 )
-from falcon_api.analytics.repository import AnalyticsRepository
 from falcon_api.analytics.types import (
     MAX_ANALYTICS_DIMENSION_ROWS,
     AccountAggregate,
@@ -60,6 +71,7 @@ from falcon_api.analytics.types import (
     BudgetDefinition,
     CashFlowBucketAggregate,
     CategoryAggregate,
+    FinancialHealthProfileAggregate,
     MerchantAggregate,
     RecurringTransactionRecord,
     SpendingSignalTransactionRecord,
@@ -68,8 +80,9 @@ from falcon_api.analytics.types import (
 __all__ = (
     "ANALYTICS_CONTRACT_VERSION",
     "BUDGET_POLICY_VERSION",
-    "MAX_ANALYTICS_RANGE_DAYS",
+    "FINANCIAL_HEALTH_POLICY_VERSION",
     "MAX_ANALYTICS_DIMENSION_ROWS",
+    "MAX_ANALYTICS_RANGE_DAYS",
     "RECURRING_POLICY_VERSION",
     "SPENDING_SIGNAL_POLICY_VERSION",
     "AccountAggregate",
@@ -88,11 +101,19 @@ __all__ = (
     "BudgetCategoryPerformance",
     "BudgetCategorySpendingAggregate",
     "BudgetDefinition",
+    "BudgetHealthEvidence",
     "BudgetPerformance",
     "BudgetRiskLevel",
     "BudgetWarningStatus",
     "CashFlowBucketAggregate",
     "CategoryAggregate",
+    "FinancialHealthAnalysis",
+    "FinancialHealthFactor",
+    "FinancialHealthFactorResult",
+    "FinancialHealthFactorStatus",
+    "FinancialHealthProfileAggregate",
+    "FinancialHealthReasonCode",
+    "FinancialHealthScoreStatus",
     "MerchantAggregate",
     "MetricDefinition",
     "RecurringCadence",
@@ -115,6 +136,7 @@ __all__ = (
     "detect_recurring_patterns",
     "detect_spending_signals",
     "evaluate_budget",
+    "evaluate_financial_health",
     "metric_definition",
     "previous_period",
     "resolve_analytics_period",

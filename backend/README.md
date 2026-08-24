@@ -26,7 +26,8 @@ The current backend provides:
 - A versioned Phase 8 financial-analytics contract with exact metric, period,
   currency, completeness, confidence, and zero-data semantics, plus
   owner-scoped live PostgreSQL aggregation for summaries, trends, categories,
-  merchants, and accounts.
+  merchants, accounts, recurring evidence, spending signals, budget variance,
+  and an explainable versioned financial-health score.
 
 ## Requirements
 
@@ -178,6 +179,7 @@ The current endpoints are:
 | `GET` | `/api/v1/analytics/recurring` | Returns explainable recurring patterns and explicit abstentions |
 | `GET` | `/api/v1/analytics/spending-signals` | Returns explainable spending-leak and anomaly evidence |
 | `GET` | `/api/v1/analytics/budgets/{budget_id}` | Returns budget variance and bounded overspend-risk evidence |
+| `GET` | `/api/v1/analytics/health-score` | Returns a versioned explainable financial-health planning score |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
@@ -20,24 +21,26 @@ from falcon_api.analytics.types import (
     BudgetDefinition,
     CashFlowBucketAggregate,
     CategoryAggregate,
+    FinancialHealthProfileAggregate,
     MerchantAggregate,
     RecurringTransactionRecord,
     SpendingSignalTransactionRecord,
     money,
 )
 from falcon_api.classification.types import ClassificationDecision
-from falcon_api.models.account import Account
+from falcon_api.models.account import Account, LiabilityDetail
 from falcon_api.models.category import Category
 from falcon_api.models.classification import TransactionClassification
 from falcon_api.models.enums import (
     AccountType,
     CategoryKind,
+    ProfileCompletionStatus,
     TransactionStatus,
     TransactionType,
 )
 from falcon_api.models.ledger import Transaction
 from falcon_api.models.planning import Budget, BudgetLimit
-
+from falcon_api.models.user import FinancialProfile
 
 _CASH_FLOW_TYPES = (TransactionType.INCOME, TransactionType.EXPENSE)
 
@@ -204,6 +207,156 @@ class AnalyticsRepository:
             adjustment_count=row["adjustment_count"],
             other_currency_count=row["other_currency_count"],
             latest_transaction_date=row["latest_transaction_date"],
+            source_last_updated_at=row["source_last_updated_at"],
+        )
+
+    async def get_financial_health_profile(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        as_of: date,
+        currency: str,
+    ) -> FinancialHealthProfileAggregate:
+        """Return live profile, liquid-balance, and debt evidence in one query."""
+        normalized_currency = _currency(currency)
+        profile_status = (
+            select(FinancialProfile.completion_status)
+            .where(FinancialProfile.user_id == user_id)
+            .scalar_subquery()
+        )
+        emergency_target = (
+            select(FinancialProfile.emergency_fund_target_months)
+            .where(FinancialProfile.user_id == user_id)
+            .scalar_subquery()
+        )
+        profile_updated = (
+            select(FinancialProfile.updated_at)
+            .where(FinancialProfile.user_id == user_id)
+            .scalar_subquery()
+        )
+
+        account_balance = (
+            select(
+                Account.id.label("account_id"),
+                (
+                    Account.opening_balance
+                    + func.coalesce(func.sum(Transaction.amount), 0)
+                ).label("balance"),
+            )
+            .select_from(Account)
+            .outerjoin(
+                Transaction,
+                and_(
+                    Transaction.user_id == Account.user_id,
+                    Transaction.account_id == Account.id,
+                    Transaction.status == TransactionStatus.POSTED,
+                    Transaction.transaction_date >= Account.opening_balance_date,
+                    Transaction.transaction_date <= as_of,
+                ),
+            )
+            .where(
+                Account.user_id == user_id,
+                Account.currency == normalized_currency,
+                Account.archived_at.is_(None),
+                Account.opening_balance_date <= as_of,
+                Account.account_type.in_(
+                    (AccountType.BANK, AccountType.CASH, AccountType.WALLET)
+                ),
+            )
+            .group_by(Account.id, Account.opening_balance)
+            .subquery()
+        )
+        liquid_balance = (
+            select(
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (account_balance.c.balance > 0, account_balance.c.balance),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                )
+            )
+            .select_from(account_balance)
+            .scalar_subquery()
+        )
+
+        liability_aggregate = (
+            select(
+                func.count(Account.id).label("account_count"),
+                func.count(LiabilityDetail.minimum_payment).label("payment_count"),
+                func.coalesce(func.sum(LiabilityDetail.minimum_payment), 0).label(
+                    "monthly_payment"
+                ),
+            )
+            .select_from(Account)
+            .outerjoin(
+                LiabilityDetail,
+                and_(
+                    LiabilityDetail.user_id == Account.user_id,
+                    LiabilityDetail.account_id == Account.id,
+                ),
+            )
+            .where(
+                Account.user_id == user_id,
+                Account.currency == normalized_currency,
+                Account.archived_at.is_(None),
+                Account.account_type.in_((AccountType.CREDIT_CARD, AccountType.LOAN)),
+            )
+            .subquery()
+        )
+        account_updated = (
+            select(func.max(Account.updated_at))
+            .where(
+                Account.user_id == user_id,
+                Account.currency == normalized_currency,
+                Account.archived_at.is_(None),
+            )
+            .scalar_subquery()
+        )
+        liability_updated = (
+            select(func.max(LiabilityDetail.updated_at))
+            .select_from(LiabilityDetail)
+            .join(
+                Account,
+                and_(
+                    Account.user_id == LiabilityDetail.user_id,
+                    Account.id == LiabilityDetail.account_id,
+                ),
+            )
+            .where(
+                Account.user_id == user_id,
+                Account.currency == normalized_currency,
+                Account.archived_at.is_(None),
+            )
+            .scalar_subquery()
+        )
+        statement = select(
+            profile_status.label("profile_completion_status"),
+            emergency_target.label("emergency_fund_target_months"),
+            liquid_balance.label("liquid_balance"),
+            liability_aggregate.c.account_count.label("liability_account_count"),
+            liability_aggregate.c.payment_count.label("liability_payment_count"),
+            liability_aggregate.c.monthly_payment.label("monthly_debt_payment"),
+            func.greatest(
+                profile_updated,
+                account_updated,
+                liability_updated,
+            ).label("source_last_updated_at"),
+        )
+        row = (await session.execute(statement)).mappings().one()
+        status = row["profile_completion_status"]
+        return FinancialHealthProfileAggregate(
+            profile_completion_status=(
+                ProfileCompletionStatus(status) if status is not None else None
+            ),
+            emergency_fund_target_months=row["emergency_fund_target_months"],
+            liquid_balance=money(row["liquid_balance"]),
+            liability_account_count=row["liability_account_count"],
+            liability_payment_count=row["liability_payment_count"],
+            monthly_debt_payment=money(row["monthly_debt_payment"]),
             source_last_updated_at=row["source_last_updated_at"],
         )
 
