@@ -32,6 +32,7 @@ from falcon_api.models.enums import (
     TransactionType,
 )
 from falcon_api.schemas.analytics import (
+    AnalyticsDashboardQuery,
     BudgetPerformanceResponse,
     CashFlowAnalyticsQuery,
     CashFlowAnalyticsResponse,
@@ -80,6 +81,9 @@ def test_analytics_queries_add_only_bounded_endpoint_controls() -> None:
     spending_properties = set(
         SpendingAnalyticsQuery.model_json_schema()["properties"]
     )
+    dashboard_properties = set(
+        AnalyticsDashboardQuery.model_json_schema()["properties"]
+    )
 
     assert cash_flow_properties == {
         "date_from",
@@ -95,11 +99,21 @@ def test_analytics_queries_add_only_bounded_endpoint_controls() -> None:
         "comparison",
         "limit",
     }
+    assert dashboard_properties == {
+        "date_from",
+        "date_to",
+        "currency",
+        "granularity",
+        "limit",
+    }
     assert CashFlowAnalyticsQuery().granularity is AnalyticsGranularity.MONTH
     assert SpendingAnalyticsQuery().limit == 25
+    assert AnalyticsDashboardQuery().granularity is AnalyticsGranularity.MONTH
+    assert AnalyticsDashboardQuery().limit == 25
     for private_field in {"user_id", "timezone", "as_of"}:
         assert private_field not in cash_flow_properties
         assert private_field not in spending_properties
+        assert private_field not in dashboard_properties
 
 
 def test_cash_flow_metrics_use_exact_public_scales() -> None:

@@ -1,7 +1,7 @@
 # Phase 8 — Financial Analytics and Spending Intelligence
 
-**Phase status:** in progress
-**Current checkpoint:** 8.8 complete after validation
+**Phase status:** complete after validation
+**Current checkpoint:** 8.9 complete after validation
 Analytics contract version: `2026.1`
 
 ## 1. Purpose
@@ -243,8 +243,9 @@ bounded and privacy safe.
   financial-health score with factor-level contributions and abstention.
 - **Checkpoint 8.8 (complete after validation):** prioritized insights and
   recommendations.
-- **Checkpoint 8.9:** snapshot policy, invalidation, monitoring, maximum-range
-  performance, full regression, and Phase 8 closure.
+- **Checkpoint 8.9 (complete after validation):** snapshot policy,
+  invalidation, monitoring, maximum-range performance, full regression, and
+  Phase 8 closure.
 
 Checkpoint 8.1 adds no SQL aggregation, API route, database migration, cache,
 snapshot, anomaly model, budget calculation, health score, recommendation,
@@ -977,3 +978,138 @@ line-ending, final-newline, merge-marker, large-file, case-conflict,
 illegal-Windows-name, submodule, and private-key checks passed. No migration is
 required because Checkpoint 8.8 is a live read-only policy over existing
 analytics sources.
+
+## 28. Checkpoint 8.9 snapshot, invalidation, and monitoring policy
+
+Phase 8 closes with an explicit live-only snapshot decision. Contract `2026.1`
+uses neither a persistent analytics snapshot nor a process-local response
+cache. Every request reads bounded owner-scoped PostgreSQL sources after the
+request transaction begins. The selected snapshot mode is `live` and the
+invalidation mode is `read_after_commit`.
+
+This is intentional rather than missing infrastructure. The maximum analytics
+range is 366 inclusive calendar days, every repository surface performs one
+SQL statement, and the maximum-range dashboard performance gate succeeds
+without cached financial data. Adding a cache now would introduce owner/date/
+currency key isolation, correction invalidation, multi-process coordination,
+and stale-response failure modes without measured need. A later snapshot must
+be justified by production latency or database-load telemetry and must key at
+least owner, contract version, date range, currency, granularity, and bounded
+controls.
+
+Live invalidation has the following meaning:
+
+| Committed source change | Visibility guarantee |
+| --- | --- |
+| Transaction create, replace, delete, import, posting-state change | The next analytics request re-aggregates the committed ledger state. |
+| Classification or reviewed category correction | The next request uses the updated canonical `transactions.category_id` and `transactions.updated_at`. |
+| Profile update | Health and insight freshness uses the committed `financial_profiles.updated_at`. |
+| Account or liability update | Health and insight freshness uses the newest committed account/liability timestamp. |
+| Budget or budget-limit update | The next budget, health, or insight request reloads the owned definition and advances freshness to the newest `budgets.updated_at` or `budget_limits.updated_at`. |
+
+No mutation service needs a cache-deletion hook because no cache exists. A
+PostgreSQL-gated lifecycle test queries the dashboard, commits a transaction,
+queries again, classifies and corrects its category, and queries once more. The
+expense total, category distribution, and source freshness change immediately
+while another owner's evidence remains absent.
+
+Every successful analytics service operation emits one
+`analytics_operation_completed` structured event. The allow-listed fields are
+only the closed operation name, policy version, live snapshot mode, range band,
+actual statement count, statement budget, returned-item count capped at 1,000,
+whether that count was capped, closed result state, and elapsed milliseconds.
+Telemetry contains no owner, request
+selection, date, currency, transaction, account, budget, merchant, category,
+description, or monetary value.
+
+The fixed maximum SQL query budgets are:
+
+| Operation | Maximum statements | Reason |
+| --- | ---: | --- |
+| Cash flow | 3 | Summary, observed buckets, optional previous summary |
+| Spending | 5 | Summary, three dimensions, optional previous summary |
+| Recurring | 2 | Summary and bounded source evidence |
+| Spending signals | 2 | Summary and bounded expense evidence |
+| Budget | 3 | Owned definition, summary, all category spending |
+| Financial health | 5 | Four live evidence surfaces and optional budget |
+| Insights | 6 | Five live evidence surfaces and optional budget |
+| Dashboard export | 5 | One shared summary, buckets, categories, merchants, accounts |
+
+The monitor rejects an observation outside its operation's statement budget.
+Unit tests independently verify every expected repository call, so telemetry
+cannot be treated as the only query-budget proof.
+
+## 29. Consolidated downstream dashboard export
+
+Checkpoint 8.9 adds one authenticated read-only operation:
+
+```text
+GET /api/v1/analytics/dashboard
+```
+
+It accepts only `date_from`, `date_to`, `currency`, `granularity`, and a
+dimension `limit` from 1 through 100. The authenticated principal supplies the
+owner and trusted IANA timezone. The response is export version `2026.1` and
+contains one shared context, exact cash-flow metrics, daily or monthly observed
+buckets, and bounded expense categories, merchants, and accounts.
+
+The endpoint performs exactly five SQL statements and shares one summary
+between the cash-flow and spending sections. The response schema validates
+that both sections expose the same exact total expense. It accepts no owner,
+comparison mode, weights, thresholds, source identifiers, cache control,
+freshness override, or calculated metric from the client. Forecasts, health
+scores, recommendations, budgets, and recurring evidence remain separate
+versioned surfaces so the core dashboard export stays bounded and predictable.
+
+## 30. Phase 8 performance and closure gates
+
+The PostgreSQL maximum-range gate seeds 366 owner transactions across the full
+366-day contract window plus 50 much larger transactions for another owner. A
+monthly dashboard export must:
+
+- return the exact owner total and all 366 eligible owner observations;
+- exclude every foreign amount and merchant;
+- issue exactly five SQL statements;
+- return no more than 50 merchants and the other bounded dimensions; and
+- complete within the two-second integration-fixture latency budget.
+
+Phase 8 closure requires the complete backend test suite with statement and
+branch coverage above 90%, all PostgreSQL integration scenarios in CI, offline
+Alembic upgrade and downgrade SQL, OpenAPI generation, repository-quality
+hooks, Compose validation, container build, and the existing Compose smoke
+test. Checkpoint 8.9 adds no table, migration, background job, response cache,
+scheduled task, ML model, forecast, notification, LLM behavior, or write API.
+
+Phase 8 is complete after these gates pass. Phase 9 owns forecasting and model
+comparison; Phase 10 owns goal optimization. Staging, commit, push, PR creation,
+and merge remain explicit workflow actions after checkpoint review.
+
+## 31. Checkpoint 8.9 and Phase 8 validation record
+
+Focused analytics policy, monitoring, schema, application, route, contract,
+and integration collection passed 202 tests and skipped the three explicitly
+PostgreSQL-gated analytics scenarios. The complete backend suite passed 1,115
+tests and skipped 38 PostgreSQL-gated tests. Combined statement and branch
+coverage passed at 95.10%, above the required 90% gate. The new operations and
+monitoring modules each reached 100% coverage, and analytics application
+coverage reached 99%.
+
+The three enabled PostgreSQL scenarios cover owner-isolated repository
+aggregates; the complete authenticated analytics API plus transaction and
+classification-correction read-after-commit freshness; and the 366-day,
+five-statement, two-second dashboard performance gate. Docker and a local
+PostgreSQL service were unavailable in the review environment, so these tests
+remain collected for the repository's PostgreSQL CI service rather than being
+silently replaced by mocks.
+
+Offline Alembic upgrade from base to head and downgrade from head to base both
+passed. OpenAPI generation, the 90% coverage gate, whitespace validation,
+merge-marker and private-key scans, maximum-file-size checks, line-ending and
+final-newline checks, case-conflict review, illegal-Windows-name review, and
+submodule review passed. The normal PR workflows still own live PostgreSQL,
+Compose configuration, container build, Compose smoke, and canonical
+pre-commit execution after the approved checkpoint is pushed.
+
+No migration is required. Checkpoint 8.9 adds only a live operational policy,
+monitoring, a read-only dashboard export, tests, and documentation. The branch
+is ready for checkpoint review before staging and commit.

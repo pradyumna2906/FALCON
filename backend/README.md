@@ -28,7 +28,8 @@ The current backend provides:
   owner-scoped live PostgreSQL aggregation for summaries, trends, categories,
   merchants, accounts, recurring evidence, spending signals, budget variance,
   an explainable versioned financial-health score, and deterministic prioritized
-  recommendations.
+  recommendations, with a consolidated dashboard export, fixed query budgets,
+  live freshness, and privacy-safe aggregate monitoring.
 
 ## Requirements
 
@@ -182,6 +183,7 @@ The current endpoints are:
 | `GET` | `/api/v1/analytics/budgets/{budget_id}` | Returns budget variance and bounded overspend-risk evidence |
 | `GET` | `/api/v1/analytics/health-score` | Returns a versioned explainable financial-health planning score |
 | `GET` | `/api/v1/analytics/insights` | Returns bounded, deduplicated, prioritized financial review actions |
+| `GET` | `/api/v1/analytics/dashboard` | Exports a five-query core dashboard bundle with shared summary semantics |
 | `GET` | `/docs` | Development-only Swagger UI |
 | `GET` | `/redoc` | Development-only ReDoc UI |
 | `GET` | `/openapi.json` | Development-only OpenAPI document |
@@ -448,8 +450,11 @@ variance and bounded pace risk; Phase 8.7 adds the seven-factor explainable
 financial-health score. Phase 8.8 converts those existing signals into fixed,
 deduplicated, prioritized review actions with severity, urgency, confidence,
 reason codes, cautious impact semantics, and no investment advice or forecast.
-Materialized snapshots, monitoring, invalidation, and Phase 8 closure remain in
-Checkpoint 8.9.
+Phase 8.9 closes the phase with an explicit live-only snapshot policy,
+read-after-commit invalidation, fixed per-operation SQL budgets, privacy-safe
+aggregate telemetry, a consolidated dashboard export, and maximum-range
+performance and full-regression gates. Persistent snapshots and process caches
+remain deferred until production measurements justify their invalidation cost.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/analytics/PHASE_8_IMPLEMENTATION.md`](../docs/analytics/PHASE_8_IMPLEMENTATION.md).

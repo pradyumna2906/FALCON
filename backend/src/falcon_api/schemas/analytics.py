@@ -49,6 +49,7 @@ from falcon_api.analytics.insights import (
     InsightUrgency,
     PersonalFinanceInsight,
 )
+from falcon_api.analytics.operations import ANALYTICS_CLOSURE_VERSION
 from falcon_api.analytics.periods import AnalyticsPeriod
 from falcon_api.analytics.recurring import (
     MAX_RECURRING_OCCURRENCES,
@@ -233,6 +234,28 @@ class InsightAnalyticsQuery(FinancialHealthAnalyticsQuery):
     """Select a bounded live recommendation set from trusted evidence."""
 
     limit: int = Field(default=10, ge=1, le=MAX_INSIGHTS)
+
+
+class AnalyticsDashboardQuery(AnalyticsSchema):
+    """Select one bounded core dashboard export without comparison queries."""
+
+    date_from: date | None = None
+    date_to: date | None = None
+    currency: CurrencyCode | None = None
+    granularity: AnalyticsGranularity = AnalyticsGranularity.MONTH
+    limit: int = Field(default=25, ge=1, le=MAX_ANALYTICS_DIMENSION_ROWS)
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str | None) -> str | None:
+        """Use canonical uppercase currency identifiers."""
+        return value.upper() if value is not None else None
+
+    @model_validator(mode="after")
+    def validate_date_window(self) -> "AnalyticsDashboardQuery":
+        """Apply the frozen inclusive analytics range contract."""
+        _validate_date_range(self.date_from, self.date_to)
+        return self
 
 
 class AnalyticsPeriodResponse(AnalyticsSchema):
@@ -595,6 +618,34 @@ class SpendingAnalyticsResponse(AnalyticsSchema):
     categories: tuple[SpendingCategory, ...]
     merchants: tuple[SpendingMerchant, ...]
     accounts: tuple[SpendingAccount, ...]
+
+
+class AnalyticsDashboardSpending(AnalyticsSchema):
+    """Expense section of one consolidated dashboard export."""
+
+    total_expense: MoneyMetric
+    categories: tuple[SpendingCategory, ...]
+    merchants: tuple[SpendingMerchant, ...]
+    accounts: tuple[SpendingAccount, ...]
+
+
+class AnalyticsDashboardResponse(AnalyticsSchema):
+    """Core live analytics bundle optimized for one frontend request."""
+
+    export_version: Literal["2026.1"] = ANALYTICS_CLOSURE_VERSION
+    context: AnalyticsContext
+    granularity: AnalyticsGranularity
+    metrics: CashFlowMetrics
+    series: tuple[CashFlowPoint, ...]
+    spending: AnalyticsDashboardSpending
+
+    @model_validator(mode="after")
+    def validate_consistent_expense_total(self) -> "AnalyticsDashboardResponse":
+        if self.metrics.total_expense != self.spending.total_expense:
+            raise ValueError(
+                "Dashboard cash-flow and spending totals must use one summary."
+            )
+        return self
 
 
 class RecurringPatternResponse(AnalyticsSchema):

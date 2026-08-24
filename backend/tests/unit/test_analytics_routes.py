@@ -33,6 +33,8 @@ from falcon_api.models.enums import ProfileCompletionStatus
 from falcon_api.schemas.analytics import (
     AnalyticsCompleteness,
     AnalyticsContext,
+    AnalyticsDashboardResponse,
+    AnalyticsDashboardSpending,
     AnalyticsExclusions,
     AnalyticsFreshness,
     AnalyticsPeriodResponse,
@@ -297,6 +299,57 @@ def _insight_response() -> InsightAnalyticsResponse:
     )
 
 
+def _dashboard_response() -> AnalyticsDashboardResponse:
+    cash_flow = _cash_flow_response()
+    spending = _spending_response()
+    return AnalyticsDashboardResponse(
+        context=cash_flow.context.model_copy(update={"comparison_period": None}),
+        granularity=cash_flow.granularity,
+        metrics=cash_flow.metrics,
+        series=cash_flow.series,
+        spending=AnalyticsDashboardSpending(
+            total_expense=spending.total_expense,
+            categories=spending.categories,
+            merchants=spending.merchants,
+            accounts=spending.accounts,
+        ),
+    )
+
+
+def test_dashboard_route_exports_one_owner_scoped_core_bundle(
+    client: TestClient,
+    analytics_dependencies,
+) -> None:
+    service, _, session, principal = analytics_dependencies
+    service.dashboard_export.return_value = _dashboard_response()
+
+    response = client.get(
+        "/api/v1/analytics/dashboard",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
+        params={
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-24",
+            "currency": "inr",
+            "granularity": "month",
+            "limit": "10",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["export_version"] == "2026.1"
+    assert response.json()["metrics"]["total_expense"] == (
+        response.json()["spending"]["total_expense"]
+    )
+    call = service.dashboard_export.await_args
+    assert call.args == (session,)
+    assert call.kwargs["user_id"] == principal.user_id
+    assert call.kwargs["trusted_timezone"] == principal.timezone
+    assert call.kwargs["selection"].currency == "INR"
+    assert call.kwargs["selection"].comparison.value == "none"
+    assert call.kwargs["granularity"] is AnalyticsGranularity.MONTH
+    assert call.kwargs["limit"] == 10
+
+
 def test_cash_flow_route_uses_authenticated_context_and_safe_query(
     client: TestClient,
     analytics_dependencies,
@@ -513,6 +566,8 @@ def test_insight_route_passes_trusted_context_budget_and_bounded_limit(
         ("/api/v1/analytics/cash-flow", {"timezone": "UTC"}),
         ("/api/v1/analytics/cash-flow", {"date_from": "2026-08-01"}),
         ("/api/v1/analytics/cash-flow", {"granularity": "week"}),
+        ("/api/v1/analytics/dashboard", {"user_id": str(uuid4())}),
+        ("/api/v1/analytics/dashboard", {"limit": "101"}),
         ("/api/v1/analytics/spending", {"limit": "101"}),
         ("/api/v1/analytics/spending", {"currency": "RUPEE"}),
         ("/api/v1/analytics/recurring", {"user_id": str(uuid4())}),
@@ -552,6 +607,7 @@ def test_analytics_routes_reject_untrusted_or_invalid_query_fields(
     service.budget.assert_not_awaited()
     service.financial_health_score.assert_not_awaited()
     service.prioritized_insights.assert_not_awaited()
+    service.dashboard_export.assert_not_awaited()
 
 
 def test_analytics_routes_require_authentication(
@@ -576,12 +632,20 @@ def test_openapi_documents_all_analytics_operations(client: TestClient) -> None:
     document = client.get("/openapi.json").json()
 
     assert "get" in document["paths"]["/api/v1/analytics/cash-flow"]
+    assert "get" in document["paths"]["/api/v1/analytics/dashboard"]
     assert "get" in document["paths"]["/api/v1/analytics/spending"]
     assert "get" in document["paths"]["/api/v1/analytics/recurring"]
     assert "get" in document["paths"]["/api/v1/analytics/spending-signals"]
     assert "get" in document["paths"]["/api/v1/analytics/budgets/{budget_id}"]
     assert "get" in document["paths"]["/api/v1/analytics/health-score"]
     assert "get" in document["paths"]["/api/v1/analytics/insights"]
+    assert (
+        document["paths"]["/api/v1/analytics/dashboard"]["get"]["operationId"]
+        == "get_analytics_dashboard_export"
+    )
+    assert set(
+        document["paths"]["/api/v1/analytics/dashboard"]["get"]["responses"]
+    ) >= {"200", "401", "422"}
     assert (
         document["paths"]["/api/v1/analytics/cash-flow"]["get"]["operationId"]
         == "get_cash_flow_analytics"

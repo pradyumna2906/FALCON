@@ -12,12 +12,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from falcon_api.analytics.budgeting import evaluate_budget
 from falcon_api.analytics.health_score import (
     BudgetHealthEvidence,
+    FinancialHealthScoreStatus,
     evaluate_financial_health,
 )
 from falcon_api.analytics.insights import (
+    InsightAnalysisStatus,
     InsightSeverity,
     prioritize_insights,
 )
+from falcon_api.analytics.monitoring import (
+    AnalyticsMonitor,
+    AnalyticsResultState,
+)
+from falcon_api.analytics.operations import AnalyticsOperation
 from falcon_api.analytics.periods import (
     AnalyticsPeriod,
     previous_period,
@@ -48,6 +55,8 @@ from falcon_api.models.enums import TransactionType
 from falcon_api.schemas.analytics import (
     AnalyticsCompleteness,
     AnalyticsContext,
+    AnalyticsDashboardResponse,
+    AnalyticsDashboardSpending,
     AnalyticsExclusions,
     AnalyticsFreshness,
     AnalyticsPeriodResponse,
@@ -92,9 +101,11 @@ class FinancialAnalyticsService:
         *,
         repository: AnalyticsRepository | None = None,
         clock: Clock | None = None,
+        monitor: AnalyticsMonitor | None = None,
     ) -> None:
         self._repository = repository or AnalyticsRepository()
         self._clock = clock or SystemClock()
+        self._monitor = monitor or AnalyticsMonitor()
 
     async def cash_flow(
         self,
@@ -107,6 +118,7 @@ class FinancialAnalyticsService:
         granularity: AnalyticsGranularity,
     ) -> CashFlowAnalyticsResponse:
         """Return headline cash flow, an observed series, and prior values."""
+        started_at = self._monitor.start()
         now = self._clock.now()
         period, comparison = _resolve_periods(
             selection=selection,
@@ -139,7 +151,7 @@ class FinancialAnalyticsService:
                 currency=currency,
             )
 
-        return CashFlowAnalyticsResponse(
+        response = CashFlowAnalyticsResponse(
             context=_context(
                 period=period,
                 comparison=comparison,
@@ -156,6 +168,15 @@ class FinancialAnalyticsService:
             ),
             series=tuple(CashFlowPoint.from_aggregate(item) for item in series),
         )
+        self._monitor.record_operation(
+            AnalyticsOperation.CASH_FLOW,
+            started_at=started_at,
+            range_days=period.day_count,
+            query_count=2 + int(comparison is not None),
+            item_count=len(response.series),
+            result_state=_result_state(len(response.series)),
+        )
+        return response
 
     async def spending(
         self,
@@ -168,6 +189,7 @@ class FinancialAnalyticsService:
         limit: int,
     ) -> SpendingAnalyticsResponse:
         """Return expense totals and bounded expense-only distributions."""
+        started_at = self._monitor.start()
         now = self._clock.now()
         period, comparison = _resolve_periods(
             selection=selection,
@@ -218,7 +240,7 @@ class FinancialAnalyticsService:
             )
 
         total_expense = summary.total_expense
-        return SpendingAnalyticsResponse(
+        response = SpendingAnalyticsResponse(
             context=_context(
                 period=period,
                 comparison=comparison,
@@ -254,6 +276,20 @@ class FinancialAnalyticsService:
                 for item in accounts
             ),
         )
+        item_count = (
+            len(response.categories)
+            + len(response.merchants)
+            + len(response.accounts)
+        )
+        self._monitor.record_operation(
+            AnalyticsOperation.SPENDING,
+            started_at=started_at,
+            range_days=period.day_count,
+            query_count=4 + int(comparison is not None),
+            item_count=item_count,
+            result_state=_result_state(item_count),
+        )
+        return response
 
     async def recurring(
         self,
@@ -268,6 +304,7 @@ class FinancialAnalyticsService:
         include_abstained: bool,
     ) -> RecurringAnalyticsResponse:
         """Return detected patterns plus bounded explicit abstentions."""
+        started_at = self._monitor.start()
         now = self._clock.now()
         period = resolve_analytics_period(
             date_from=selection.date_from,
@@ -323,7 +360,7 @@ class FinancialAnalyticsService:
             ),
             start=Decimal("0"),
         )
-        return RecurringAnalyticsResponse(
+        response = RecurringAnalyticsResponse(
             context=_context(
                 period=period,
                 comparison=None,
@@ -346,6 +383,15 @@ class FinancialAnalyticsService:
                 for pattern in returned
             ),
         )
+        self._monitor.record_operation(
+            AnalyticsOperation.RECURRING,
+            started_at=started_at,
+            range_days=period.day_count,
+            query_count=2,
+            item_count=len(response.patterns),
+            result_state=_result_state(len(response.patterns)),
+        )
+        return response
 
     async def spending_signals(
         self,
@@ -358,6 +404,7 @@ class FinancialAnalyticsService:
         limit: int,
     ) -> SpendingSignalAnalyticsResponse:
         """Return bounded leak and anomaly evidence without recommendations."""
+        started_at = self._monitor.start()
         now = self._clock.now()
         period = resolve_analytics_period(
             date_from=selection.date_from,
@@ -391,7 +438,7 @@ class FinancialAnalyticsService:
             signal.family is SpendingSignalFamily.POTENTIAL_LEAK
             for signal in analysis.signals
         )
-        return SpendingSignalAnalyticsResponse(
+        response = SpendingSignalAnalyticsResponse(
             context=_context(
                 period=period,
                 comparison=None,
@@ -415,6 +462,15 @@ class FinancialAnalyticsService:
                 SpendingSignalResponse.from_signal(item) for item in returned
             ),
         )
+        self._monitor.record_operation(
+            AnalyticsOperation.SPENDING_SIGNALS,
+            started_at=started_at,
+            range_days=period.day_count,
+            query_count=2,
+            item_count=len(response.signals),
+            result_state=_result_state(len(response.signals)),
+        )
+        return response
 
     async def budget(
         self,
@@ -425,6 +481,7 @@ class FinancialAnalyticsService:
         budget_id: UUID,
     ) -> BudgetAnalyticsResponse:
         """Return exact usage and bounded pace risk for one owned budget."""
+        started_at = self._monitor.start()
         definition = await self._repository.get_budget_definition(
             session,
             user_id=user_id,
@@ -487,17 +544,27 @@ class FinancialAnalyticsService:
             total_expense=summary.total_expense,
             local_today=local_today,
         )
-        return BudgetAnalyticsResponse.from_analysis(
+        response = BudgetAnalyticsResponse.from_analysis(
             context=_context(
                 period=period,
                 comparison=None,
                 currency=definition.currency,
                 summary=summary,
                 calculated_at=now,
+                additional_source_updated_at=definition.source_last_updated_at,
             ),
             definition=definition,
             analysis=analysis,
         )
+        self._monitor.record_operation(
+            AnalyticsOperation.BUDGET,
+            started_at=started_at,
+            range_days=period.day_count,
+            query_count=3,
+            item_count=1 + len(response.categories),
+            result_state=AnalyticsResultState.NON_EMPTY,
+        )
+        return response
 
     async def financial_health_score(
         self,
@@ -510,6 +577,7 @@ class FinancialAnalyticsService:
         budget_id: UUID | None,
     ) -> FinancialHealthScoreResponse:
         """Return a bounded composite with every factor contribution exposed."""
+        started_at = self._monitor.start()
         now = self._clock.now()
         period, _ = _resolve_periods(
             selection=selection,
@@ -549,6 +617,7 @@ class FinancialAnalyticsService:
         )
 
         budget_evidence = None
+        budget_source_updated_at = None
         if budget_id is not None:
             definition = await self._repository.get_budget_definition(
                 session,
@@ -595,6 +664,7 @@ class FinancialAnalyticsService:
                     or summary.total_expense
                 ),
             )
+            budget_source_updated_at = definition.source_last_updated_at
 
         analysis = evaluate_financial_health(
             summary=summary,
@@ -605,17 +675,33 @@ class FinancialAnalyticsService:
             period_date_to=period.date_to,
             budget=budget_evidence,
         )
-        return FinancialHealthScoreResponse.from_analysis(
+        response = FinancialHealthScoreResponse.from_analysis(
             context=_context(
                 period=period,
                 comparison=None,
                 currency=currency,
                 summary=summary,
                 calculated_at=now,
-                additional_source_updated_at=profile.source_last_updated_at,
+                additional_source_updated_at=_latest_timestamp(
+                    profile.source_last_updated_at,
+                    budget_source_updated_at,
+                ),
             ),
             analysis=analysis,
         )
+        self._monitor.record_operation(
+            AnalyticsOperation.HEALTH_SCORE,
+            started_at=started_at,
+            range_days=period.day_count,
+            query_count=4 + int(budget_id is not None),
+            item_count=len(response.factors),
+            result_state=(
+                AnalyticsResultState.UNAVAILABLE
+                if analysis.status is FinancialHealthScoreStatus.UNAVAILABLE
+                else AnalyticsResultState.NON_EMPTY
+            ),
+        )
+        return response
 
     async def prioritized_insights(
         self,
@@ -629,6 +715,7 @@ class FinancialAnalyticsService:
         limit: int,
     ) -> InsightAnalyticsResponse:
         """Return deterministic next actions from existing analytics evidence."""
+        started_at = self._monitor.start()
         now = self._clock.now()
         period, _ = _resolve_periods(
             selection=selection,
@@ -674,6 +761,7 @@ class FinancialAnalyticsService:
         )
 
         budget_evidence = None
+        budget_source_updated_at = None
         if budget_id is not None:
             definition = await self._repository.get_budget_definition(
                 session,
@@ -720,6 +808,7 @@ class FinancialAnalyticsService:
                     or summary.total_expense
                 ),
             )
+            budget_source_updated_at = definition.source_last_updated_at
 
         spending_analysis = detect_spending_signals(
             records,
@@ -741,14 +830,17 @@ class FinancialAnalyticsService:
             spending_signals=spending_analysis.signals,
         )
         returned = analysis.insights[:limit]
-        return InsightAnalyticsResponse(
+        response = InsightAnalyticsResponse(
             context=_context(
                 period=period,
                 comparison=None,
                 currency=currency,
                 summary=summary,
                 calculated_at=now,
-                additional_source_updated_at=profile.source_last_updated_at,
+                additional_source_updated_at=_latest_timestamp(
+                    profile.source_last_updated_at,
+                    budget_source_updated_at,
+                ),
             ),
             status=analysis.status,
             summary=InsightAnalyticsSummary(
@@ -775,6 +867,133 @@ class FinancialAnalyticsService:
             ),
             explanation=analysis.explanation,
         )
+        self._monitor.record_operation(
+            AnalyticsOperation.INSIGHTS,
+            started_at=started_at,
+            range_days=period.day_count,
+            query_count=5 + int(budget_id is not None),
+            item_count=len(response.insights),
+            result_state=(
+                AnalyticsResultState.UNAVAILABLE
+                if analysis.status is InsightAnalysisStatus.INSUFFICIENT_DATA
+                else _result_state(len(response.insights))
+            ),
+        )
+        return response
+
+    async def dashboard_export(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        trusted_timezone: str,
+        default_currency: str,
+        selection: AnalyticsSelection,
+        granularity: AnalyticsGranularity,
+        limit: int,
+    ) -> AnalyticsDashboardResponse:
+        """Return one shared-summary bundle for core dashboard rendering."""
+        started_at = self._monitor.start()
+        now = self._clock.now()
+        period = resolve_analytics_period(
+            date_from=selection.date_from,
+            date_to=selection.date_to,
+            trusted_timezone=trusted_timezone,
+            now=now,
+        )
+        currency = _resolve_currency(
+            requested=selection.currency,
+            default=default_currency,
+        )
+        summary = await self._repository.get_summary(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+        )
+        series = await self._repository.list_cash_flow_buckets(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+            granularity=granularity,
+        )
+        categories = await self._repository.list_category_aggregates(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+            limit=limit,
+            transaction_type=TransactionType.EXPENSE,
+        )
+        merchants = await self._repository.list_merchant_aggregates(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+            limit=limit,
+            transaction_type=TransactionType.EXPENSE,
+        )
+        accounts = await self._repository.list_account_aggregates(
+            session,
+            user_id=user_id,
+            period=period,
+            currency=currency,
+            limit=limit,
+            transaction_type=TransactionType.EXPENSE,
+        )
+        total_expense = summary.total_expense
+        response = AnalyticsDashboardResponse(
+            context=_context(
+                period=period,
+                comparison=None,
+                currency=currency,
+                summary=summary,
+                calculated_at=now,
+            ),
+            granularity=granularity,
+            metrics=CashFlowMetrics.from_aggregate(summary),
+            series=tuple(CashFlowPoint.from_aggregate(item) for item in series),
+            spending=AnalyticsDashboardSpending(
+                total_expense=MoneyMetric(value=total_expense),
+                categories=tuple(
+                    SpendingCategory.from_aggregate(
+                        item,
+                        share=_share(item.amount, total_expense),
+                    )
+                    for item in categories
+                ),
+                merchants=tuple(
+                    SpendingMerchant.from_aggregate(
+                        item,
+                        share=_share(item.total_expense, total_expense),
+                    )
+                    for item in merchants
+                ),
+                accounts=tuple(
+                    SpendingAccount.from_aggregate(
+                        item,
+                        share=_share(item.total_expense, total_expense),
+                    )
+                    for item in accounts
+                ),
+            ),
+        )
+        item_count = (
+            len(response.series)
+            + len(response.spending.categories)
+            + len(response.spending.merchants)
+            + len(response.spending.accounts)
+        )
+        self._monitor.record_operation(
+            AnalyticsOperation.DASHBOARD_EXPORT,
+            started_at=started_at,
+            range_days=period.day_count,
+            query_count=5,
+            item_count=item_count,
+            result_state=_result_state(item_count),
+        )
+        return response
 
 
 def _resolve_periods(
@@ -799,6 +1018,11 @@ def _resolve_periods(
 
 def _resolve_currency(*, requested: str | None, default: str) -> str:
     return (requested or default).strip().upper()
+
+
+def _latest_timestamp(*values: datetime | None) -> datetime | None:
+    timestamps = tuple(value for value in values if value is not None)
+    return max(timestamps) if timestamps else None
 
 
 def _context(
@@ -850,4 +1074,12 @@ def _share(amount: Decimal, total: Decimal) -> Decimal | None:
     return (amount / total).quantize(
         RATIO_QUANTUM,
         rounding=ROUND_HALF_EVEN,
+    )
+
+
+def _result_state(item_count: int) -> AnalyticsResultState:
+    return (
+        AnalyticsResultState.NON_EMPTY
+        if item_count > 0
+        else AnalyticsResultState.EMPTY
     )

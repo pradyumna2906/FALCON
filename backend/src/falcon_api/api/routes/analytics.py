@@ -15,6 +15,8 @@ from falcon_api.api.routes.auth import (
     DatabaseSession,
 )
 from falcon_api.schemas.analytics import (
+    AnalyticsDashboardQuery,
+    AnalyticsDashboardResponse,
     BudgetAnalyticsResponse,
     CashFlowAnalyticsQuery,
     CashFlowAnalyticsResponse,
@@ -55,6 +57,7 @@ RecurringQueryDependency = Annotated[RecurringAnalyticsQuery, Query()]
 SpendingSignalQueryDependency = Annotated[SpendingSignalAnalyticsQuery, Query()]
 FinancialHealthQueryDependency = Annotated[FinancialHealthAnalyticsQuery, Query()]
 InsightQueryDependency = Annotated[InsightAnalyticsQuery, Query()]
+DashboardQueryDependency = Annotated[AnalyticsDashboardQuery, Query()]
 
 _AUTHENTICATION_ERROR = {
     "model": ErrorResponse,
@@ -68,6 +71,39 @@ _NOT_FOUND_ERROR = {
     "model": ErrorResponse,
     "description": "The requested owner-scoped budget was not found.",
 }
+
+
+@analytics_router.get(
+    "/dashboard",
+    response_model=AnalyticsDashboardResponse,
+    operation_id="get_analytics_dashboard_export",
+    summary="Export a consolidated core analytics dashboard bundle",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: _AUTHENTICATION_ERROR,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: _VALIDATION_ERROR,
+    },
+)
+async def get_analytics_dashboard_export(
+    query: DashboardQueryDependency,
+    session: DatabaseSession,
+    service: AnalyticsServiceDependency,
+    principal: CurrentPrincipalDependency,
+) -> AnalyticsDashboardResponse:
+    """Share one owner-scoped summary across core frontend analytics."""
+    return await service.dashboard_export(
+        session,
+        user_id=principal.user_id,
+        trusted_timezone=principal.timezone,
+        default_currency=principal.default_currency,
+        selection=AnalyticsSelection(
+            date_from=query.date_from,
+            date_to=query.date_to,
+            currency=query.currency,
+            comparison=AnalyticsComparisonMode.NONE,
+        ),
+        granularity=query.granularity,
+        limit=query.limit,
+    )
 
 
 @analytics_router.get(

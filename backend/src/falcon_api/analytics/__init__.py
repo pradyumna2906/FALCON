@@ -37,6 +37,22 @@ from falcon_api.analytics.insights import (
     PersonalFinanceInsight,
     prioritize_insights,
 )
+from falcon_api.analytics.monitoring import (
+    AnalyticsMonitor,
+    AnalyticsResultState,
+)
+from falcon_api.analytics.operations import (
+    ANALYTICS_CLOSURE_VERSION,
+    ANALYTICS_DASHBOARD_PERFORMANCE_BUDGET_SECONDS,
+    ANALYTICS_QUERY_BUDGETS,
+    ANALYTICS_SNAPSHOT_POLICY,
+    AnalyticsInvalidationMode,
+    AnalyticsOperation,
+    AnalyticsQueryBudget,
+    AnalyticsSnapshotMode,
+    AnalyticsSnapshotPolicy,
+    analytics_query_budget,
+)
 from falcon_api.analytics.periods import (
     AnalyticsPeriod,
     previous_period,
@@ -94,7 +110,11 @@ from falcon_api.analytics.types import (
 )
 
 __all__ = (
+    "ANALYTICS_CLOSURE_VERSION",
     "ANALYTICS_CONTRACT_VERSION",
+    "ANALYTICS_DASHBOARD_PERFORMANCE_BUDGET_SECONDS",
+    "ANALYTICS_QUERY_BUDGETS",
+    "ANALYTICS_SNAPSHOT_POLICY",
     "BUDGET_POLICY_VERSION",
     "FINANCIAL_HEALTH_POLICY_VERSION",
     "INSIGHT_POLICY_VERSION",
@@ -109,9 +129,16 @@ __all__ = (
     "AnalyticsConfidenceLevel",
     "AnalyticsErrorCode",
     "AnalyticsMetricCode",
+    "AnalyticsInvalidationMode",
+    "AnalyticsMonitor",
+    "AnalyticsOperation",
     "AnalyticsPeriod",
     "AnalyticsGranularity",
     "AnalyticsRepository",
+    "AnalyticsQueryBudget",
+    "AnalyticsResultState",
+    "AnalyticsSnapshotMode",
+    "AnalyticsSnapshotPolicy",
     "AnalyticsSummaryAggregate",
     "BudgetAnalysis",
     "BudgetAnalysisStatus",
@@ -162,6 +189,7 @@ __all__ = (
     "SpendingSignalTransactionRecord",
     "SpendingSignalType",
     "classification_completeness",
+    "analytics_query_budget",
     "detect_recurring_patterns",
     "detect_spending_signals",
     "evaluate_budget",

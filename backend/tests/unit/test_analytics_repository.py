@@ -511,6 +511,7 @@ def test_budget_definition_maps_owned_plan_and_valid_category_limits() -> None:
     budget_id = uuid4()
     category_id = uuid4()
     user_id = uuid4()
+    limit_updated_at = datetime(2026, 8, 24, 9, 30, tzinfo=UTC)
     session = _session_with_all(
         [
             {
@@ -521,9 +522,11 @@ def test_budget_definition_maps_owned_plan_and_valid_category_limits() -> None:
                 "currency": "INR",
                 "overall_limit": Decimal("10000"),
                 "archived_at": None,
+                "budget_updated_at": _UPDATED_AT,
                 "budget_limit_id": uuid4(),
                 "category_id": category_id,
                 "limit_amount": Decimal("3000"),
+                "budget_limit_updated_at": limit_updated_at,
                 "category_name": "Food Delivery",
                 "classification_code": "food_delivery",
                 "category_kind": CategoryKind.EXPENSE,
@@ -557,12 +560,15 @@ def test_budget_definition_maps_owned_plan_and_valid_category_limits() -> None:
                 limit_amount=Decimal("3000.0000"),
             ),
         ),
+        source_last_updated_at=limit_updated_at,
     )
     query, params = _compiled(session)
     assert "budgets.user_id =" in query
     assert "budgets.id =" in query
     assert "budget_limits.user_id = budgets.user_id" in query
     assert "budget_limits.budget_id = budgets.id" in query
+    assert "budgets.updated_at AS budget_updated_at" in query
+    assert "budget_limits.updated_at AS budget_limit_updated_at" in query
     assert "ORDER BY budget_limits.id" in query
     assert user_id in params.values()
     assert budget_id in params.values()

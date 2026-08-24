@@ -3,19 +3,27 @@
 import asyncio
 import os
 from collections.abc import Iterator
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from time import perf_counter
+from unittest.mock import Mock
 from uuid import UUID, uuid4
 
 import pytest
 from alembic import command
 from alembic.config import Config
 from falcon_api.analytics import (
+    ANALYTICS_DASHBOARD_PERFORMANCE_BUDGET_SECONDS,
     AnalyticsGranularity,
     AnalyticsPeriod,
     AnalyticsRepository,
 )
+from falcon_api.analytics.application import (
+    AnalyticsSelection,
+    FinancialAnalyticsService,
+)
+from falcon_api.analytics.semantics import AnalyticsComparisonMode
 from falcon_api.core.config import AppEnvironment, Settings
 from falcon_api.core.event_loop import create_psycopg_compatible_event_loop
 from falcon_api.infrastructure.database import create_database_resources
@@ -35,7 +43,7 @@ from falcon_api.models.ledger import Transaction, TransferGroup
 from falcon_api.models.planning import Budget, BudgetLimit
 from falcon_api.models.user import User
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, event
 
 pytestmark = [
     pytest.mark.integration,
@@ -419,9 +427,113 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
             assert foreign_insight_budget.json()["error"]["code"] == (
                 "budget_not_found"
             )
+
+            dashboard_params = {
+                "date_from": "2026-08-01",
+                "date_to": "2026-08-24",
+                "granularity": "month",
+                "limit": "50",
+            }
+            dashboard_before = client.get(
+                "/api/v1/analytics/dashboard",
+                headers=headers,
+                params=dashboard_params,
+            )
+            assert dashboard_before.status_code == 200, dashboard_before.text
+            before_body = dashboard_before.json()
+            before_expense = Decimal(
+                before_body["metrics"]["total_expense"]["value"]
+            )
+            assert before_body["metrics"]["total_expense"] == (
+                before_body["spending"]["total_expense"]
+            )
+
+            corrected_transaction_id = _post_transaction(
+                client,
+                token=token,
+                account_id=account_id,
+                transaction_type=TransactionType.EXPENSE,
+                amount="321.0000",
+                merchant="Swiggy",
+                transaction_date="2026-08-20",
+            )
+            dashboard_after_create = client.get(
+                "/api/v1/analytics/dashboard",
+                headers=headers,
+                params=dashboard_params,
+            )
+            assert dashboard_after_create.status_code == 200
+            after_create_body = dashboard_after_create.json()
+            assert Decimal(
+                after_create_body["metrics"]["total_expense"]["value"]
+            ) == before_expense + Decimal("321.0000")
+            assert after_create_body["context"]["freshness"][
+                "source_last_updated_at"
+            ] != before_body["context"]["freshness"]["source_last_updated_at"]
+
+            classified = client.post(
+                f"/api/v1/transactions/{corrected_transaction_id}/classification",
+                headers=headers,
+            )
+            assert classified.status_code == 200, classified.text
+            assert classified.json()["subcategory_code"] == "food_delivery"
+            category_items = client.get(
+                "/api/v1/categories",
+                headers=headers,
+            ).json()["items"]
+            category_by_code = {
+                item["classification_code"]: item
+                for item in category_items
+                if item["classification_code"] is not None
+            }
+            dashboard_after_classification = client.get(
+                "/api/v1/analytics/dashboard",
+                headers=headers,
+                params=dashboard_params,
+            ).json()
+            food_delivery_before = next(
+                item
+                for item in dashboard_after_classification["spending"]["categories"]
+                if item["classification_code"] == "food_delivery"
+            )
+            assert food_delivery_before["amount"]["value"] == "321.0000"
+
+            corrected = client.post(
+                (
+                    f"/api/v1/transactions/{corrected_transaction_id}"
+                    "/classification/correction"
+                ),
+                headers=headers,
+                json={"category_id": category_by_code["restaurants"]["id"]},
+            )
+            assert corrected.status_code == 201, corrected.text
+            dashboard_after_correction = client.get(
+                "/api/v1/analytics/dashboard",
+                headers=headers,
+                params=dashboard_params,
+            )
+            assert dashboard_after_correction.status_code == 200
+            correction_body = dashboard_after_correction.json()
+            category_amounts = {
+                item["classification_code"]: item["amount"]["value"]
+                for item in correction_body["spending"]["categories"]
+            }
+            assert "food_delivery" not in category_amounts
+            assert category_amounts["restaurants"] == "321.0000"
+            assert correction_body["context"]["freshness"][
+                "source_last_updated_at"
+            ] != dashboard_after_classification["context"]["freshness"][
+                "source_last_updated_at"
+            ]
+            assert "must not leak" not in str(correction_body).lower()
     finally:
         if user_ids:
             asyncio.run(_delete_users(integration_settings(), *user_ids))
+
+
+def test_maximum_range_dashboard_meets_query_and_latency_budgets() -> None:
+    """Prove the live-only core export stays bounded at the 366-day limit."""
+    asyncio.run(_exercise_maximum_range_dashboard())
 
 
 async def _exercise_live_aggregates() -> None:
@@ -619,6 +731,112 @@ async def _exercise_live_aggregates() -> None:
         await resources.dispose()
 
 
+async def _exercise_maximum_range_dashboard() -> None:
+    settings = integration_settings()
+    resources = create_database_resources(settings)
+    owner_id = uuid4()
+    other_id = uuid4()
+    owner = _user(owner_id, "analytics-performance-owner")
+    other = _user(other_id, "analytics-performance-other")
+    owner_account = _account(owner_id, "Performance INR", "INR")
+    other_account = _account(other_id, "Other Performance INR", "INR")
+    category = _category(owner_id, "Performance Dining", CategoryKind.EXPENSE)
+    period_start = date(2025, 8, 24)
+    observed_statements: list[str] = []
+
+    def count_statement(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        if statement.lstrip().upper().startswith("SELECT"):
+            observed_statements.append(statement)
+
+    try:
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([owner, other])
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([owner_account, other_account, category])
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all(
+                [
+                    _transaction(
+                        owner_id,
+                        owner_account.id,
+                        amount="-10",
+                        transaction_type=TransactionType.EXPENSE,
+                        transaction_date=period_start + timedelta(days=index),
+                        category_id=category.id,
+                        merchant=f"Bounded Merchant {index % 50:02d}",
+                    )
+                    for index in range(366)
+                ]
+                + [
+                    _transaction(
+                        other_id,
+                        other_account.id,
+                        amount="-999999",
+                        transaction_type=TransactionType.EXPENSE,
+                        transaction_date=period_start + timedelta(days=index),
+                        category_id=None,
+                        merchant="Must Not Leak",
+                    )
+                    for index in range(50)
+                ]
+            )
+
+        clock = Mock()
+        clock.now.return_value = _NOW
+        service = FinancialAnalyticsService(clock=clock)
+        event.listen(
+            resources.engine.sync_engine,
+            "before_cursor_execute",
+            count_statement,
+        )
+        try:
+            async with transaction_scope(resources.session_factory) as session:
+                started_at = perf_counter()
+                response = await service.dashboard_export(
+                    session,
+                    user_id=owner_id,
+                    trusted_timezone="Asia/Kolkata",
+                    default_currency="INR",
+                    selection=AnalyticsSelection(
+                        date_from=period_start,
+                        date_to=date(2026, 8, 24),
+                        currency=None,
+                        comparison=AnalyticsComparisonMode.NONE,
+                    ),
+                    granularity=AnalyticsGranularity.MONTH,
+                    limit=50,
+                )
+                elapsed = perf_counter() - started_at
+        finally:
+            event.remove(
+                resources.engine.sync_engine,
+                "before_cursor_execute",
+                count_statement,
+            )
+
+        assert response.context.period.day_count == 366
+        assert response.metrics.total_expense.value == Decimal("3660.0000")
+        assert response.context.completeness.eligible_transaction_count == 366
+        assert len(response.series) == 13
+        assert len(response.spending.merchants) == 50
+        assert "must not leak" not in str(response).lower()
+        assert len(observed_statements) == 5
+        assert elapsed < ANALYTICS_DASHBOARD_PERFORMANCE_BUDGET_SECONDS
+    finally:
+        async with transaction_scope(resources.session_factory) as session:
+            await session.execute(
+                delete(User).where(User.id.in_((owner_id, other_id)))
+            )
+        await resources.dispose()
+
+
 def _register_login_account(
     client: TestClient,
     *,
@@ -665,7 +883,7 @@ def _post_transaction(
     merchant: str,
     transaction_date: str = "2026-08-24",
     category_id: UUID | None = None,
-) -> None:
+) -> UUID:
     response = client.post(
         "/api/v1/transactions",
         headers={"Authorization": f"Bearer {token}"},
@@ -680,6 +898,7 @@ def _post_transaction(
         },
     )
     assert response.status_code == 201, response.text
+    return UUID(response.json()["id"])
 
 
 async def _create_budget_fixtures(

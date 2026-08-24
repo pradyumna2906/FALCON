@@ -725,9 +725,11 @@ class AnalyticsRepository:
                 Budget.currency,
                 Budget.overall_limit,
                 Budget.archived_at,
+                Budget.updated_at.label("budget_updated_at"),
                 BudgetLimit.id.label("budget_limit_id"),
                 BudgetLimit.category_id,
                 BudgetLimit.limit_amount,
+                BudgetLimit.updated_at.label("budget_limit_updated_at"),
                 Category.name.label("category_name"),
                 Category.classification_code,
                 Category.kind.label("category_kind"),
@@ -776,6 +778,15 @@ class AnalyticsRepository:
                 )
             )
         first = rows[0]
+        source_timestamps = (
+            timestamp
+            for timestamp in (
+                first["budget_updated_at"],
+                *(row["budget_limit_updated_at"] for row in rows),
+            )
+            if timestamp is not None
+        )
+        source_last_updated_at = max(source_timestamps, default=None)
         return BudgetDefinition(
             budget_id=first["budget_id"],
             name=first["budget_name"],
@@ -789,6 +800,7 @@ class AnalyticsRepository:
             ),
             archived_at=first["archived_at"],
             category_limits=tuple(limits),
+            source_last_updated_at=source_last_updated_at,
         )
 
     async def list_budget_category_spending(

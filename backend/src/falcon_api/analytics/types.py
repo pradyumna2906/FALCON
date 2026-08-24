@@ -174,6 +174,7 @@ class BudgetDefinition:
     overall_limit: Decimal | None
     archived_at: datetime | None
     category_limits: tuple[BudgetCategoryLimitDefinition, ...]
+    source_last_updated_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)

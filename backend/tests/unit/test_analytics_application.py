@@ -12,6 +12,11 @@ from falcon_api.analytics.application import (
     AnalyticsSelection,
     FinancialAnalyticsService,
 )
+from falcon_api.analytics.monitoring import (
+    AnalyticsMonitor,
+    AnalyticsResultState,
+)
+from falcon_api.analytics.operations import AnalyticsOperation
 from falcon_api.analytics.recurring import RecurringDecision
 from falcon_api.analytics.repository import AnalyticsRepository
 from falcon_api.analytics.semantics import AnalyticsComparisonMode
@@ -68,10 +73,16 @@ def _summary(
 
 def _service(
     repository: AsyncMock,
+    *,
+    monitor: Mock | None = None,
 ) -> FinancialAnalyticsService:
     clock = Mock()
     clock.now.return_value = _NOW
-    return FinancialAnalyticsService(repository=repository, clock=clock)
+    return FinancialAnalyticsService(
+        repository=repository,
+        clock=clock,
+        monitor=monitor,
+    )
 
 
 def _selection(
@@ -548,6 +559,7 @@ def _budget_definition(
     *,
     start: date = date(2026, 8, 1),
     end: date = date(2026, 8, 31),
+    source_last_updated_at: datetime | None = None,
 ) -> BudgetDefinition:
     return BudgetDefinition(
         budget_id=uuid4(),
@@ -565,14 +577,19 @@ def _budget_definition(
                 limit_amount=Decimal("3000"),
             ),
         ),
+        source_last_updated_at=source_last_updated_at,
     )
 
 
 def test_budget_composes_owner_scoped_plan_summary_and_category_usage() -> None:
     repository = AsyncMock(spec=AnalyticsRepository)
-    definition = _budget_definition()
+    budget_updated_at = _NOW
+    definition = _budget_definition(source_last_updated_at=budget_updated_at)
     repository.get_budget_definition.return_value = definition
-    repository.get_summary.return_value = _summary(expense="4000")
+    repository.get_summary.return_value = replace(
+        _summary(expense="4000"),
+        source_last_updated_at=datetime(2026, 8, 24, 7, tzinfo=UTC),
+    )
     repository.list_budget_category_spending.return_value = (
         BudgetCategorySpendingAggregate(
             category_id=definition.category_limits[0].category_id,
@@ -604,6 +621,7 @@ def test_budget_composes_owner_scoped_plan_summary_and_category_usage() -> None:
     assert result.configured_category_spend.value == Decimal("1200.0000")
     assert result.outside_configured_categories.value == Decimal("2800.0000")
     assert result.categories[0].transaction_count == 3
+    assert result.context.freshness.source_last_updated_at == budget_updated_at
     repository.get_budget_definition.assert_awaited_once_with(
         session,
         user_id=user_id,
@@ -753,8 +771,16 @@ def test_financial_health_score_uses_only_an_aligned_owned_budget() -> None:
     repository.get_summary.return_value = _summary(expense="4000")
     repository.list_cash_flow_buckets.return_value = ()
     repository.list_category_aggregates.return_value = ()
-    repository.get_financial_health_profile.return_value = _health_profile()
-    definition = _budget_definition()
+    repository.get_financial_health_profile.return_value = replace(
+        _health_profile(),
+        source_last_updated_at=datetime(2026, 8, 24, 7, tzinfo=UTC),
+    )
+    repository.get_summary.return_value = replace(
+        repository.get_summary.return_value,
+        source_last_updated_at=datetime(2026, 8, 24, 6, tzinfo=UTC),
+    )
+    budget_updated_at = _NOW
+    definition = _budget_definition(source_last_updated_at=budget_updated_at)
     repository.get_budget_definition.return_value = definition
     session = AsyncMock(spec=AsyncSession)
     user_id = uuid4()
@@ -775,6 +801,7 @@ def test_financial_health_score_uses_only_an_aligned_owned_budget() -> None:
     )
     assert budget.status.value == "available"
     assert budget.observed_value == Decimal("0.516667")
+    assert result.context.freshness.source_last_updated_at == budget_updated_at
     repository.get_budget_definition.assert_awaited_once_with(
         session,
         user_id=user_id,
@@ -930,3 +957,118 @@ def test_prioritized_insights_enforce_owned_aligned_optional_budget() -> None:
         )
     assert mismatch.value.code == "insight_budget_period_mismatch"
     assert mismatch.value.status_code == 422
+
+    repository.get_summary.return_value = replace(
+        repository.get_summary.return_value,
+        source_last_updated_at=datetime(2026, 8, 24, 6, tzinfo=UTC),
+    )
+    repository.get_financial_health_profile.return_value = replace(
+        repository.get_financial_health_profile.return_value,
+        source_last_updated_at=datetime(2026, 8, 24, 7, tzinfo=UTC),
+    )
+    budget_updated_at = _NOW
+    definition = _budget_definition(source_last_updated_at=budget_updated_at)
+    repository.get_budget_definition.return_value = definition
+    result = asyncio.run(
+        _service(repository).prioritized_insights(
+            session,
+            user_id=uuid4(),
+            trusted_timezone="UTC",
+            default_currency="INR",
+            selection=_selection(comparison=AnalyticsComparisonMode.NONE),
+            budget_id=definition.budget_id,
+            limit=10,
+        )
+    )
+
+    assert result.context.freshness.source_last_updated_at == budget_updated_at
+
+
+def test_dashboard_export_reuses_one_summary_and_observes_five_query_budget() -> None:
+    repository = AsyncMock(spec=AnalyticsRepository)
+    repository.get_summary.return_value = _summary(expense="1000")
+    repository.list_cash_flow_buckets.return_value = (
+        CashFlowBucketAggregate(
+            period_start=date(2026, 8, 1),
+            gross_income=Decimal("10000"),
+            total_expense=Decimal("1000"),
+            transaction_count=3,
+        ),
+    )
+    category_id = uuid4()
+    account_id = uuid4()
+    repository.list_category_aggregates.return_value = (
+        CategoryAggregate(
+            category_id=category_id,
+            parent_category_id=None,
+            name="Dining",
+            classification_code="restaurants",
+            kind=CategoryKind.EXPENSE,
+            amount=Decimal("600"),
+            transaction_count=2,
+        ),
+    )
+    repository.list_merchant_aggregates.return_value = (
+        MerchantAggregate(
+            normalized_merchant="cafe",
+            display_name="Cafe",
+            gross_income=Decimal("0"),
+            total_expense=Decimal("600"),
+            transaction_count=2,
+            income_transaction_count=0,
+            expense_transaction_count=2,
+        ),
+    )
+    repository.list_account_aggregates.return_value = (
+        AccountAggregate(
+            account_id=account_id,
+            name="Primary",
+            account_type=AccountType.BANK,
+            gross_income=Decimal("10000"),
+            total_expense=Decimal("1000"),
+            transaction_count=3,
+            income_transaction_count=1,
+            expense_transaction_count=2,
+        ),
+    )
+    monitor = Mock(spec=AnalyticsMonitor)
+    monitor.start.return_value = 1.0
+    session = AsyncMock(spec=AsyncSession)
+    user_id = uuid4()
+
+    response = asyncio.run(
+        _service(repository, monitor=monitor).dashboard_export(
+            session,
+            user_id=user_id,
+            trusted_timezone="Asia/Kolkata",
+            default_currency="INR",
+            selection=_selection(
+                comparison=AnalyticsComparisonMode.NONE,
+                date_from=date(2025, 8, 24),
+                date_to=date(2026, 8, 24),
+            ),
+            granularity=AnalyticsGranularity.MONTH,
+            limit=25,
+        )
+    )
+
+    assert response.export_version == "2026.1"
+    assert response.context.period.day_count == 366
+    assert response.metrics.total_expense == response.spending.total_expense
+    assert response.series[0].net_cash_flow.value == Decimal("9000.0000")
+    assert response.spending.categories[0].share.value == Decimal("0.600000")
+    assert response.spending.merchants[0].normalized_merchant == "cafe"
+    assert response.spending.accounts[0].account_id == account_id
+    repository.get_summary.assert_awaited_once()
+    repository.list_cash_flow_buckets.assert_awaited_once()
+    repository.list_category_aggregates.assert_awaited_once()
+    repository.list_merchant_aggregates.assert_awaited_once()
+    repository.list_account_aggregates.assert_awaited_once()
+    monitor.record_operation.assert_called_once_with(
+        AnalyticsOperation.DASHBOARD_EXPORT,
+        started_at=1.0,
+        range_days=366,
+        query_count=5,
+        item_count=4,
+        result_state=AnalyticsResultState.NON_EMPTY,
+    )

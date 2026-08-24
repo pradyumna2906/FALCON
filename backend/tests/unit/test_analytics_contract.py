@@ -3,6 +3,8 @@
 from pathlib import Path
 
 from falcon_api.schemas.analytics import (
+    AnalyticsDashboardQuery,
+    AnalyticsDashboardResponse,
     AnalyticsContext,
     AnalyticsRangeQuery,
     BudgetAnalyticsResponse,
@@ -256,5 +258,48 @@ def test_insight_contract_is_bounded_deduplicated_and_non_advisory() -> None:
         "not investment advice",
         "not a forecast",
         "at most six sql statements",
+    ):
+        assert statement in content
+
+
+def test_phase_closure_contract_is_live_bounded_private_and_ui_ready() -> None:
+    query_properties = set(
+        AnalyticsDashboardQuery.model_json_schema()["properties"]
+    )
+    assert query_properties == {
+        "date_from",
+        "date_to",
+        "currency",
+        "granularity",
+        "limit",
+    }
+    response_properties = set(
+        AnalyticsDashboardResponse.model_json_schema()["properties"]
+    )
+    for private_field in {
+        "user_id",
+        "transaction_ids",
+        "account_number",
+        "cache_key",
+        "forecast",
+    }:
+        assert private_field not in query_properties
+        assert private_field not in response_properties
+
+    content = _IMPLEMENTATION_DOCUMENT.read_text(encoding="utf-8").lower()
+    for statement in (
+        "get /api/v1/analytics/dashboard",
+        "live-only snapshot decision",
+        "invalidation mode is `read_after_commit`",
+        "no cache exists",
+        "analytics_operation_completed",
+        "telemetry contains no owner",
+        "fixed maximum sql query budgets",
+        "dashboard export | 5",
+        "exactly five sql statements",
+        "366-day contract window",
+        "two-second integration-fixture latency budget",
+        "phase 8 is complete",
+        "phase 9 owns forecasting",
     ):
         assert statement in content
