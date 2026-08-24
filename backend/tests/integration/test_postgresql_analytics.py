@@ -101,11 +101,11 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
         ) as client:
             owner_id, token, account_id = _register_login_account(
                 client,
-                email=f"analytics-api-owner-{uuid4().hex}@falcon.test",
+                email=f"analytics-api-owner-{uuid4().hex}@falcon.example.com",
             )
             other_id, other_token, other_account_id = _register_login_account(
                 client,
-                email=f"analytics-api-other-{uuid4().hex}@falcon.test",
+                email=f"analytics-api-other-{uuid4().hex}@falcon.example.com",
             )
             user_ids.extend((owner_id, other_id))
             _post_transaction(
@@ -544,6 +544,7 @@ async def _exercise_live_aggregates() -> None:
     owner = _user(owner_id, "analytics-owner")
     other = _user(other_id, "analytics-other")
     inr_account = _account(owner_id, "Historical INR", "INR")
+    transfer_account = _account(owner_id, "Transfer INR", "INR")
     usd_account = _account(owner_id, "USD Account", "USD")
     other_account = _account(other_id, "Other INR", "INR")
     income_category = _category(owner_id, "Salary", CategoryKind.INCOME)
@@ -559,7 +560,9 @@ async def _exercise_live_aggregates() -> None:
         async with transaction_scope(resources.session_factory) as session:
             session.add_all([owner, other])
         async with transaction_scope(resources.session_factory) as session:
-            session.add_all([inr_account, usd_account, other_account])
+            session.add_all(
+                [inr_account, transfer_account, usd_account, other_account]
+            )
             session.add_all([income_category, expense_category, transfer_group])
         async with transaction_scope(resources.session_factory) as session:
             session.add_all(
@@ -613,7 +616,7 @@ async def _exercise_live_aggregates() -> None:
                     ),
                     _transaction(
                         owner_id,
-                        inr_account.id,
+                        transfer_account.id,
                         amount="500",
                         transaction_type=TransactionType.TRANSFER,
                         transaction_date=date(2026, 8, 3),
