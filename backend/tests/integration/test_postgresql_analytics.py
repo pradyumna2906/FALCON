@@ -26,6 +26,13 @@ from falcon_api.analytics.application import (
 from falcon_api.analytics.semantics import AnalyticsComparisonMode
 from falcon_api.core.config import AppEnvironment, Settings
 from falcon_api.core.event_loop import create_psycopg_compatible_event_loop
+from falcon_api.forecasting import (
+    ForecastGranularity as ForecastBucketGranularity,
+    ForecastHistoryWindow,
+    ForecastTarget,
+    ForecastingRepository,
+    build_forecast_series,
+)
 from falcon_api.infrastructure.database import create_database_resources
 from falcon_api.infrastructure.persistence import transaction_scope
 from falcon_api.main import create_app
@@ -85,6 +92,11 @@ def migrated_database() -> Iterator[None]:
 def test_live_aggregates_are_exact_currency_scoped_and_owner_isolated() -> None:
     """Exercise every 8.2 query against real PostgreSQL records."""
     asyncio.run(_exercise_live_aggregates())
+
+
+def test_forecasting_source_is_cutoff_safe_complete_and_owner_isolated() -> None:
+    """Exercise the Phase 9.2 source query and series builder in PostgreSQL."""
+    asyncio.run(_exercise_forecasting_source())
 
 
 def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
@@ -727,6 +739,129 @@ async def _exercise_live_aggregates() -> None:
         assert accounts[0].total_expense == Decimal("2550.0000")
         assert accounts[0].income_transaction_count == 1
         assert accounts[0].expense_transaction_count == 2
+    finally:
+        async with transaction_scope(resources.session_factory) as session:
+            await session.execute(
+                delete(User).where(User.id.in_((owner_id, other_id)))
+            )
+        await resources.dispose()
+
+
+async def _exercise_forecasting_source() -> None:
+    settings = integration_settings()
+    resources = create_database_resources(settings)
+    owner_id = uuid4()
+    other_id = uuid4()
+    owner = _user(owner_id, "forecasting-owner")
+    other = _user(other_id, "forecasting-other")
+    inr_account = _account(owner_id, "Forecast INR", "INR")
+    usd_account = _account(owner_id, "Forecast USD", "USD")
+    other_account = _account(other_id, "Other Forecast INR", "INR")
+    cutoff = datetime(2026, 9, 7, 12, tzinfo=UTC)
+    window = ForecastHistoryWindow(
+        date_from=date(2026, 8, 1),
+        date_to=date(2026, 8, 31),
+        timezone="Asia/Kolkata",
+        granularity=ForecastBucketGranularity.MONTH,
+        data_cutoff_at=cutoff,
+    )
+
+    try:
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([owner, other])
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([inr_account, usd_account, other_account])
+        eligible = [
+            _transaction(
+                owner_id,
+                inr_account.id,
+                amount="10000",
+                transaction_type=TransactionType.INCOME,
+                transaction_date=date(2026, 8, 1),
+                category_id=None,
+                merchant="Employer",
+            ),
+            _transaction(
+                owner_id,
+                inr_account.id,
+                amount="-2500",
+                transaction_type=TransactionType.EXPENSE,
+                transaction_date=date(2026, 8, 2),
+                category_id=None,
+                merchant="Grocer",
+            ),
+        ]
+        excluded_after_cutoff = _transaction(
+            owner_id,
+            inr_account.id,
+            amount="777",
+            transaction_type=TransactionType.INCOME,
+            transaction_date=date(2026, 8, 3),
+            category_id=None,
+            merchant="Future Known",
+        )
+        excluded_after_cutoff.created_at = cutoff + timedelta(seconds=1)
+        excluded_after_cutoff.updated_at = cutoff + timedelta(seconds=1)
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all(
+                eligible
+                + [
+                    _transaction(
+                        owner_id,
+                        inr_account.id,
+                        amount="-100",
+                        transaction_type=TransactionType.EXPENSE,
+                        transaction_date=date(2026, 8, 4),
+                        category_id=None,
+                        merchant="Pending",
+                        status=TransactionStatus.PENDING,
+                    ),
+                    _transaction(
+                        owner_id,
+                        usd_account.id,
+                        amount="-99",
+                        transaction_type=TransactionType.EXPENSE,
+                        transaction_date=date(2026, 8, 5),
+                        category_id=None,
+                        merchant="USD",
+                    ),
+                    _transaction(
+                        other_id,
+                        other_account.id,
+                        amount="999999",
+                        transaction_type=TransactionType.INCOME,
+                        transaction_date=date(2026, 8, 1),
+                        category_id=None,
+                        merchant="Must Not Leak",
+                    ),
+                    excluded_after_cutoff,
+                ]
+            )
+        async with transaction_scope(resources.session_factory) as session:
+            persisted = await session.get(Account, inr_account.id)
+            assert persisted is not None
+            persisted.archived_at = cutoff
+
+        async with transaction_scope(resources.session_factory) as session:
+            buckets = await ForecastingRepository().list_source_buckets(
+                session,
+                user_id=owner_id,
+                window=window,
+                currency="INR",
+            )
+        series = build_forecast_series(
+            target=ForecastTarget.NET_CASH_FLOW,
+            currency="INR",
+            window=window,
+            buckets=buckets,
+        )
+
+        assert len(buckets) == 1
+        assert buckets[0].gross_income == Decimal("10000.0000")
+        assert buckets[0].total_expense == Decimal("2500.0000")
+        assert buckets[0].transaction_count == 2
+        assert series.points[0].value == Decimal("7500.0000")
+        assert series.transaction_count == 2
     finally:
         async with transaction_scope(resources.session_factory) as session:
             await session.execute(

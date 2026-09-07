@@ -36,3 +36,9 @@ command writes only to the ignored `ml/artifacts/classification` registry.
 Ordinary API startup does not import scikit-learn, and a synthetic artifact is
 restricted to suggestions even when its confidence exceeds the automatic
 threshold.
+
+Phase 9 forecasting uses the separately pinned `backend[forecasting]` dependency
+group. Prophet remains isolated in `backend[forecasting-prophet]` so its
+availability cannot block baseline, Statsmodels, or XGBoost candidates. Batch 1
+defines target semantics and source-series construction only; it writes no model
+or evaluation artifact.

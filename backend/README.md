@@ -30,6 +30,8 @@ The current backend provides:
   an explainable versioned financial-health score, and deterministic prioritized
   recommendations, with a consolidated dashboard export, fixed query budgets,
   live freshness, and privacy-safe aggregate monitoring.
+- A versioned Phase 9 forecasting-target contract and owner-, currency-,
+  history-, and cutoff-scoped daily/monthly source-series foundation.
 
 ## Requirements
 
@@ -458,3 +460,20 @@ remain deferred until production measurements justify their invalidation cost.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/analytics/PHASE_8_IMPLEMENTATION.md`](../docs/analytics/PHASE_8_IMPLEMENTATION.md).
+
+## Cognitive forecasting implementation
+
+Phase 9 Batch 1 pins the forecasting environment, inherits exact income,
+expense, net-cash-flow, and savings-proxy meanings from Phase 8, and builds
+calendar-complete daily or monthly source series. Every PostgreSQL read is
+restricted by authenticated owner, account ownership, currency, history window,
+posted external cash-flow types, and an immutable dataset cutoff. Missing
+calendar buckets are represented explicitly without converting currencies or
+inventing observations.
+
+No forecasting model is trained or exposed by Batch 1. History-quality scoring,
+chronological model evaluation, candidate models, selection, uncertainty,
+persistence, and APIs remain assigned to later approved Phase 9 checkpoints.
+
+The authoritative cumulative contract and checkpoint record is documented in
+[`docs/forecasting/PHASE_9_IMPLEMENTATION.md`](../docs/forecasting/PHASE_9_IMPLEMENTATION.md).
