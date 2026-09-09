@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import secrets
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -26,6 +27,16 @@ from falcon_api.analytics.application import (
 from falcon_api.analytics.semantics import AnalyticsComparisonMode
 from falcon_api.core.config import AppEnvironment, Settings
 from falcon_api.core.event_loop import create_psycopg_compatible_event_loop
+from falcon_api.forecasting import (
+    ForecastGranularity as ForecastBucketGranularity,
+    ForecastHistoryWindow,
+    ForecastPersistenceRepository,
+    ForecastPointWrite,
+    ForecastRunWrite,
+    ForecastTarget,
+    ForecastingRepository,
+    build_forecast_series,
+)
 from falcon_api.infrastructure.database import create_database_resources
 from falcon_api.infrastructure.persistence import transaction_scope
 from falcon_api.main import create_app
@@ -39,11 +50,13 @@ from falcon_api.models.enums import (
     TransactionType,
     UserStatus,
 )
+from falcon_api.models.forecasting import ForecastRun
 from falcon_api.models.ledger import Transaction, TransferGroup
 from falcon_api.models.planning import Budget, BudgetLimit
 from falcon_api.models.user import User
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, event
+from sqlalchemy import delete, event, update
+from sqlalchemy.exc import DBAPIError
 
 pytestmark = [
     pytest.mark.integration,
@@ -61,7 +74,7 @@ _PERIOD = AnalyticsPeriod(
     date_to=date(2026, 8, 24),
     timezone="Asia/Kolkata",
 )
-_PASSWORD = "Analytics-Integration-Password-2026!"
+_PASSWORD = secrets.token_urlsafe(24)
 
 
 def integration_settings() -> Settings:
@@ -87,14 +100,29 @@ def test_live_aggregates_are_exact_currency_scoped_and_owner_isolated() -> None:
     asyncio.run(_exercise_live_aggregates())
 
 
+def test_forecasting_source_is_cutoff_safe_complete_and_owner_isolated() -> None:
+    """Exercise the Phase 9.2 source query and series builder in PostgreSQL."""
+    asyncio.run(_exercise_forecasting_source())
+
+
+def test_forecast_persistence_is_owner_scoped_immutable_and_cascading() -> None:
+    """Exercise Phase 9.11 provenance, ownership, immutability, and erasure."""
+    asyncio.run(_exercise_forecast_persistence())
+
+
 def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
     """Exercise both public analytics operations against real PostgreSQL."""
     settings = integration_settings()
     user_ids: list[UUID] = []
 
+    application = create_app(settings)
+    clock = Mock()
+    clock.now.return_value = datetime.now(UTC) + timedelta(hours=1)
+    application.state.analytics_service = FinancialAnalyticsService(clock=clock)
+
     try:
         with TestClient(
-            create_app(settings),
+            application,
             backend_options={
                 "loop_factory": create_psycopg_compatible_event_loop,
             },
@@ -365,7 +393,7 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
                 headers=headers,
                 params={
                     "date_from": "2026-08-01",
-                    "date_to": "2026-08-24",
+                    "date_to": "2026-08-31",
                     "budget_id": str(owner_budget_id),
                 },
             )
@@ -397,7 +425,7 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
                 headers=headers,
                 params={
                     "date_from": "2026-08-01",
-                    "date_to": "2026-08-24",
+                    "date_to": "2026-08-31",
                     "budget_id": str(owner_budget_id),
                     "limit": "10",
                 },
@@ -727,6 +755,234 @@ async def _exercise_live_aggregates() -> None:
         assert accounts[0].total_expense == Decimal("2550.0000")
         assert accounts[0].income_transaction_count == 1
         assert accounts[0].expense_transaction_count == 2
+    finally:
+        async with transaction_scope(resources.session_factory) as session:
+            await session.execute(
+                delete(User).where(User.id.in_((owner_id, other_id)))
+            )
+        await resources.dispose()
+
+
+async def _exercise_forecasting_source() -> None:
+    settings = integration_settings()
+    resources = create_database_resources(settings)
+    owner_id = uuid4()
+    other_id = uuid4()
+    owner = _user(owner_id, "forecasting-owner")
+    other = _user(other_id, "forecasting-other")
+    inr_account = _account(owner_id, "Forecast INR", "INR")
+    usd_account = _account(owner_id, "Forecast USD", "USD")
+    other_account = _account(other_id, "Other Forecast INR", "INR")
+    cutoff = datetime(2026, 9, 7, 12, tzinfo=UTC)
+    window = ForecastHistoryWindow(
+        date_from=date(2026, 8, 1),
+        date_to=date(2026, 8, 31),
+        timezone="Asia/Kolkata",
+        granularity=ForecastBucketGranularity.MONTH,
+        data_cutoff_at=cutoff,
+    )
+
+    try:
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([owner, other])
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([inr_account, usd_account, other_account])
+        eligible = [
+            _transaction(
+                owner_id,
+                inr_account.id,
+                amount="10000",
+                transaction_type=TransactionType.INCOME,
+                transaction_date=date(2026, 8, 1),
+                category_id=None,
+                merchant="Employer",
+            ),
+            _transaction(
+                owner_id,
+                inr_account.id,
+                amount="-2500",
+                transaction_type=TransactionType.EXPENSE,
+                transaction_date=date(2026, 8, 2),
+                category_id=None,
+                merchant="Grocer",
+            ),
+        ]
+        excluded_after_cutoff = _transaction(
+            owner_id,
+            inr_account.id,
+            amount="777",
+            transaction_type=TransactionType.INCOME,
+            transaction_date=date(2026, 8, 3),
+            category_id=None,
+            merchant="Future Known",
+        )
+        excluded_after_cutoff.created_at = cutoff + timedelta(seconds=1)
+        excluded_after_cutoff.updated_at = cutoff + timedelta(seconds=1)
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all(
+                eligible
+                + [
+                    _transaction(
+                        owner_id,
+                        inr_account.id,
+                        amount="-100",
+                        transaction_type=TransactionType.EXPENSE,
+                        transaction_date=date(2026, 8, 4),
+                        category_id=None,
+                        merchant="Pending",
+                        status=TransactionStatus.PENDING,
+                    ),
+                    _transaction(
+                        owner_id,
+                        usd_account.id,
+                        amount="-99",
+                        transaction_type=TransactionType.EXPENSE,
+                        transaction_date=date(2026, 8, 5),
+                        category_id=None,
+                        merchant="USD",
+                    ),
+                    _transaction(
+                        other_id,
+                        other_account.id,
+                        amount="999999",
+                        transaction_type=TransactionType.INCOME,
+                        transaction_date=date(2026, 8, 1),
+                        category_id=None,
+                        merchant="Must Not Leak",
+                    ),
+                    excluded_after_cutoff,
+                ]
+            )
+        async with transaction_scope(resources.session_factory) as session:
+            persisted = await session.get(Account, inr_account.id)
+            assert persisted is not None
+            persisted.archived_at = cutoff
+
+        async with transaction_scope(resources.session_factory) as session:
+            buckets = await ForecastingRepository().list_source_buckets(
+                session,
+                user_id=owner_id,
+                window=window,
+                currency="INR",
+            )
+        series = build_forecast_series(
+            target=ForecastTarget.NET_CASH_FLOW,
+            currency="INR",
+            window=window,
+            buckets=buckets,
+        )
+
+        assert len(buckets) == 1
+        assert buckets[0].gross_income == Decimal("10000.0000")
+        assert buckets[0].total_expense == Decimal("2500.0000")
+        assert buckets[0].transaction_count == 2
+        assert series.points[0].value == Decimal("7500.0000")
+        assert series.transaction_count == 2
+    finally:
+        async with transaction_scope(resources.session_factory) as session:
+            await session.execute(
+                delete(User).where(User.id.in_((owner_id, other_id)))
+            )
+        await resources.dispose()
+
+
+async def _exercise_forecast_persistence() -> None:
+    settings = integration_settings()
+    resources = create_database_resources(settings)
+    owner_id, other_id = uuid4(), uuid4()
+    owner = _user(owner_id, "forecast-persistence-owner")
+    other = _user(other_id, "forecast-persistence-other")
+    repository = ForecastPersistenceRepository()
+
+    payload = ForecastRunWrite(
+        target=ForecastTarget.NET_CASH_FLOW,
+        granularity=ForecastBucketGranularity.MONTH,
+        currency="INR",
+        history_start=date(2026, 1, 1),
+        history_end=date(2026, 8, 31),
+        data_cutoff_at=datetime(2026, 9, 1, tzinfo=UTC),
+        source_last_updated_at=datetime(2026, 8, 31, tzinfo=UTC),
+        forecast_start=date(2026, 9, 1),
+        forecast_end=date(2026, 9, 1),
+        contract_version="2026.1",
+        quality_policy_version="2026.1",
+        evaluation_policy_version="2026.1",
+        feature_policy_version=None,
+        selection_policy_version="2026.1",
+        uncertainty_policy_version="2026.1",
+        model_code="last_value",
+        model_version="builtin-2026.1",
+        model_parameters={},
+        candidate_evidence={"evaluated": ["last_value"]},
+        selection_metric="wape",
+        validation_mae=Decimal("100.000000"),
+        validation_rmse=Decimal("100.000000"),
+        validation_wape=Decimal("0.100000"),
+        validation_bias=Decimal("0.000000"),
+        test_mae=Decimal("125.000000"),
+        test_rmse=Decimal("125.000000"),
+        test_wape=Decimal("0.125000"),
+        test_bias=Decimal("25.000000"),
+        uncertainty_method="absolute_residual_conformal",
+        uncertainty_reliability="provisional",
+        points=(
+            ForecastPointWrite(
+                step=1,
+                period_start=date(2026, 9, 1),
+                expected_value=Decimal("5000.0000"),
+                lower_80=Decimal("4500.0000"),
+                upper_80=Decimal("5500.0000"),
+                lower_95=Decimal("4000.0000"),
+                upper_95=Decimal("6000.0000"),
+            ),
+        ),
+    )
+
+    try:
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([owner, other])
+        async with transaction_scope(resources.session_factory) as session:
+            created = await repository.create(
+                session,
+                user_id=owner_id,
+                payload=payload,
+            )
+            run_id = created.id
+
+        async with transaction_scope(resources.session_factory) as session:
+            owned = await repository.get(
+                session,
+                user_id=owner_id,
+                run_id=run_id,
+            )
+            denied = await repository.get(
+                session,
+                user_id=other_id,
+                run_id=run_id,
+            )
+            other_history = await repository.list_recent(
+                session,
+                user_id=other_id,
+                limit=10,
+            )
+            assert owned is not None
+            assert len(owned.points) == 1
+            assert owned.points[0].expected_value == Decimal("5000.0000")
+            assert denied is None
+            assert other_history == ()
+
+        with pytest.raises(DBAPIError):
+            async with transaction_scope(resources.session_factory) as session:
+                await session.execute(
+                    update(ForecastRun)
+                    .where(ForecastRun.id == run_id)
+                    .values(model_version="tampered")
+                )
+
+        async with transaction_scope(resources.session_factory) as session:
+            await session.execute(delete(User).where(User.id == owner_id))
+        async with transaction_scope(resources.session_factory) as session:
+            assert await session.get(ForecastRun, run_id) is None
     finally:
         async with transaction_scope(resources.session_factory) as session:
             await session.execute(

@@ -16,6 +16,8 @@ from falcon_api.models import (
     BudgetLimit,
     Category,
     FinancialProfile,
+    ForecastPoint,
+    ForecastRun,
     Goal,
     GoalContribution,
     ImportJob,
@@ -44,6 +46,8 @@ _EXPECTED_TABLES = {
     "budgets",
     "categories",
     "financial_profiles",
+    "forecast_points",
+    "forecast_runs",
     "goal_contributions",
     "goals",
     "import_jobs",
@@ -126,6 +130,11 @@ def test_money_and_rate_columns_use_approved_precision() -> None:
         Goal.__table__.c.target_amount,
         Goal.__table__.c.starting_amount,
         GoalContribution.__table__.c.amount,
+        ForecastPoint.__table__.c.expected_value,
+        ForecastPoint.__table__.c.lower_80,
+        ForecastPoint.__table__.c.upper_80,
+        ForecastPoint.__table__.c.lower_95,
+        ForecastPoint.__table__.c.upper_95,
     ]
 
     for column in money_columns:
@@ -148,6 +157,7 @@ def test_currency_and_calendar_columns_use_explicit_types() -> None:
         Account.__table__.c.currency,
         Budget.__table__.c.currency,
         Goal.__table__.c.currency,
+        ForecastRun.__table__.c.currency,
     ]
 
     for column in currency_columns:
@@ -252,6 +262,9 @@ def test_composite_ownership_foreign_keys_are_present() -> None:
     assert "fk_user_merchant_memories_taxonomy_category" in foreign_key_names(
         "user_merchant_memories"
     )
+    assert "fk_forecast_points_owner_run" in foreign_key_names(
+        "forecast_points"
+    )
 
 
 def test_classification_personalization_checks_and_indexes_are_registered() -> None:
@@ -295,6 +308,12 @@ def test_query_driven_indexes_are_present() -> None:
     assert (
         "ix_transaction_classifications_user_decision"
         in index_names("transaction_classifications")
+    )
+    assert "ix_forecast_runs_user_target_created" in index_names(
+        "forecast_runs"
+    )
+    assert "ix_forecast_points_user_run_step" in index_names(
+        "forecast_points"
     )
 
 

@@ -30,6 +30,8 @@ The current backend provides:
   an explainable versioned financial-health score, and deterministic prioritized
   recommendations, with a consolidated dashboard export, fixed query budgets,
   live freshness, and privacy-safe aggregate monitoring.
+- A versioned Phase 9 forecasting-target contract and owner-, currency-,
+  history-, and cutoff-scoped daily/monthly source-series foundation.
 
 ## Requirements
 
@@ -458,3 +460,46 @@ remain deferred until production measurements justify their invalidation cost.
 
 The authoritative contract and checkpoint record is documented in
 [`docs/analytics/PHASE_8_IMPLEMENTATION.md`](../docs/analytics/PHASE_8_IMPLEMENTATION.md).
+
+## Cognitive forecasting implementation
+
+Phase 9 Batch 1 pins the forecasting environment, inherits exact income,
+expense, net-cash-flow, and savings-proxy meanings from Phase 8, and builds
+calendar-complete daily or monthly source series. Every PostgreSQL read is
+restricted by authenticated owner, account ownership, currency, history window,
+posted external cash-flow types, and an immutable dataset cutoff. Missing
+calendar buckets are represented explicitly without converting currencies or
+inventing observations.
+
+No forecasting model is trained or exposed by Batch 1. History-quality scoring,
+chronological model evaluation, candidate models, selection, uncertainty,
+persistence, and APIs remain assigned to later approved Phase 9 checkpoints.
+
+Phase 9 Batch 2 adds explainable unavailable/provisional/normal data eligibility,
+frequency-specific sufficiency thresholds, sparse/irregular/outlier evidence,
+expanding-window rolling-origin validation with an untouched final test window,
+exact MAE/RMSE/WAPE/bias metrics, and last-value, mean, median, moving-average,
+seasonal-naïve, and drift baselines. It still does not train or select a complex
+model or expose forecasting through the API.
+
+Phase 9 Batch 3 adds versioned lag and trailing-window features, bounded ARIMA
+and SARIMA candidates, a lazy optional Prophet adapter, and deterministic CPU
+XGBoost with recursive multi-step prediction. Every candidate uses training
+history only and fails closed on missing dependencies, insufficient evidence,
+fit errors, or unsafe output. Candidate ranking, final-test use, uncertainty,
+persistence, and APIs remain assigned to later checkpoints.
+
+Phase 9 Batch 4 adds validation-only model ranking, a 5% improvement requirement
+before a complex model may replace the best baseline, and one-time final-test
+evaluation after selection. Validation residuals produce provisional/normal 80%
+and 95% uncertainty bands. Immutable owner-scoped forecast runs and points retain
+cutoff, model, policy, metric, and bounded privacy-safe evidence provenance.
+Phase 9 closure adds `FinancialForecastService.generate()` to execute the full
+owner-scoped pipeline and exposes authenticated create, recent-history, and
+single-run APIs under `/api/v1/forecasts`. Privacy-safe monitoring records only
+bounded operational metadata. Goal probability, goal optimization, scenarios,
+AI explanations, scheduled retraining, and notifications remain deferred to
+Phases 10–13.
+
+The authoritative cumulative contract and checkpoint record is documented in
+[`docs/forecasting/PHASE_9_IMPLEMENTATION.md`](../docs/forecasting/PHASE_9_IMPLEMENTATION.md).

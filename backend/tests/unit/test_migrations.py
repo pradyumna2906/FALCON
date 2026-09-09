@@ -21,6 +21,7 @@ _IMPORT_PERSISTENCE_REVISION = "c5a9e0b2d641"
 _PDF_IMPORT_REVISION = "d8f3a2c7b419"
 _CLASSIFICATION_REVISION = "e4a7c91d2f63"
 _PERSONALIZATION_REVISION = "f7b2d4e8a901"
+_FORECAST_PERSISTENCE_REVISION = "a9c4e2f7b613"
 
 
 def create_alembic_config() -> Config:
@@ -40,13 +41,44 @@ def test_migrations_share_application_metadata() -> None:
     register_models()
 
     assert model_metadata() is Base.metadata
-    assert len(model_metadata().tables) == 21
+    assert len(model_metadata().tables) == 23
 
 
-def test_personalization_revision_is_the_single_head() -> None:
+def test_forecast_persistence_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_PERSONALIZATION_REVISION]
+    assert scripts.get_heads() == [_FORECAST_PERSISTENCE_REVISION]
+
+    forecast_revision = scripts.get_revision(_FORECAST_PERSISTENCE_REVISION)
+
+    assert forecast_revision is not None
+    assert forecast_revision.down_revision == _PERSONALIZATION_REVISION
+    assert callable(forecast_revision.module.upgrade)
+    assert callable(forecast_revision.module.downgrade)
+
+
+def test_forecast_migration_freezes_owner_scope_provenance_and_immutability() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+    revision = scripts.get_revision(_FORECAST_PERSISTENCE_REVISION)
+
+    assert revision is not None
+    source = Path(revision.path).read_text(encoding="utf-8")
+    for statement in (
+        "forecast_runs",
+        "forecast_points",
+        "candidate_evidence",
+        "data_cutoff_at",
+        "fk_forecast_points_owner_run",
+        "trg_forecast_runs_immutable",
+        "trg_forecast_points_immutable",
+        "BEFORE UPDATE ON forecast_runs",
+        "BEFORE UPDATE ON forecast_points",
+    ):
+        assert statement in source
+
+
+def test_personalization_revision_precedes_forecast_persistence() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
 
     personalization_revision = scripts.get_revision(_PERSONALIZATION_REVISION)
 

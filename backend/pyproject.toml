@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
   "alembic==1.19.1",
+  "anyio==4.14.0",
   "argon2-cffi==25.1.0",
   "cryptography==50.0.0",
   "defusedxml==0.7.1",
@@ -33,11 +34,14 @@ dev = [
   "httpx2==2.10.0",
   "joblib==1.5.3",
   "numpy==2.5.2",
+  "pandas==3.0.5",
   "pytest==9.1.1",
   "pytest-cov==7.1.0",
   "scikit-learn==1.8.0",
   "scipy==1.18.1",
+  "statsmodels==0.15.0",
   "threadpoolctl==3.6.0",
+  "xgboost-cpu==3.4.1",
 ]
 ml = [
   "joblib==1.5.3",
@@ -45,6 +49,20 @@ ml = [
   "scikit-learn==1.8.0",
   "scipy==1.18.1",
   "threadpoolctl==3.6.0",
+]
+forecasting = [
+  "joblib==1.5.3",
+  "numpy==2.5.2",
+  "pandas==3.0.5",
+  "scikit-learn==1.8.0",
+  "scipy==1.18.1",
+  "statsmodels==0.15.0",
+  "threadpoolctl==3.6.0",
+  "xgboost-cpu==3.4.1",
+]
+forecasting-prophet = [
+  "pandas==3.0.5",
+  "prophet==1.4.0",
 ]
 
 [tool.setuptools.packages.find]
