@@ -229,3 +229,85 @@ a mandatory PR CI gate.
 Canonical pre-commit hooks, whitespace validation, Python compilation, OpenAPI
 generation, and offline Alembic upgrade and downgrade SQL generation pass.
 Batch 2 adds no schema migration or public API path.
+
+## 12. Checkpoint 9.6 — leakage-safe feature engineering
+
+Feature policy version `2026.1` converts an immutable target history into
+chronological supervised rows. Every row is built only from values strictly
+before its target index. The target value and all later validation or test
+values are therefore unavailable to feature construction.
+
+Daily candidates use lags 1, 7, 14, and 28 plus trailing 7- and 28-day mean
+and population-standard-deviation features. Monthly candidates use lags 1, 2,
+3, 6, and 12 plus trailing 3-, 6-, and 12-month mean and population-standard-
+deviation features. Feature names, ordering, target indices, and policy version
+are retained as auditable evidence.
+
+Source money remains exact `Decimal`. Conversion to finite floating-point
+values happens only at the model boundary. Empty, insufficient, non-finite, or
+overflowing history fails closed. Features never interpolate, backfill, remove,
+winsorize, or otherwise rewrite the calendar-complete source series.
+
+## 13. Checkpoint 9.7 — statistical model candidates
+
+ARIMA and SARIMA are bounded Statsmodels adapters implementing the same
+candidate protocol as the transparent baselines. The default ARIMA order is
+`(1, 1, 1)`. SARIMA uses order `(1, 1, 0)` and a deterministic seasonal order
+of `(1, 0, 0, 7)` for daily series or `(1, 0, 0, 12)` for monthly series.
+Candidate codes include the fixed family and frequency configuration.
+
+The Prophet adapter is optional and imported only when that candidate is
+executed. Missing Prophet produces an explicit unavailable-candidate result and
+cannot prevent baseline, Statsmodels, or XGBoost execution. Prophet receives an
+already bucketed, ordered series with synthetic monotonic daily or month-start
+dates; it cannot query transactions or access future actual values.
+
+All statistical adapters validate minimum history and positive horizons,
+suppress library warnings at their boundary, convert only finite model outputs
+back to four-decimal money, and translate dependency, fit, convergence, or
+unsafe-output failures into stable fail-closed candidate errors. A failed
+complex candidate never silently becomes a zero forecast.
+
+## 14. Checkpoint 9.8 — deterministic CPU XGBoost candidate
+
+The XGBoost candidate uses only the frozen Checkpoint 9.6 feature policy. The
+CPU regressor has fixed squared-error objective, 64 estimators, maximum depth 3,
+learning rate 0.05, full row and feature sampling, histogram trees, one worker,
+and random seed 2026. These defaults bound resource use and make repeated fits
+reproducible under the pinned environment.
+
+Daily XGBoost requires 36 training points and monthly XGBoost requires 20,
+providing eight supervised target rows beyond the largest lag. Multi-step
+forecasts are recursive: each predicted value may become history for the next
+step, but no future actual value is ever used. Missing CPU XGBoost, fit errors,
+or non-finite predictions fail closed, and successful output returns to the
+four-decimal financial money contract.
+
+## 15. Batch 3 boundary
+
+Checkpoints 9.6–9.8 provide candidate inputs and predictions only. They do not
+rank candidates, choose a winner, read the reserved final test window, compute
+confidence bands, estimate goal probability, persist an artifact or forecast,
+add a database migration, expose a public endpoint, schedule a background job,
+or send a notification. Automatic model selection remains owned by Checkpoint
+9.9, uncertainty by Checkpoint 9.10, and persistence by Checkpoint 9.11.
+
+## 16. Batch 3 validation record
+
+The focused feature, statistical-candidate, XGBoost-candidate, and documentation
+contract run passes 32 tests. The four new implementation modules have 99%
+combined statement and branch coverage: feature construction, shared candidate
+guards, and XGBoost each have 100%, while the statistical adapters have 97%.
+
+The complete unit suite passes 1,215 tests with 95.44% total coverage. The
+runner could not download the repository-standard Python 3.13.15 distribution
+from its external release host, so this Batch 3 run used the available Python
+3.12.14 interpreter with the exact pinned application and forecasting package
+versions. Python 3.13.15 remains unchanged as the required PR CI runtime.
+
+All 39 PostgreSQL integration scenarios collect. Python compilation, the
+unchanged 33-path OpenAPI 3.1.0 document, offline Alembic upgrade and downgrade
+SQL generation, canonical pre-commit hooks, and whitespace validation pass.
+Live PostgreSQL and container execution remain mandatory PR CI gates because
+Docker is unavailable in this runner. Batch 3 adds no database migration or
+public API path.

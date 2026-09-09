@@ -9,6 +9,12 @@ from falcon_api.forecasting.baselines import (
     SeasonalNaiveBaseline,
     baseline_candidates,
 )
+from falcon_api.forecasting.boosting import XGBoostCandidate
+from falcon_api.forecasting.candidates import (
+    ForecastCandidateError,
+    ForecastCandidateFitError,
+    ForecastCandidateUnavailableError,
+)
 from falcon_api.forecasting.evaluation import (
     FORECAST_EVALUATION_POLICY_VERSION,
     CandidateEvaluation,
@@ -21,6 +27,15 @@ from falcon_api.forecasting.evaluation import (
     build_chronological_evaluation_plan,
     calculate_forecast_error_metrics,
     evaluate_candidate,
+)
+from falcon_api.forecasting.features import (
+    FORECAST_FEATURE_POLICY_VERSION,
+    ForecastFeatureSpec,
+    ForecastFeatureVector,
+    ForecastSupervisedMatrix,
+    build_feature_vector,
+    build_supervised_feature_matrix,
+    feature_spec_for,
 )
 from falcon_api.forecasting.periods import ForecastHistoryWindow
 from falcon_api.forecasting.quality import (
@@ -47,6 +62,11 @@ from falcon_api.forecasting.semantics import (
     validate_forecast_horizon,
 )
 from falcon_api.forecasting.series import build_forecast_series
+from falcon_api.forecasting.statistical import (
+    ArimaCandidate,
+    ProphetCandidate,
+    SarimaCandidate,
+)
 from falcon_api.forecasting.types import (
     ForecastSeries,
     ForecastSeriesPoint,
@@ -56,6 +76,7 @@ from falcon_api.forecasting.types import (
 __all__ = (
     "FORECASTING_CONTRACT_VERSION",
     "FORECAST_EVALUATION_POLICY_VERSION",
+    "FORECAST_FEATURE_POLICY_VERSION",
     "FORECAST_QUALITY_POLICY_VERSION",
     "FORECAST_TARGET_DEFINITIONS",
     "MAX_DAILY_FORECAST_HORIZON",
@@ -68,9 +89,14 @@ __all__ = (
     "EvaluationFold",
     "FoldEvaluation",
     "ForecastCandidate",
+    "ForecastCandidateError",
+    "ForecastCandidateFitError",
+    "ForecastCandidateUnavailableError",
     "ForecastEligibility",
     "ForecastErrorCode",
     "ForecastErrorMetrics",
+    "ForecastFeatureSpec",
+    "ForecastFeatureVector",
     "ForecastGranularity",
     "ForecastHistoryWindow",
     "ForecastQualityAssessment",
@@ -78,6 +104,7 @@ __all__ = (
     "ForecastSeries",
     "ForecastSeriesPoint",
     "ForecastSourceBucket",
+    "ForecastSupervisedMatrix",
     "ForecastTarget",
     "ForecastTargetDefinition",
     "ForecastingRepository",
@@ -85,14 +112,21 @@ __all__ = (
     "HistoricalMedianBaseline",
     "LastValueBaseline",
     "MovingAverageBaseline",
+    "ProphetCandidate",
     "RollingOriginConfig",
     "SeasonalNaiveBaseline",
+    "ArimaCandidate",
+    "SarimaCandidate",
+    "XGBoostCandidate",
     "assess_forecast_quality",
     "baseline_candidates",
     "build_forecast_series",
+    "build_feature_vector",
+    "build_supervised_feature_matrix",
     "build_chronological_evaluation_plan",
     "calculate_forecast_error_metrics",
     "evaluate_candidate",
+    "feature_spec_for",
     "forecast_target_definition",
     "normalize_forecast_currency",
     "validate_forecast_horizon",

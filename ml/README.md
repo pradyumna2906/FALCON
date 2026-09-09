@@ -48,3 +48,9 @@ expanding-window rolling-origin validation with a final untouched test range,
 MAE/RMSE/WAPE/bias calculations, and six transparent baselines. Random splits
 are prohibited for financial time series. Later candidate models must outperform
 eligible baselines under the same chronological evaluation policy.
+
+Phase 9 Checkpoints 9.6–9.8 add a versioned lag/rolling feature contract,
+Statsmodels ARIMA and SARIMA adapters, a lazy optional Prophet adapter, and a
+fixed-seed single-worker CPU XGBoost candidate. Recursive multi-step prediction
+uses earlier predictions rather than future actual values. These checkpoints do
+not select, persist, or serve a model.

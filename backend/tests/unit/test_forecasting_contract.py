@@ -72,3 +72,29 @@ def test_phase_document_freezes_quality_evaluation_and_baselines() -> None:
         "add no database table",
     ):
         assert statement in content
+
+
+def test_phase_document_freezes_features_and_model_candidate_boundaries() -> None:
+    content = _IMPLEMENTATION_DOCUMENT.read_text(encoding="utf-8").lower()
+    for statement in (
+        "checkpoint 9.6",
+        "checkpoint 9.7",
+        "checkpoint 9.8",
+        "feature policy version `2026.1`",
+        "target index",
+        "lags 1, 7, 14, and 28",
+        "monthly candidates use lags",
+        "arima",
+        "sarima",
+        "prophet adapter is optional",
+        "explicit unavailable-candidate",
+        "four-decimal money",
+        "random seed 2026",
+        "recursive:",
+        "no future actual value",
+        "rank candidates",
+        "automatic model selection",
+        "uncertainty by checkpoint 9.10",
+        "persistence by checkpoint 9.11",
+    ):
+        assert statement in content

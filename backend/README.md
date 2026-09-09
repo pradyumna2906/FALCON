@@ -482,5 +482,12 @@ exact MAE/RMSE/WAPE/bias metrics, and last-value, mean, median, moving-average,
 seasonal-naïve, and drift baselines. It still does not train or select a complex
 model or expose forecasting through the API.
 
+Phase 9 Batch 3 adds versioned lag and trailing-window features, bounded ARIMA
+and SARIMA candidates, a lazy optional Prophet adapter, and deterministic CPU
+XGBoost with recursive multi-step prediction. Every candidate uses training
+history only and fails closed on missing dependencies, insufficient evidence,
+fit errors, or unsafe output. Candidate ranking, final-test use, uncertainty,
+persistence, and APIs remain assigned to later checkpoints.
+
 The authoritative cumulative contract and checkpoint record is documented in
 [`docs/forecasting/PHASE_9_IMPLEMENTATION.md`](../docs/forecasting/PHASE_9_IMPLEMENTATION.md).
