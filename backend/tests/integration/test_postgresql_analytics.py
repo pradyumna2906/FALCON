@@ -117,7 +117,7 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
 
     application = create_app(settings)
     clock = Mock()
-    clock.now.return_value = _NOW
+    clock.now.return_value = datetime.now(UTC) + timedelta(hours=1)
     application.state.analytics_service = FinancialAnalyticsService(clock=clock)
 
     try:
@@ -393,7 +393,7 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
                 headers=headers,
                 params={
                     "date_from": "2026-08-01",
-                    "date_to": "2026-08-24",
+                    "date_to": "2026-08-31",
                     "budget_id": str(owner_budget_id),
                 },
             )
@@ -425,7 +425,7 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
                 headers=headers,
                 params={
                     "date_from": "2026-08-01",
-                    "date_to": "2026-08-24",
+                    "date_to": "2026-08-31",
                     "budget_id": str(owner_budget_id),
                     "limit": "10",
                 },
