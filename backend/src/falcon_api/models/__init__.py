@@ -14,6 +14,7 @@ from falcon_api.models.classification import (
     TransactionClassification,
     UserMerchantMemory,
 )
+from falcon_api.models.forecasting import ForecastPoint, ForecastRun
 from falcon_api.models.import_job import ImportJob, ImportJobIssue
 from falcon_api.models.ledger import Transaction, TransferGroup
 from falcon_api.models.planning import (
@@ -37,6 +38,8 @@ __all__ = [
     "BudgetLimit",
     "Category",
     "FinancialProfile",
+    "ForecastPoint",
+    "ForecastRun",
     "Goal",
     "GoalContribution",
     "ImportJob",

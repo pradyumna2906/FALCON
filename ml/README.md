@@ -54,3 +54,16 @@ Statsmodels ARIMA and SARIMA adapters, a lazy optional Prophet adapter, and a
 fixed-seed single-worker CPU XGBoost candidate. Recursive multi-step prediction
 uses earlier predictions rather than future actual values. These checkpoints do
 not select, persist, or serve a model.
+
+Phase 9 Checkpoints 9.9–9.11 select candidates only from chronological
+validation evidence, require a complex model to beat the best baseline by 5%,
+and expose the reserved test window only once after selection. Finite-sample
+validation residuals calibrate nested 80% and 95% ranges. Selected model
+identity, parameters, evaluation evidence, cutoff provenance, and forecast
+points are stored in immutable owner-scoped PostgreSQL records; model binaries
+and raw transactions are not persisted there.
+
+Phase 9 Checkpoints 9.12–9.14 orchestrate the complete frozen-cutoff pipeline,
+serve immutable forecasts through authenticated owner-scoped APIs, and emit only
+privacy-safe bounded operational telemetry. Model selection remains automatic;
+clients cannot choose a candidate or supply hyperparameters.

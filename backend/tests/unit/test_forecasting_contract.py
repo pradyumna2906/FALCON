@@ -98,3 +98,40 @@ def test_phase_document_freezes_features_and_model_candidate_boundaries() -> Non
         "persistence by checkpoint 9.11",
     ):
         assert statement in content
+
+
+def test_phase_document_freezes_selection_uncertainty_and_persistence() -> None:
+    content = _IMPLEMENTATION_DOCUMENT.read_text(encoding="utf-8").lower()
+    for statement in (
+        "checkpoint 9.9",
+        "checkpoint 9.10",
+        "checkpoint 9.11",
+        "selection policy version `2026.1`",
+        "wape is the primary metric",
+        "mae is the deterministic",
+        "at least 5%",
+        "reserved final chronological",
+        "never feed back into candidate ranking",
+        "uncertainty policy version `2026.1`",
+        "80% and 95%",
+        "fewer than 10 validation residuals",
+        "not guarantees",
+        "a9c4e2f7b613",
+        "forecast_runs",
+        "forecast_points",
+        "append-only",
+        "32 kib",
+        "raw transactions and model binaries are not stored",
+        "checkpoint 9.12",
+        "checkpoint 9.13",
+        "checkpoint 9.14",
+        "financialforecastservice.generate()",
+        "post /api/v1/forecasts",
+        "get /api/v1/forecasts/{run_id}",
+        "forecast monitoring policy version `2026.1`",
+        "never logs owner identity",
+        "goal probability and allocation belong to",
+        "scenario simulation belongs to phase 11",
+        "scheduled production execution belongs to phase 13",
+    ):
+        assert statement in content

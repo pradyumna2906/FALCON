@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from falcon_api.api.routes.analytics import analytics_router
 from falcon_api.api.routes.auth import auth_router
 from falcon_api.api.routes.classification import classification_router
+from falcon_api.api.routes.forecasting import forecasting_router
 from falcon_api.api.routes.ledger import account_router, category_router
 from falcon_api.api.routes.imports import import_router
 from falcon_api.api.routes.profile import profile_router
@@ -25,6 +26,7 @@ api_v1_router.include_router(classification_router)
 api_v1_router.include_router(transfer_router)
 api_v1_router.include_router(import_router)
 api_v1_router.include_router(analytics_router)
+api_v1_router.include_router(forecasting_router)
 
 
 @api_v1_router.get(

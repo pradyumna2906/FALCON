@@ -489,5 +489,17 @@ history only and fails closed on missing dependencies, insufficient evidence,
 fit errors, or unsafe output. Candidate ranking, final-test use, uncertainty,
 persistence, and APIs remain assigned to later checkpoints.
 
+Phase 9 Batch 4 adds validation-only model ranking, a 5% improvement requirement
+before a complex model may replace the best baseline, and one-time final-test
+evaluation after selection. Validation residuals produce provisional/normal 80%
+and 95% uncertainty bands. Immutable owner-scoped forecast runs and points retain
+cutoff, model, policy, metric, and bounded privacy-safe evidence provenance.
+Phase 9 closure adds `FinancialForecastService.generate()` to execute the full
+owner-scoped pipeline and exposes authenticated create, recent-history, and
+single-run APIs under `/api/v1/forecasts`. Privacy-safe monitoring records only
+bounded operational metadata. Goal probability, goal optimization, scenarios,
+AI explanations, scheduled retraining, and notifications remain deferred to
+Phases 10–13.
+
 The authoritative cumulative contract and checkpoint record is documented in
 [`docs/forecasting/PHASE_9_IMPLEMENTATION.md`](../docs/forecasting/PHASE_9_IMPLEMENTATION.md).

@@ -29,6 +29,9 @@ from falcon_api.core.event_loop import create_psycopg_compatible_event_loop
 from falcon_api.forecasting import (
     ForecastGranularity as ForecastBucketGranularity,
     ForecastHistoryWindow,
+    ForecastPersistenceRepository,
+    ForecastPointWrite,
+    ForecastRunWrite,
     ForecastTarget,
     ForecastingRepository,
     build_forecast_series,
@@ -46,11 +49,13 @@ from falcon_api.models.enums import (
     TransactionType,
     UserStatus,
 )
+from falcon_api.models.forecasting import ForecastRun
 from falcon_api.models.ledger import Transaction, TransferGroup
 from falcon_api.models.planning import Budget, BudgetLimit
 from falcon_api.models.user import User
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, event
+from sqlalchemy import delete, event, update
+from sqlalchemy.exc import DBAPIError
 
 pytestmark = [
     pytest.mark.integration,
@@ -97,6 +102,11 @@ def test_live_aggregates_are_exact_currency_scoped_and_owner_isolated() -> None:
 def test_forecasting_source_is_cutoff_safe_complete_and_owner_isolated() -> None:
     """Exercise the Phase 9.2 source query and series builder in PostgreSQL."""
     asyncio.run(_exercise_forecasting_source())
+
+
+def test_forecast_persistence_is_owner_scoped_immutable_and_cascading() -> None:
+    """Exercise Phase 9.11 provenance, ownership, immutability, and erasure."""
+    asyncio.run(_exercise_forecast_persistence())
 
 
 def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
@@ -862,6 +872,111 @@ async def _exercise_forecasting_source() -> None:
         assert buckets[0].transaction_count == 2
         assert series.points[0].value == Decimal("7500.0000")
         assert series.transaction_count == 2
+    finally:
+        async with transaction_scope(resources.session_factory) as session:
+            await session.execute(
+                delete(User).where(User.id.in_((owner_id, other_id)))
+            )
+        await resources.dispose()
+
+
+async def _exercise_forecast_persistence() -> None:
+    settings = integration_settings()
+    resources = create_database_resources(settings)
+    owner_id, other_id = uuid4(), uuid4()
+    owner = _user(owner_id, "forecast-persistence-owner")
+    other = _user(other_id, "forecast-persistence-other")
+    repository = ForecastPersistenceRepository()
+
+    payload = ForecastRunWrite(
+        target=ForecastTarget.NET_CASH_FLOW,
+        granularity=ForecastBucketGranularity.MONTH,
+        currency="INR",
+        history_start=date(2026, 1, 1),
+        history_end=date(2026, 8, 31),
+        data_cutoff_at=datetime(2026, 9, 1, tzinfo=UTC),
+        source_last_updated_at=datetime(2026, 8, 31, tzinfo=UTC),
+        forecast_start=date(2026, 9, 1),
+        forecast_end=date(2026, 9, 1),
+        contract_version="2026.1",
+        quality_policy_version="2026.1",
+        evaluation_policy_version="2026.1",
+        feature_policy_version=None,
+        selection_policy_version="2026.1",
+        uncertainty_policy_version="2026.1",
+        model_code="last_value",
+        model_version="builtin-2026.1",
+        model_parameters={},
+        candidate_evidence={"evaluated": ["last_value"]},
+        selection_metric="wape",
+        validation_mae=Decimal("100.000000"),
+        validation_rmse=Decimal("100.000000"),
+        validation_wape=Decimal("0.100000"),
+        validation_bias=Decimal("0.000000"),
+        test_mae=Decimal("125.000000"),
+        test_rmse=Decimal("125.000000"),
+        test_wape=Decimal("0.125000"),
+        test_bias=Decimal("25.000000"),
+        uncertainty_method="absolute_residual_conformal",
+        uncertainty_reliability="provisional",
+        points=(
+            ForecastPointWrite(
+                step=1,
+                period_start=date(2026, 9, 1),
+                expected_value=Decimal("5000.0000"),
+                lower_80=Decimal("4500.0000"),
+                upper_80=Decimal("5500.0000"),
+                lower_95=Decimal("4000.0000"),
+                upper_95=Decimal("6000.0000"),
+            ),
+        ),
+    )
+
+    try:
+        async with transaction_scope(resources.session_factory) as session:
+            session.add_all([owner, other])
+        async with transaction_scope(resources.session_factory) as session:
+            created = await repository.create(
+                session,
+                user_id=owner_id,
+                payload=payload,
+            )
+            run_id = created.id
+
+        async with transaction_scope(resources.session_factory) as session:
+            owned = await repository.get(
+                session,
+                user_id=owner_id,
+                run_id=run_id,
+            )
+            denied = await repository.get(
+                session,
+                user_id=other_id,
+                run_id=run_id,
+            )
+            other_history = await repository.list_recent(
+                session,
+                user_id=other_id,
+                limit=10,
+            )
+            assert owned is not None
+            assert len(owned.points) == 1
+            assert owned.points[0].expected_value == Decimal("5000.0000")
+            assert denied is None
+            assert other_history == ()
+
+        with pytest.raises(DBAPIError):
+            async with transaction_scope(resources.session_factory) as session:
+                await session.execute(
+                    update(ForecastRun)
+                    .where(ForecastRun.id == run_id)
+                    .values(model_version="tampered")
+                )
+
+        async with transaction_scope(resources.session_factory) as session:
+            await session.execute(delete(User).where(User.id == owner_id))
+        async with transaction_scope(resources.session_factory) as session:
+            assert await session.get(ForecastRun, run_id) is None
     finally:
         async with transaction_scope(resources.session_factory) as session:
             await session.execute(

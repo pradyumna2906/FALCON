@@ -311,3 +311,152 @@ SQL generation, canonical pre-commit hooks, and whitespace validation pass.
 Live PostgreSQL and container execution remain mandatory PR CI gates because
 Docker is unavailable in this runner. Batch 3 adds no database migration or
 public API path.
+
+## 17. Checkpoint 9.9 — deterministic model selection
+
+Selection policy version `2026.1` ranks every successful candidate only on the
+rolling-origin validation folds from Checkpoint 9.4. WAPE is the primary metric
+when validation actuals have nonzero magnitude; MAE is the deterministic
+fallback when WAPE is undefined. Equal errors prefer a transparent baseline and
+then stable model-code ordering.
+
+Missing dependencies, insufficient history, fit failures, and unsafe candidate
+outputs are isolated and recorded with stable reason codes. One failed complex
+candidate cannot block an eligible baseline. Selection fails closed only when
+no candidate produces valid validation evidence.
+
+A complex model must improve upon the best successful baseline by at least 5%
+on the ranking metric. Otherwise the baseline remains selected. This prevents
+ARIMA, SARIMA, Prophet, or XGBoost from being chosen merely because it is more
+complex. Only after the winner is frozen is the reserved final chronological
+test window exposed once to that selected candidate. Final-test metrics are
+reported separately and never feed back into candidate ranking.
+
+## 18. Checkpoint 9.10 — calibrated uncertainty bands
+
+Uncertainty policy version `2026.1` uses finite-sample absolute residuals from
+the selected candidate's validation folds. It computes deterministic 80% and
+95% conformal-style radii with conservative finite-sample ranks and records
+their empirical validation coverage. Reserved final-test residuals are not used
+for calibration.
+
+Fewer than 10 validation residuals produces `provisional` uncertainty;
+otherwise calibration reliability is `normal`. This label describes the amount
+of calibration evidence, not the probability that a financial outcome will
+occur. Bands are decision-support ranges, not guarantees.
+
+Each forecast point stores expected, lower, and upper values. Gross-income and
+total-expense callers may floor lower bands at zero; signed net-cash-flow and
+savings-proxy forecasts may remain negative. The 95% band always contains the
+80% band, and every value returns to four-decimal money.
+
+## 19. Checkpoint 9.11 — immutable forecast persistence
+
+Migration `a9c4e2f7b613` adds `forecast_runs` and `forecast_points`. A forecast
+run records authenticated owner, target, granularity, currency, history range,
+immutable data cutoff, source timestamp, forecast horizon, every policy version,
+selected model identity and parameters, bounded candidate evidence, validation
+metrics, one-time final-test metrics, and uncertainty method and reliability.
+
+Forecast points store consecutive calendar periods, expected values, and nested
+80% and 95% bands. Composite `(user_id, forecast_run_id)` ownership prevents a
+point from attaching to another user's run. Every read requires the trusted
+owner identifier, user deletion cascades to runs and points, and query-driven
+owner/target/currency/step indexes bound history access.
+
+Both tables are append-only: PostgreSQL triggers reject updates. Candidate
+evidence and model parameters must be JSON objects, are limited to 32 KiB each,
+and reject obvious raw personal-data fields such as email, merchant,
+description, account number, user identifier, raw values, and transaction
+identifiers. Raw transactions and model binaries are not stored in these
+tables.
+
+## 20. Checkpoint 9.12 — end-to-end forecast orchestration
+
+`FinancialForecastService.generate()` freezes the trusted current instant as the
+data cutoff and executes the complete owner-scoped pipeline: source query,
+calendar-complete series construction, data-quality assessment, chronological
+evaluation, deterministic candidate selection, one-time final-test evaluation,
+future prediction, validation-residual uncertainty calibration, and immutable
+persistence. The public request never supplies an owner, timezone, cutoff,
+candidate list, model code, hyperparameters, or policy version.
+
+All transparent baselines are evaluated alongside bounded ARIMA, SARIMA,
+optional Prophet, and deterministic CPU XGBoost candidates. Missing optional
+dependencies and individual model failures remain isolated. Unavailable source
+activity, insufficient chronological history, or the absence of any safe model
+fails closed with stable application errors and writes no forecast artifact.
+
+The selected model is refit on all history inside the frozen cutoff only after
+selection and final-test reporting are complete. The requested future horizon
+contains no actual values. Income and expense lower bands remain non-negative;
+signed cash-flow and savings-proxy ranges may cross zero.
+
+## 21. Checkpoint 9.13 — authenticated forecasting API
+
+Three bearer-authenticated versioned operations expose the Phase 9 capability:
+
+- `POST /api/v1/forecasts` generates and persists one evaluated forecast;
+- `GET /api/v1/forecasts` lists at most 100 recent owner-scoped run summaries;
+- `GET /api/v1/forecasts/{run_id}` returns one immutable run and its ordered
+  forecast points.
+
+The API returns expected values, nested 80% and 95% ranges, source cutoff and
+freshness, model and policy identities, quality-safe candidate evidence,
+validation metrics, and the untouched final-test metrics. Owner identity and
+trusted timezone always come from the authenticated principal. A missing or
+foreign run returns the same `forecast_not_found` response and cannot reveal
+another user's artifact.
+
+## 22. Checkpoint 9.14 — operational hardening and Phase 9 closure
+
+Forecast monitoring policy version `2026.1` emits generation duration, bounded
+history and horizon bands, target, granularity, quality state, capped candidate
+counts, failure counts, and selected model family. It never logs owner identity,
+currency, transaction data, source values, predictions, or confidence-band
+amounts.
+
+Phase closure requires focused forecasting tests, the complete backend unit
+suite and coverage gate, API/OpenAPI checks, migration upgrade and downgrade
+generation, PostgreSQL integration collection, compilation, pre-commit hooks,
+and whitespace validation. Live PostgreSQL and container execution remain CI
+gates when those services are unavailable locally.
+
+## 23. Phase 9 boundary
+
+Phase 9 now generates, evaluates, calibrates, persists, serves, and monitors
+financial forecasts. It does not schedule retraining, estimate goal-achievement
+probability, optimize goal allocations, simulate scenarios, generate an AI
+explanation, or send a notification. Goal probability and allocation belong to
+Phase 10; scenario simulation belongs to Phase 11; explanations and assistant
+behavior belong to Phase 12; scheduled production execution belongs to Phase 13.
+
+## 24. Phase 9 validation record
+
+The focused selection, uncertainty, persistence, model-metadata, migration, and
+documentation contract run passes 53 tests. Selection, uncertainty, and
+persistence have 93% combined statement and branch coverage; uncertainty has
+100%, selection 92%, and persistence 90%.
+
+The complete unit suite passes 1,241 tests with 95.36% total coverage using the
+available Python 3.12.14 validation interpreter and the exact pinned application
+and forecasting packages. The repository-standard Python 3.13.15 runtime remains
+unchanged and mandatory in PR CI because its external distribution could not be
+downloaded by this runner.
+
+All 40 PostgreSQL integration scenarios collect, including the new owner-scope,
+immutability, point-integrity, and user-erasure persistence scenario. Offline
+Alembic upgrade and downgrade SQL generation passes through revision
+`a9c4e2f7b613`. Python compilation, the unchanged 33-path OpenAPI 3.1.0 document,
+canonical pre-commit hooks, and whitespace checks pass. Docker is unavailable,
+so the live PostgreSQL and container gates remain assigned to PR CI.
+
+The final cumulative forecasting run passes 145 focused tests. The new
+orchestration, monitoring, public-schema, and route modules achieve 90%, 100%,
+100%, and 96% statement-and-branch coverage respectively in the complete unit
+run. The full backend suite passes 1,262 unit tests at 95.36% total coverage on the
+available Python 3.12.14 validation runtime. OpenAPI 3.1.0 generation passes
+with 35 paths and 129 schemas; compilation, all canonical pre-commit hooks,
+whitespace validation, offline migration upgrade and downgrade SQL, and
+collection of all 40 PostgreSQL integration scenarios also pass. Python 3.13.15,
+live PostgreSQL behavior, and container execution remain mandatory PR CI gates.
