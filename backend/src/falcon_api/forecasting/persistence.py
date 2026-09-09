@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Mapping
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -203,7 +203,9 @@ class ForecastPersistenceRepository:
         user_id: UUID,
         payload: ForecastRunWrite,
     ) -> ForecastRun:
+        run_id = uuid4()
         run = ForecastRun(
+            id=run_id,
             user_id=user_id,
             target=payload.target.value,
             granularity=payload.granularity.value,
@@ -236,23 +238,22 @@ class ForecastPersistenceRepository:
             test_bias=payload.test_bias,
             uncertainty_method=payload.uncertainty_method,
             uncertainty_reliability=payload.uncertainty_reliability,
+            points=[
+                ForecastPoint(
+                    user_id=user_id,
+                    forecast_run_id=run_id,
+                    step=point.step,
+                    period_start=point.period_start,
+                    expected_value=point.expected_value,
+                    lower_80=point.lower_80,
+                    upper_80=point.upper_80,
+                    lower_95=point.lower_95,
+                    upper_95=point.upper_95,
+                )
+                for point in payload.points
+            ],
         )
         session.add(run)
-        await session.flush()
-        run.points = [
-            ForecastPoint(
-                user_id=user_id,
-                forecast_run_id=run.id,
-                step=point.step,
-                period_start=point.period_start,
-                expected_value=point.expected_value,
-                lower_80=point.lower_80,
-                upper_80=point.upper_80,
-                lower_95=point.lower_95,
-                upper_95=point.upper_95,
-            )
-            for point in payload.points
-        ]
         await session.flush()
         return run
 

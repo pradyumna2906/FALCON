@@ -144,12 +144,6 @@ def test_repository_creates_run_and_points_under_trusted_owner() -> None:
     session = AsyncMock(spec=AsyncSession)
     user_id = uuid4()
 
-    async def assign_id() -> None:
-        added = session.add.call_args.args[0]
-        if added.id is None:
-            added.id = uuid4()
-
-    session.flush.side_effect = assign_id
     run = asyncio.run(
         ForecastPersistenceRepository().create(
             session,
@@ -163,7 +157,7 @@ def test_repository_creates_run_and_points_under_trusted_owner() -> None:
     assert len(run.points) == 1
     assert run.points[0].user_id == user_id
     assert run.points[0].forecast_run_id == run.id
-    assert session.flush.await_count == 2
+    assert session.flush.await_count == 1
 
 
 def test_repository_reads_are_owner_scoped_and_bounded() -> None:

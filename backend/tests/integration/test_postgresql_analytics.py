@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import secrets
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -73,7 +74,7 @@ _PERIOD = AnalyticsPeriod(
     date_to=date(2026, 8, 24),
     timezone="Asia/Kolkata",
 )
-_PASSWORD = "Analytics-Integration-Password-2026!"
+_PASSWORD = secrets.token_urlsafe(24)
 
 
 def integration_settings() -> Settings:
@@ -114,9 +115,14 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
     settings = integration_settings()
     user_ids: list[UUID] = []
 
+    application = create_app(settings)
+    clock = Mock()
+    clock.now.return_value = _NOW
+    application.state.analytics_service = FinancialAnalyticsService(clock=clock)
+
     try:
         with TestClient(
-            create_app(settings),
+            application,
             backend_options={
                 "loop_factory": create_psycopg_compatible_event_loop,
             },
