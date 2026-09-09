@@ -475,5 +475,12 @@ No forecasting model is trained or exposed by Batch 1. History-quality scoring,
 chronological model evaluation, candidate models, selection, uncertainty,
 persistence, and APIs remain assigned to later approved Phase 9 checkpoints.
 
+Phase 9 Batch 2 adds explainable unavailable/provisional/normal data eligibility,
+frequency-specific sufficiency thresholds, sparse/irregular/outlier evidence,
+expanding-window rolling-origin validation with an untouched final test window,
+exact MAE/RMSE/WAPE/bias metrics, and last-value, mean, median, moving-average,
+seasonal-naïve, and drift baselines. It still does not train or select a complex
+model or expose forecasting through the API.
+
 The authoritative cumulative contract and checkpoint record is documented in
 [`docs/forecasting/PHASE_9_IMPLEMENTATION.md`](../docs/forecasting/PHASE_9_IMPLEMENTATION.md).

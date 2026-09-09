@@ -38,3 +38,37 @@ def test_phase_document_freezes_batch_one_boundaries() -> None:
         "phase 10",
     ):
         assert statement in content
+
+
+def test_phase_document_freezes_quality_evaluation_and_baselines() -> None:
+    content = _IMPLEMENTATION_DOCUMENT.read_text(encoding="utf-8").lower()
+    for statement in (
+        "checkpoint 9.3",
+        "checkpoint 9.4",
+        "checkpoint 9.5",
+        "quality policy version `2026.1`",
+        "unavailable",
+        "provisional",
+        "normal",
+        "90 calendar periods",
+        "median absolute deviation",
+        "irregular_activity",
+        "not a probability",
+        "expanding-window rolling-origin",
+        "final chronological test window",
+        "random shuffle",
+        "future-data leakage",
+        "mae",
+        "rmse",
+        "wape",
+        "predicted - actual",
+        "last value",
+        "historical mean",
+        "historical median",
+        "moving average",
+        "seasonal naïve",
+        "drift",
+        "complex model is not preferred",
+        "add no database table",
+    ):
+        assert statement in content

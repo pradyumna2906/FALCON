@@ -42,3 +42,9 @@ group. Prophet remains isolated in `backend[forecasting-prophet]` so its
 availability cannot block baseline, Statsmodels, or XGBoost candidates. Batch 1
 defines target semantics and source-series construction only; it writes no model
 or evaluation artifact.
+
+Phase 9 Checkpoints 9.3–9.5 add deterministic history-quality evidence,
+expanding-window rolling-origin validation with a final untouched test range,
+MAE/RMSE/WAPE/bias calculations, and six transparent baselines. Random splits
+are prohibited for financial time series. Later candidate models must outperform
+eligible baselines under the same chronological evaluation policy.

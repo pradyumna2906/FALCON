@@ -122,3 +122,110 @@ SQL, dependency resolution, CPU-only XGBoost import, optional Prophet resolution
 canonical pre-commit hooks, whitespace validation, merge-marker checks, private
 key detection, line-ending checks, case-conflict checks, and submodule checks
 passed. Batch 1 adds no table or migration.
+
+## 7. Checkpoint 9.3 — data quality and forecast eligibility
+
+Quality policy version `2026.1` evaluates model-input evidence without claiming
+model confidence. The assessment returns calendar period count, observed period
+count, zero-filled period count and ratio, nonzero period count, transaction
+count, robust outlier count and ratio, relative dispersion, eligibility, and
+stable reason codes.
+
+Eligibility has three explicit states:
+
+- `unavailable`: the series contains no eligible transactions;
+- `provisional`: some history exists but normal-history thresholds are not met;
+  and
+- `normal`: the frequency-specific history, observed-period, and transaction
+  thresholds are met.
+
+Monthly normal eligibility requires at least three calendar periods, three
+observed periods, and six transactions. Daily normal eligibility requires at
+least 90 calendar periods, 12 observed periods, and 20 transactions. Normal is
+an input-data eligibility label, not a probability and not a guarantee that a
+complex model will be reliable or selected.
+
+More than 70% zero-filled calendar periods produces `sparse_activity` evidence.
+Relative population standard deviation above the mean absolute value produces
+`irregular_activity`. Robust outliers use the median absolute deviation with a
+4.4478 × MAD threshold, equivalent to three robust standard deviations. The
+outlier warning requires at least two outlying periods and at least 20% of the
+series. Fewer than five points or a zero MAD produces no outlier claim because
+the robust evidence is insufficient.
+
+Irregular or outlier-heavy history is reported rather than deleted, winsorized,
+or silently smoothed. Income and expense totals do not require transaction
+classification coverage, consistent with the Phase 8 target semantics.
+
+## 8. Checkpoint 9.4 — chronological evaluation framework
+
+Evaluation policy version `2026.1` uses expanding-window rolling-origin
+validation. The configuration fixes minimum training points, validation horizon,
+step, final test size, and maximum validation folds. The latest bounded folds
+are retained, and every validation range begins strictly after its training
+range.
+
+The final chronological test window is reserved and excluded from candidate
+ranking. Candidate evaluation receives only each fold's earlier training values
+and validation horizon; random shuffle and future-data leakage are prohibited.
+The selected model's one-time test evaluation belongs to the later model-selection
+checkpoint.
+
+Every candidate uses one stable protocol: model code, minimum training points,
+and a deterministic `predict(training_values, horizon)` operation. Invalid
+horizons, insufficient training, mismatched prediction lengths, non-finite
+values, overlapping test history, and series/plan mismatches fail closed.
+
+Validation evidence records each fold's boundaries, actual values, predicted
+values, and aggregate metrics:
+
+- MAE: mean absolute error;
+- RMSE: square root of mean squared error;
+- WAPE: total absolute error divided by total absolute actual value; and
+- bias: mean of `predicted - actual`, where positive means overforecasting.
+
+Metrics use six-decimal half-even rounding. WAPE is null when every actual value
+is zero, avoiding division-by-zero and invented accuracy.
+
+## 9. Checkpoint 9.5 — transparent statistical baselines
+
+The deterministic baseline registry contains:
+
+| Baseline | Forecast behavior |
+|---|---|
+| Last value | Repeats the latest training value |
+| Historical mean | Repeats the arithmetic mean of all training values |
+| Historical median | Repeats the median of all training values |
+| Moving average | Repeats the mean of the latest three values by default |
+| Seasonal naïve | Repeats the latest complete 7-day or 12-month season |
+| Drift | Extends the average first-to-last change per training step |
+
+Baseline outputs return to the four-decimal money contract. Empty or non-finite
+training data, invalid horizons, invalid windows, and insufficient seasonal
+history are rejected. These candidates establish the minimum performance that
+ARIMA/SARIMA, Prophet, and XGBoost must beat; a complex model is not preferred
+merely because it is complex.
+
+## 10. Batch 2 boundary
+
+Checkpoints 9.3–9.5 add no database table, migration, public endpoint, model
+artifact, ARIMA/SARIMA fit, Prophet fit, XGBoost fit, automatic model selection,
+confidence band, goal probability, background job, or notification. The final
+test window remains untouched until the later selection policy explicitly owns
+its one-time use.
+
+## 11. Batch 2 validation record
+
+The complete unit suite passes on Python 3.13.14 with 1,185 tests and 95.34%
+total coverage. The new quality, evaluation, and baseline modules each have
+100% statement coverage. The focused Batch 2 and forecasting-contract run
+passes 36 tests.
+
+All 39 PostgreSQL integration scenarios collect, including the forecasting
+source isolation scenario introduced in Batch 1. Live PostgreSQL execution was
+not possible in this review runner because Docker is unavailable, so it remains
+a mandatory PR CI gate.
+
+Canonical pre-commit hooks, whitespace validation, Python compilation, OpenAPI
+generation, and offline Alembic upgrade and downgrade SQL generation pass.
+Batch 2 adds no schema migration or public API path.
