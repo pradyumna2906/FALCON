@@ -29,8 +29,9 @@ def test_batch_1_documentation_freezes_scope_and_deferrals() -> None:
     ).read_text(encoding="utf-8")
 
     assert "Goal-planning contract version: `2026.1`" in document
-    assert "Checkpoints 10.0, 10.1, and 10.2" in document
-    assert "Batch 1 adds no contribution service" in document
+    assert "Batch 1 contains\nCheckpoints 10.0–10.2" in document
+    assert "Batch 2 contains Checkpoints 10.3–10.5" in document
+    assert "Batch 2 adds no feasibility probability" in document
     assert "Phase 11 owns" in document
 
 

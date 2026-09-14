@@ -15,10 +15,24 @@ from sqlalchemy import delete
 
 from falcon_api.core.config import AppEnvironment, Settings
 from falcon_api.core.errors import ApplicationError
-from falcon_api.goal_planning import GoalCreateCommand, GoalService, GoalUpdateCommand
+from falcon_api.goal_planning import (
+    ContributionCreateCommand,
+    ContributionService,
+    GoalCreateCommand,
+    GoalPlanningSnapshotService,
+    GoalService,
+    GoalUpdateCommand,
+    PlanningSnapshotWarning,
+)
 from falcon_api.infrastructure.database import create_database_resources
 from falcon_api.infrastructure.persistence import transaction_scope
-from falcon_api.models.enums import GoalPriority, GoalStatus, GoalType, UserStatus
+from falcon_api.models.enums import (
+    ContributionSourceType,
+    GoalPriority,
+    GoalStatus,
+    GoalType,
+    UserStatus,
+)
 from falcon_api.models.user import User
 
 
@@ -65,6 +79,8 @@ async def _exercise_goal_lifecycle() -> None:
     owner_id = uuid4()
     other_id = uuid4()
     service = GoalService(clock=FixedClock())
+    contributions = ContributionService(clock=FixedClock())
+    snapshots = GoalPlanningSnapshotService(clock=FixedClock())
     try:
         async with transaction_scope(resources.session_factory) as session:
             session.add_all([_user(owner_id, "goal-owner"), _user(other_id, "other")])
@@ -105,6 +121,60 @@ async def _exercise_goal_lifecycle() -> None:
             with pytest.raises(ApplicationError) as hidden:
                 await service.get(session, user_id=other_id, goal_id=goal_id)
             assert hidden.value.code == "goal_not_found"
+
+        async with transaction_scope(resources.session_factory) as session:
+            contribution = await contributions.create(
+                session,
+                user_id=owner_id,
+                goal_id=goal_id,
+                trusted_timezone="Asia/Kolkata",
+                command=ContributionCreateCommand(
+                    source_type=ContributionSourceType.MANUAL,
+                    amount=Decimal("5000.0000"),
+                    contribution_date=date(2026, 9, 1),
+                    transaction_id=None,
+                    note="Monthly deposit",
+                ),
+            )
+            contribution_id = contribution.id
+
+        async with transaction_scope(resources.session_factory) as session:
+            progress = await contributions.progress(
+                session,
+                user_id=owner_id,
+                goal_id=goal_id,
+                trusted_timezone="Asia/Kolkata",
+            )
+            assert progress.contribution_amount == Decimal("5000.0000")
+            assert progress.current_amount == Decimal("30000.0000")
+            assert tuple(
+                item.id
+                for item in await contributions.list(
+                    session,
+                    user_id=owner_id,
+                    goal_id=goal_id,
+                )
+            ) == (contribution_id,)
+
+            snapshot = await snapshots.build(
+                session,
+                user_id=owner_id,
+                currency="INR",
+                trusted_timezone="Asia/Kolkata",
+            )
+            assert snapshot.goals[0].goal_id == goal_id
+            assert snapshot.provenance.contribution_count == 1
+            assert (
+                PlanningSnapshotWarning.SAVINGS_FORECAST_MISSING
+                in snapshot.warnings
+            )
+            foreign_snapshot = await snapshots.build(
+                session,
+                user_id=other_id,
+                currency="INR",
+                trusted_timezone="Asia/Kolkata",
+            )
+            assert foreign_snapshot.goals == ()
 
         async with transaction_scope(resources.session_factory) as session:
             updated = await service.update(

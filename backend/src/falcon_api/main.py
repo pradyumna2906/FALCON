@@ -30,7 +30,11 @@ from falcon_api.core.config import Settings, get_settings
 from falcon_api.core.logging import configure_logging
 from falcon_api.core.request_context import REQUEST_ID_HEADER
 from falcon_api.forecasting.application import FinancialForecastService
-from falcon_api.goal_planning import GoalService
+from falcon_api.goal_planning import (
+    ContributionService,
+    GoalPlanningSnapshotService,
+    GoalService,
+)
 from falcon_api.infrastructure.database import (
     DatabaseResources,
     create_database_resources,
@@ -160,6 +164,10 @@ def create_app(
     application.state.analytics_service = FinancialAnalyticsService()
     application.state.forecasting_service = FinancialForecastService()
     application.state.goal_service = GoalService()
+    application.state.contribution_service = ContributionService()
+    application.state.goal_planning_snapshot_service = (
+        GoalPlanningSnapshotService()
+    )
 
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)

@@ -20,6 +20,12 @@ class GoalPlanningErrorCode(StrEnum):
     INVALID_NAME = "goal_invalid_name"
     INVALID_DEADLINE = "goal_invalid_deadline"
     INVALID_AMOUNT = "goal_invalid_amount"
+    INVALID_CONTRIBUTION = "goal_invalid_contribution"
+    CONTRIBUTION_NOT_FOUND = "goal_contribution_not_found"
+    CONTRIBUTION_EXCEEDS_REMAINING = "goal_contribution_exceeds_remaining"
+    TRANSACTION_OVERALLOCATED = "goal_transaction_overallocated"
+    CURRENCY_MISMATCH = "goal_currency_mismatch"
+    SNAPSHOT_UNAVAILABLE = "goal_snapshot_unavailable"
     NOT_FOUND = "goal_not_found"
     INACTIVE = "goal_inactive"
 

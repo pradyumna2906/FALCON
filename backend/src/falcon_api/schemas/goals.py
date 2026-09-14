@@ -16,7 +16,15 @@ from pydantic import (
     model_validator,
 )
 
-from falcon_api.models.enums import GoalPriority, GoalStatus, GoalType
+from falcon_api.goal_planning.progress import GoalFundingState
+from falcon_api.goal_planning.snapshot import PlanningSnapshotWarning
+from falcon_api.models.enums import (
+    ContributionSourceType,
+    GoalPriority,
+    GoalStatus,
+    GoalType,
+    ProfileCompletionStatus,
+)
 
 
 GoalName = Annotated[
@@ -149,3 +157,135 @@ class GoalListResponse(GoalSchema):
     """Return a bounded list of goals owned by the principal."""
 
     items: tuple[GoalResponse, ...]
+
+
+class ContributionCreateRequest(GoalSchema):
+    """Create one allocation with explicit provenance."""
+
+    source_type: ContributionSourceType
+    amount: PositiveGoalMoney
+    contribution_date: date | None = None
+    transaction_id: UUID | None = None
+    note: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=500),
+    ] | None = None
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def normalize_blank_note(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @model_validator(mode="after")
+    def validate_source_fields(self) -> "ContributionCreateRequest":
+        if self.source_type is ContributionSourceType.TRANSACTION:
+            if self.transaction_id is None or self.contribution_date is not None:
+                raise ValueError(
+                    "Transaction contributions require only a transaction identifier."
+                )
+        elif self.transaction_id is not None or self.contribution_date is None:
+            raise ValueError(
+                "Manual and opening-balance contributions require only a date."
+            )
+        return self
+
+
+class ContributionResponse(GoalSchema):
+    """Public contribution evidence without its ownership key."""
+
+    id: UUID
+    goal_id: UUID
+    transaction_id: UUID | None
+    amount: GoalMoney
+    contribution_date: date
+    source_type: ContributionSourceType
+    note: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ContributionListResponse(GoalSchema):
+    items: tuple[ContributionResponse, ...]
+
+
+class GoalProgressResponse(GoalSchema):
+    goal_id: UUID
+    currency: GoalCurrency
+    target_amount: GoalMoney
+    starting_amount: GoalMoney
+    contribution_amount: GoalMoney
+    current_amount: GoalMoney
+    remaining_amount: GoalMoney
+    funding_ratio: Decimal
+    funding_percentage: Decimal
+    months_remaining: int
+    required_monthly_contribution: GoalMoney
+    funding_state: GoalFundingState
+    calculated_on: date
+
+
+class PlanningProfileEvidenceResponse(GoalSchema):
+    completion_status: ProfileCompletionStatus
+    income_stability: str | None
+    emergency_fund_target_months: Decimal | None
+    updated_at: datetime
+
+
+class PlanningFinancialEvidenceResponse(GoalSchema):
+    liquid_balance: GoalMoney
+    liability_account_count: int
+    liability_payment_count: int
+    outstanding_debt: GoalMoney
+    monthly_debt_payment: GoalMoney
+    source_last_updated_at: datetime | None
+
+
+class PlanningBudgetEvidenceResponse(GoalSchema):
+    active_budget_count: int
+    budget_with_overall_limit_count: int
+    total_overall_limit: GoalMoney
+    source_last_updated_at: datetime | None
+
+
+class SavingsCapacityPointResponse(GoalSchema):
+    period_start: date
+    protected_amount: GoalMoney
+    expected_amount: GoalMoney
+    upside_amount: GoalMoney
+
+
+class SavingsCapacityResponse(GoalSchema):
+    forecast_run_id: UUID
+    currency: GoalCurrency
+    policy_version: str
+    protection_band: str
+    reliability: str
+    points: tuple[SavingsCapacityPointResponse, ...]
+    protected_total: GoalMoney
+    expected_total: GoalMoney
+    upside_total: GoalMoney
+
+
+class PlanningProvenanceResponse(GoalSchema):
+    goal_ids: tuple[UUID, ...]
+    contribution_count: int
+    forecast_run_id: UUID | None
+    source_last_updated_at: datetime | None
+
+
+class GoalPlanningSnapshotResponse(GoalSchema):
+    snapshot_id: str
+    contract_version: str
+    cutoff_at: datetime
+    local_date: date
+    timezone: str
+    currency: GoalCurrency
+    goals: tuple[GoalProgressResponse, ...]
+    profile: PlanningProfileEvidenceResponse | None
+    finances: PlanningFinancialEvidenceResponse
+    budgets: PlanningBudgetEvidenceResponse
+    savings_capacity: SavingsCapacityResponse | None
+    warnings: tuple[PlanningSnapshotWarning, ...]
+    provenance: PlanningProvenanceResponse

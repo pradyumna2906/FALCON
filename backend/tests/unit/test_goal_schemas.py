@@ -7,7 +7,11 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from falcon_api.schemas.goals import GoalCreateRequest, GoalUpdateRequest
+from falcon_api.schemas.goals import (
+    ContributionCreateRequest,
+    GoalCreateRequest,
+    GoalUpdateRequest,
+)
 
 
 def _payload() -> dict[str, object]:
@@ -102,3 +106,56 @@ def test_update_rejects_empty_null_or_invalid_changes(
 ) -> None:
     with pytest.raises(ValidationError):
         GoalUpdateRequest.model_validate(payload)
+
+
+def test_manual_and_transaction_contribution_contracts_are_distinct() -> None:
+    manual = ContributionCreateRequest.model_validate(
+        {
+            "source_type": "manual",
+            "amount": "1250.5000",
+            "contribution_date": "2026-09-01",
+            "note": "  Deposit  ",
+        }
+    )
+    transaction_id = uuid4()
+    transaction = ContributionCreateRequest.model_validate(
+        {
+            "source_type": "transaction",
+            "amount": "500",
+            "transaction_id": str(transaction_id),
+        }
+    )
+
+    assert manual.note == "Deposit"
+    assert manual.contribution_date == date(2026, 9, 1)
+    assert transaction.transaction_id == transaction_id
+    assert transaction.contribution_date is None
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"source_type": "manual", "amount": "100"},
+        {
+            "source_type": "manual",
+            "amount": "100",
+            "contribution_date": "2026-09-01",
+            "transaction_id": str(uuid4()),
+        },
+        {
+            "source_type": "transaction",
+            "amount": "100",
+            "transaction_id": str(uuid4()),
+            "contribution_date": "2026-09-01",
+        },
+        {"source_type": "transaction", "amount": "100"},
+        {
+            "source_type": "opening_balance",
+            "amount": "0",
+            "contribution_date": "2026-09-01",
+        },
+    ],
+)
+def test_contribution_schema_rejects_invalid_source_or_amount(payload) -> None:
+    with pytest.raises(ValidationError):
+        ContributionCreateRequest.model_validate(payload)

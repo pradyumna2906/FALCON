@@ -3,9 +3,10 @@
 Goal-planning contract version: `2026.1`
 
 This cumulative record freezes the approved Phase 10 semantics. Batch 1 contains
-Checkpoints 10.0, 10.1, and 10.2. It establishes the goal-management boundary
-needed by later probability and optimization work; it does not yet allocate
-savings or generate a goal plan.
+Checkpoints 10.0–10.2 and Batch 2 contains Checkpoints 10.3–10.5. Together they
+establish goal management, contribution-aware progress, immutable planning
+evidence, and the forecast-to-savings-capacity bridge. They do not yet rank goals,
+allocate savings, or generate an optimized goal plan.
 
 ## 1. Checkpoint 10.0 — readiness and boundaries
 
@@ -85,10 +86,81 @@ Public responses exclude `user_id`. Unknown request fields are rejected, so a
 client cannot override identifiers, status, timestamps, progress, computed
 probability, or future optimization evidence.
 
-## 4. Batch 1 boundary
+## 4. Checkpoint 10.3 — contributions and exact progress
 
-Batch 1 adds no contribution service, progress calculation, forecast-to-savings
-bridge, probability estimator, goal ranking, greedy allocator, linear-programming
-solver, generated-plan table, plan approval, optimization endpoint, scenario,
-AI explanation, background task, or notification. Those responsibilities remain
-with approved Checkpoints 10.3–10.14 and later phases.
+`ContributionService` supports manual, transaction-linked, and opening-balance
+contributions. Manual and opening-balance records require a non-future local
+date and cannot reference a transaction. Transaction-linked records require a
+posted transaction owned by the authenticated user, inherit that transaction's
+date, and must use the same currency as the goal.
+
+Every contribution mutation locks the owner-scoped goal first. Transaction-linked
+creation also locks the transaction before checking its existing allocation.
+The application rejects contributions that exceed either the goal's remaining
+amount or the unallocated absolute transaction amount. The existing deferred
+PostgreSQL trigger remains the final cross-goal transaction-allocation guard.
+
+Progress is calculated with four-decimal `Decimal` arithmetic:
+
+- `current = starting_amount + eligible_contributions`;
+- `remaining = max(0, target_amount - current)`;
+- `funding_ratio = min(1, current / target_amount)`;
+- `required_monthly = ceil(remaining / available_monthly_deposits, 4 decimals)`.
+
+The progress result includes current and remaining amounts, funding ratio and
+percentage, remaining monthly deposit opportunities, required monthly amount,
+and a contribution-aware funding state. A fully funded active goal remains
+active until the user explicitly completes it; an unfunded active goal whose
+deadline has passed is reported as overdue.
+
+The authenticated contribution operations are:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/goals/{goal_id}/contributions` | Add one allocation-safe contribution |
+| `GET` | `/api/v1/goals/{goal_id}/contributions` | List contribution evidence in stable date order |
+| `DELETE` | `/api/v1/goals/{goal_id}/contributions/{id}` | Remove evidence from an active goal |
+| `GET` | `/api/v1/goals/{goal_id}/progress` | Calculate exact contribution-aware progress |
+
+## 5. Checkpoint 10.4 — immutable planning snapshot
+
+`GoalPlanningSnapshotService` reads every planning input under one trusted UTC
+cutoff and authenticated owner. It includes active same-currency goals and
+contributions, the current financial profile, emergency-fund target, liquid
+balance, debt and minimum-payment evidence, active budget evidence, and the
+latest eligible monthly savings forecast.
+
+All source queries contain `user_id`, currency where monetary evidence is used,
+and creation/update cutoff predicates. Goals in other currencies are excluded
+instead of being converted. The snapshot records warnings for missing or
+incomplete evidence and exposes source counts, identifiers, latest timestamps,
+the cutoff, trusted timezone, local date, and a deterministic SHA-256 snapshot
+identifier. Public responses do not expose the owner identifier or raw ledger
+records.
+
+`GET /api/v1/goal-planning/snapshot` builds this read-only snapshot. It does not
+persist a plan or change any goal, forecast, budget, profile, or contribution.
+
+## 6. Checkpoint 10.5 — forecast-to-savings-capacity bridge
+
+Capacity policy version `2026.1` accepts only the newest eligible owner-scoped,
+same-currency, monthly `savings_amount` forecast whose data and source timestamps
+do not exceed the snapshot cutoff. Each future forecast point becomes:
+
+- protected capacity from the non-negative 95% lower bound;
+- expected capacity from the non-negative point estimate;
+- upside capacity from the non-negative 95% upper bound.
+
+Negative savings are clipped to zero because debt cannot be allocated as goal
+funding. The snapshot returns monthly values, totals, the forecast run identifier,
+uncertainty reliability, protection-band name, and policy version. Provisional or
+unusable forecasts produce explicit warnings. These ranges are planning evidence,
+not Phase 11 user-controlled best/expected/worst scenarios.
+
+## 7. Batch 2 boundary
+
+Batch 2 adds no feasibility probability, deadline-risk estimator, goal ranking,
+greedy allocator, linear-programming solver, generated-plan table, plan approval,
+optimization endpoint, scenario controls, AI explanation, background task, or
+notification. Those responsibilities remain with Checkpoints 10.6–10.14 and
+later phases.

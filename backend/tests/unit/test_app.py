@@ -20,6 +20,8 @@ def test_factory_uses_injected_settings(test_settings: Settings) -> None:
     assert application.state.analytics_service is not None
     assert application.state.forecasting_service is not None
     assert application.state.goal_service is not None
+    assert application.state.contribution_service is not None
+    assert application.state.goal_planning_snapshot_service is not None
 
 
 def test_factory_returns_isolated_applications(test_settings: Settings) -> None:
