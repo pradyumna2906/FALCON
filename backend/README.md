@@ -503,3 +503,17 @@ Phases 10–13.
 
 The authoritative cumulative contract and checkpoint record is documented in
 [`docs/forecasting/PHASE_9_IMPLEMENTATION.md`](../docs/forecasting/PHASE_9_IMPLEMENTATION.md).
+
+## Multi-goal optimization implementation
+
+Phase 10 Batch 1 establishes the versioned goal-planning boundary and exposes
+authenticated create, list, get, partial-update, complete, and cancel operations
+under `/api/v1/goals`. Every lookup is owner-scoped, mutations lock the active
+goal before validating its lifecycle, client payloads cannot set ownership or
+status, and terminal goals retain history without further mutation. The existing
+goal schema is reused, so this batch adds no database migration. Contribution
+progress, probability, ranking, allocation, plan persistence, and optimization
+remain assigned to Checkpoints 10.3–10.14.
+
+The authoritative cumulative contract and checkpoint record is documented in
+[`docs/goals/PHASE_10_IMPLEMENTATION.md`](../docs/goals/PHASE_10_IMPLEMENTATION.md).
