@@ -519,5 +519,11 @@ owner-scoped planning snapshot; and a conservative bridge from Phase 9 monthly
 savings forecasts to protected, expected, and upside capacity. Goal ranking,
 probability, optimization, and persisted approval history remain deferred.
 
+Phase 10 Batch 3 adds per-goal feasibility probabilities and deadline-risk
+evidence, a deterministic explainable 0–100 ranking policy, and a non-persistent
+greedy reference allocator that consumes each month's protected 95% lower savings
+capacity at most once. The SciPy/HiGHS constrained optimizer, persisted plans,
+approval workflow, and public optimization API remain deferred.
+
 The authoritative cumulative contract and checkpoint record is documented in
 [`docs/goals/PHASE_10_IMPLEMENTATION.md`](../docs/goals/PHASE_10_IMPLEMENTATION.md).

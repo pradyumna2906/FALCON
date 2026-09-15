@@ -50,6 +50,10 @@ def test_progress_uses_exact_amounts_ratio_and_ceiling_monthly_need() -> None:
     )
 
     assert result.current_amount == Decimal("3000.0000")
+    assert result.goal_name == "Travel"
+    assert result.goal_type is GoalType.TRAVEL
+    assert result.priority is GoalPriority.HIGH
+    assert result.target_date == date(2027, 3, 14)
     assert result.remaining_amount == Decimal("7000.0000")
     assert result.funding_ratio == Decimal("0.300000")
     assert result.funding_percentage == Decimal("30.0000")

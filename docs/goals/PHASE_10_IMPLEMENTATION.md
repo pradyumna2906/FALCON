@@ -3,10 +3,12 @@
 Goal-planning contract version: `2026.1`
 
 This cumulative record freezes the approved Phase 10 semantics. Batch 1 contains
-Checkpoints 10.0–10.2 and Batch 2 contains Checkpoints 10.3–10.5. Together they
-establish goal management, contribution-aware progress, immutable planning
-evidence, and the forecast-to-savings-capacity bridge. They do not yet rank goals,
-allocate savings, or generate an optimized goal plan.
+Checkpoints 10.0–10.2, Batch 2 contains Checkpoints 10.3–10.5, and Batch 3
+contains Checkpoints 10.6–10.8. Together they establish goal management,
+contribution-aware progress, immutable planning evidence, the
+forecast-to-savings-capacity bridge, independent feasibility evidence,
+explainable ranking, and a deterministic greedy reference allocation. They do
+not yet generate a constrained optimized goal plan.
 
 ## 1. Checkpoint 10.0 — readiness and boundaries
 
@@ -157,10 +159,81 @@ uncertainty reliability, protection-band name, and policy version. Provisional o
 unusable forecasts produce explicit warnings. These ranges are planning evidence,
 not Phase 11 user-controlled best/expected/worst scenarios.
 
-## 7. Batch 2 boundary
+## 7. Checkpoint 10.6 — feasibility, probability, and deadline risk
+
+Feasibility policy version `2026.1` evaluates every goal independently against
+the shared savings-capacity evidence available through that goal's deadline. It
+calculates protected, expected, and upside capacity; exact shortfalls; and the
+first forecast month in which each capacity band could fund the remaining goal
+amount.
+
+The result is classified as funded, secure, feasible, stretch, unlikely,
+indeterminate, overdue, or unavailable. Secure means the 95% lower capacity is
+sufficient; feasible means the expected capacity is sufficient; stretch means
+only the 95% upper capacity is sufficient. A forecast that ends before the goal
+deadline cannot create a false failure: if the observed horizon is insufficient,
+the state is indeterminate and the probability is omitted.
+
+Completion probability uses a deterministic piecewise interpolation anchored at
+the 95% lower bound (`0.975`), expected value (`0.5`), and 95% upper bound
+(`0.025`). It is planning evidence rather than a promise or Monte Carlo scenario.
+Results expose the policy and method, evidence reliability, horizon, deadline
+risk, shortfalls, completion windows, and stable reason codes. These independent
+assessments deliberately reuse capacity and therefore do not claim that all
+goals can be achieved simultaneously.
+
+## 8. Checkpoint 10.7 — explainable deterministic goal ranking
+
+Ranking policy version `2026.1` produces one bounded 0–100 attention score from
+five auditable components:
+
+| Component | Maximum points | Meaning |
+|---|---:|---|
+| User priority | 40 | Preserves the user's low/medium/high/critical choice as the strongest signal |
+| Deadline urgency | 25 | Gives nearer and overdue deadlines more attention |
+| Goal-type safety | 15 | Gives emergency-fund and education goals a bounded safety weighting |
+| Deadline risk | 10 | Surfaces goals whose forecast evidence indicates pressure |
+| Completion momentum | 10 | Recognizes progress toward a still-unfunded goal |
+
+Ordering is deterministic: allocation-eligible goals come first, then total
+score, user-priority component, earlier deadline, completion momentum, and goal
+identifier break ties. Each item returns the component scores, feasibility state,
+deadline risk, probability, allocation eligibility, and stable reason codes.
+Ranking is an explainable policy input; it does not itself move money or
+constitute personalized investment advice.
+
+## 9. Checkpoint 10.8 — protected-capacity greedy baseline
+
+Greedy allocation policy version `2026.1` provides a safe reference result for
+the constrained solver planned in Checkpoint 10.9. For each forecast month it
+uses only the non-negative 95% lower savings capacity, visits eligible goals in
+rank order, and assigns no more than the goal's remaining amount. One month's
+capacity is consumed at most once, and no allocation is made after a goal's
+deadline.
+
+The immutable result contains a deterministic SHA-256 baseline identifier,
+monthly allocations, per-goal projected completion and remaining amounts, total
+capacity, allocated and unallocated totals, source policy versions, and explicit
+warnings for missing/provisional capacity, incomplete snapshot evidence,
+unallocated capacity, and unfunded goals. Missing capacity produces a valid
+zero-allocation result rather than invented savings. The baseline is pure and
+non-persistent: it does not create a contribution, mutate a goal, approve a plan,
+or use the linear-programming solver.
+
+`analyze_goal_planning_snapshot()` executes the complete Batch 3 chain against
+one snapshot: feasibility assessment, ranking, and greedy baseline generation.
+
+## 10. Batch boundaries
 
 Batch 2 adds no feasibility probability, deadline-risk estimator, goal ranking,
 greedy allocator, linear-programming solver, generated-plan table, plan approval,
 optimization endpoint, scenario controls, AI explanation, background task, or
 notification. Those responsibilities remain with Checkpoints 10.6–10.14 and
 later phases.
+
+Batch 3 adds feasibility, deadline-risk, ranking, and the greedy reference
+allocator. It adds no SciPy/HiGHS optimization, mutable policy weights,
+user-controlled scenario assumptions, generated-plan persistence, approval or
+application workflow, public optimization endpoint, AI explanation, background
+task, or notification. Those responsibilities remain with Checkpoints 10.9–10.14
+and later phases.

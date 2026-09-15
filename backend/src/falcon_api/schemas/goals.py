@@ -212,6 +212,10 @@ class ContributionListResponse(GoalSchema):
 
 class GoalProgressResponse(GoalSchema):
     goal_id: UUID
+    goal_name: GoalName
+    goal_type: GoalType
+    priority: GoalPriority
+    target_date: date
     currency: GoalCurrency
     target_amount: GoalMoney
     starting_amount: GoalMoney

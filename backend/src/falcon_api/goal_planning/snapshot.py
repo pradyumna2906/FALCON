@@ -621,6 +621,10 @@ def _snapshot_id(
         "goals": [
             {
                 "id": str(goal.goal_id),
+                "name": goal.goal_name,
+                "goal_type": goal.goal_type.value,
+                "priority": goal.priority.value,
+                "target_date": goal.target_date.isoformat(),
                 "current": str(goal.current_amount),
                 "remaining": str(goal.remaining_amount),
             }

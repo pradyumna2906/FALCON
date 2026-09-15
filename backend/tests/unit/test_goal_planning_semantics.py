@@ -20,7 +20,7 @@ def test_goal_contract_has_stable_version_and_limit() -> None:
     assert MAX_GOAL_LIST_LIMIT == 100
 
 
-def test_batch_1_documentation_freezes_scope_and_deferrals() -> None:
+def test_phase_10_documentation_freezes_scope_and_deferrals() -> None:
     document = (
         Path(__file__).resolve().parents[3]
         / "docs"
@@ -31,7 +31,10 @@ def test_batch_1_documentation_freezes_scope_and_deferrals() -> None:
     assert "Goal-planning contract version: `2026.1`" in document
     assert "Batch 1 contains\nCheckpoints 10.0–10.2" in document
     assert "Batch 2 contains Checkpoints 10.3–10.5" in document
+    assert "Batch 3\ncontains Checkpoints 10.6–10.8" in document
     assert "Batch 2 adds no feasibility probability" in document
+    assert "Batch 3 adds feasibility, deadline-risk, ranking" in document
+    assert "Checkpoint 10.9" in document
     assert "Phase 11 owns" in document
 
 

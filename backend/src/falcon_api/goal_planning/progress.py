@@ -9,7 +9,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from falcon_api.analytics.types import MONEY_QUANTUM, money
-from falcon_api.models.enums import GoalStatus
+from falcon_api.models.enums import GoalPriority, GoalStatus, GoalType
 from falcon_api.models.planning import Goal
 
 
@@ -32,6 +32,10 @@ class GoalProgress:
     """Exact progress evidence for one goal at one trusted local date."""
 
     goal_id: UUID
+    goal_name: str
+    goal_type: GoalType
+    priority: GoalPriority
+    target_date: date
     currency: str
     target_amount: Decimal
     starting_amount: Decimal
@@ -79,6 +83,10 @@ def calculate_goal_progress(
     )
     return GoalProgress(
         goal_id=goal.id,
+        goal_name=goal.name,
+        goal_type=GoalType(goal.goal_type),
+        priority=GoalPriority(goal.priority),
+        target_date=goal.target_date,
         currency=goal.currency,
         target_amount=target,
         starting_amount=starting,
