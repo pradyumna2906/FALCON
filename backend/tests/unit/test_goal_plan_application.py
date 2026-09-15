@@ -32,6 +32,15 @@ class FixedClock:
         return NOW
 
 
+def test_default_snapshot_service_shares_the_orchestration_clock() -> None:
+    clock = FixedClock()
+
+    service = MultiGoalOptimizationService(clock=clock)
+
+    assert service._clock is clock
+    assert service._snapshots._clock is clock
+
+
 def _dependencies(*, with_capacity: bool = True):
     snapshot, _ = goal_plan_case(with_capacity=with_capacity)
     run = transient_goal_plan_run(with_capacity=with_capacity)

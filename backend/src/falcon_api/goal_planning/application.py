@@ -44,11 +44,13 @@ class MultiGoalOptimizationService:
         monitor: GoalPlanMonitor | None = None,
         clock: Clock | None = None,
     ) -> None:
-        self._snapshots = snapshot_service or GoalPlanningSnapshotService()
+        self._clock = clock or SystemClock()
+        self._snapshots = snapshot_service or GoalPlanningSnapshotService(
+            clock=self._clock
+        )
         self._repository = repository or GoalPlanRepository()
         self._solver = solver
         self._monitor = monitor or GoalPlanMonitor()
-        self._clock = clock or SystemClock()
 
     async def generate(
         self,
