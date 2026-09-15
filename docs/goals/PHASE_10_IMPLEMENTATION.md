@@ -4,13 +4,14 @@ Goal-planning contract version: `2026.1`
 
 This cumulative record freezes the approved Phase 10 semantics. Batch 1 contains
 Checkpoints 10.0–10.2, Batch 2 contains Checkpoints 10.3–10.5, Batch 3 contains
-Checkpoints 10.6–10.8, and Batch 4 contains Checkpoints 10.9–10.11. Together
-they establish goal management, contribution-aware progress, immutable planning
-evidence, the forecast-to-savings-capacity bridge, independent feasibility
-evidence, explainable ranking, a deterministic greedy reference allocation, a
-constrained optimizer, fail-safe financial guardrails, and a unified monthly
-contribution schedule with baseline comparison. The resulting plan is still
-non-persistent and cannot move money.
+Checkpoints 10.6–10.8, Batch 4 contains Checkpoints 10.9–10.11, and final Batch 5
+contains Checkpoints 10.12–10.14. Together they establish goal management,
+contribution-aware progress, immutable planning evidence, the
+forecast-to-savings-capacity bridge, independent feasibility evidence,
+explainable ranking, a deterministic greedy reference allocation, a constrained
+optimizer, fail-safe financial guardrails, a unified monthly contribution
+schedule, immutable versioned persistence, explicit approval history, and an
+authenticated public API. Approval records a decision but cannot move money.
 
 ## 1. Checkpoint 10.0 — readiness and boundaries
 
@@ -301,11 +302,102 @@ SHA-256 plan identifier.
 Fixed assumptions explicitly state that the plan uses only protected capacity,
 excludes current liquid balance, treats the savings forecast as post-expense,
 does not double-count debt payments, enforces deadlines, performs no currency
-conversion, accepts no Phase 11 scenario overrides, and is non-persistent. Batch
-4 creates no contribution, changes no goal, stores no approval, and exposes no
-new public endpoint.
+conversion, accepts no Phase 11 scenario overrides, and cannot move money. The
+pure builder creates no contribution, changes no goal, stores no approval, and
+performs no persistence itself. Checkpoint 10.12 persists its verified output at
+the application boundary.
 
-## 13. Batch boundaries
+## 13. Checkpoint 10.12 — immutable plan persistence and orchestration
+
+Migration `b3e8f6c2d715` adds five owner-scoped tables:
+
+| Table | Immutable evidence |
+|---|---|
+| `goal_plan_runs` | Cutoff, currency, forecast, hashes, policy versions, solver result, strategy, totals, scores, counts, and warnings |
+| `goal_plan_outcomes` | Frozen goal attributes, rank, feasibility, probability, shortfalls, allocations, and completion evidence |
+| `goal_plan_periods` | Each protected-capacity month and its exact allocated/unallocated reconciliation |
+| `goal_plan_allocations` | Positive goal assignments, cumulative allocation, and projected remaining amount |
+| `goal_plan_events` | Generated, approved, rejected, and superseded lifecycle events |
+
+Composite owner foreign keys prevent runs, forecasts, outcomes, periods,
+allocations, events, predecessors, or successors from crossing users. Allocation
+foreign keys also bind each stored `goal_id` to its outcome. PostgreSQL checks
+freeze closed enum values, SHA-256 identifiers, exact money reconciliation,
+probability bounds, and event shapes. Every plan table rejects `UPDATE`; lifecycle
+changes are append-only events validated under a row lock. User deletion cascades
+through private plans, while a forecast, predecessor, or successor cannot be
+deleted independently in a way that silently rewrites retained history.
+
+`MultiGoalOptimizationService.generate()` performs one request transaction:
+
+```text
+build owner-scoped snapshot
+→ analyze feasibility and rank goals
+→ build greedy reference
+→ evaluate guardrails
+→ solve and exactly verify allocations
+→ select safe schedule
+→ persist run, outcomes, periods, allocations, and generated event
+```
+
+Any invalid snapshot, mismatched currency or hash, unverified allocation, or
+persistence invariant fails the transaction with `goal_plan_unavailable`; no
+partial plan survives. Regeneration creates a new immutable run linked to its
+predecessor, then appends a supersession event to the prior generated or approved
+run. Previous versions remain available for comparison.
+
+Approval and rejection append auditable user-origin events. Approval is
+decision-only: it never creates a `goal_contribution`, changes a goal, initiates a
+transfer, or claims that forecast savings are already available.
+
+## 14. Checkpoint 10.13 — authenticated goal-plan API
+
+The owner is always derived from the authenticated principal. A missing plan and
+a foreign plan return the same `goal_plan_not_found` response. Generation accepts
+only an optional three-letter currency; trusted timezone, cutoff, goal progress,
+forecast evidence, solver, safety policy, and all policy versions remain
+server-owned.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/goal-plans` | Generate and persist one immutable plan |
+| `GET` | `/api/v1/goal-plans` | List at most 100 recent owner-scoped summaries |
+| `GET` | `/api/v1/goal-plans/{plan_id}` | Retrieve a complete owned plan and its history |
+| `POST` | `/api/v1/goal-plans/{plan_id}/approve` | Append approval without moving money |
+| `POST` | `/api/v1/goal-plans/{plan_id}/reject` | Append rejection to a generated plan |
+| `POST` | `/api/v1/goal-plans/{plan_id}/regenerate` | Create a successor and supersede the prior plan |
+
+Detail responses expose frozen goals, monthly contributions, completion
+probabilities, expected and projected completion periods, shortfalls, reliability,
+reason codes, policy versions, solver provenance, guardrail reserve, baseline
+comparison, and lifecycle history. They never expose `user_id`, account or
+transaction records, liquid balance, debt balances, or client-controlled
+financial facts. List responses omit nested schedules and are bounded to 100
+runs; monthly forecast horizons are already bounded to 24 periods.
+
+## 15. Checkpoint 10.14 — monitoring, security, and closure
+
+Goal-plan monitoring policy version `2026.1` emits only closed, low-cardinality
+operational evidence: generate/regenerate/approve/reject operation, bounded goal
+and horizon bands, selected strategy, normalized solver result, bounded
+feasible/at-risk counts, utilization band, reliability label, lifecycle status,
+and duration. It never logs identity, plan or goal identifiers, goal names,
+currency, exact target or allocation values, account data, or transactions.
+
+Closure coverage includes deterministic optimizer and fallback tests, exact
+constraint tests, persistence graph and lifecycle tests, authenticated API and
+OpenAPI tests, foreign-owner hiding, PostgreSQL immutability and cascade tests,
+upgrade/downgrade migration lifecycle, complete backend regression, branch
+coverage, repository hooks, container build, and Compose smoke verification.
+Phase 10 implementation is complete only when these gates pass in CI and the
+feature pull request is squash-merged into `develop`.
+
+Phase 10 deliberately does not add user-controlled best/expected/worst scenario
+simulation, generative-AI explanations, scheduled plan execution, notifications,
+automatic transfers, or automatic contributions. Those responsibilities remain
+assigned to Phases 11–13.
+
+## 16. Batch boundaries
 
 Batch 2 adds no feasibility probability, deadline-risk estimator, goal ranking,
 greedy allocator, linear-programming solver, generated-plan table, plan approval,
@@ -322,10 +414,12 @@ and later phases.
 
 Batch 4 adds the SciPy/HiGHS constrained optimizer, debt and emergency-fund
 guardrails, exact invariant verification, deterministic safe fallback, and a
-unified non-persistent schedule with baseline comparison. It adds no mutable
-policy weights, user-controlled scenario assumptions, generated-plan table,
-approval or contribution-application workflow, public optimization endpoint, AI
-explanation, background task, or notification. Persistence, approval/application,
-and public API responsibilities remain with Checkpoints 10.12–10.14; scenarios,
+unified pure schedule with baseline comparison. It adds no mutable policy weights,
+user-controlled scenario assumptions, generated-plan table, approval workflow,
+public optimization endpoint, AI explanation, background task, or notification.
+
+Final Batch 5 adds immutable plan storage, append-only approval/version history,
+transactional orchestration, owner-scoped public plan APIs, and privacy-safe
+monitoring. It does not apply a plan or move money. Mutable scenario assumptions,
 generative explanation, and scheduled execution remain assigned to Phases
 11–13.

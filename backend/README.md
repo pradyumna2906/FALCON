@@ -35,7 +35,7 @@ The current backend provides:
 - A versioned Phase 10 multi-goal planning foundation with exact progress,
   feasibility and ranking evidence, protected forecast capacity, constrained
   HiGHS allocation, financial guardrails, deterministic fallback, and auditable
-  non-persistent contribution schedules.
+  immutable plan versions with explicit approval history and authenticated APIs.
 
 ## Requirements
 
@@ -532,10 +532,18 @@ approval workflow, and public optimization API remain deferred.
 Phase 10 Batch 4 adds the pinned SciPy/HiGHS constrained optimizer, exact
 post-solver invariant verification, debt-evidence blocking, liquid-balance
 protection, a hard emergency-fund reserve, and deterministic fallback. It returns
-one non-persistent monthly contribution schedule plus greedy-versus-optimized
-score, funding, deadline, and guardrail-compliance evidence. Persisted plan
-versions, approval/application, and the public optimization API remain deferred
-to Checkpoints 10.12–10.14.
+one pure monthly contribution schedule plus greedy-versus-optimized score,
+funding, deadline, and guardrail-compliance evidence.
+
+Phase 10 final Batch 5 adds migration `b3e8f6c2d715`, immutable owner-scoped plan
+runs, outcomes, periods, allocations, and append-only lifecycle events. One
+transactional service freezes a new snapshot, builds and verifies the plan, and
+persists it without partial writes. Six authenticated operations under
+`/api/v1/goal-plans` generate, list, retrieve, approve, reject, and regenerate
+plans. Approval records a decision only—it does not move money or create a goal
+contribution. Foreign plans remain indistinguishable from missing plans, clients
+cannot override trusted evidence or policies, and monitoring emits only bounded
+privacy-safe operational fields.
 
 The authoritative cumulative contract and checkpoint record is documented in
 [`docs/goals/PHASE_10_IMPLEMENTATION.md`](../docs/goals/PHASE_10_IMPLEMENTATION.md).

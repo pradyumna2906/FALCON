@@ -34,6 +34,7 @@ from falcon_api.goal_planning import (
     ContributionService,
     GoalPlanningSnapshotService,
     GoalService,
+    MultiGoalOptimizationService,
 )
 from falcon_api.infrastructure.database import (
     DatabaseResources,
@@ -168,6 +169,7 @@ def create_app(
     application.state.goal_planning_snapshot_service = (
         GoalPlanningSnapshotService()
     )
+    application.state.goal_plan_service = MultiGoalOptimizationService()
 
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)

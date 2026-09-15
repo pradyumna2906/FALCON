@@ -151,6 +151,23 @@ class ContributionSourceType(StrEnum):
     TRANSACTION = "transaction"
     OPENING_BALANCE = "opening_balance"
 
+
+class GoalPlanStatus(StrEnum):
+    """Append-only lifecycle states for an immutable generated goal plan."""
+
+    GENERATED = "generated"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    SUPERSEDED = "superseded"
+
+
+class GoalPlanEventSource(StrEnum):
+    """Trusted origin of a goal-plan lifecycle event."""
+
+    SYSTEM = "system"
+    USER = "user"
+
+
 class AuthenticationChallengePurpose(StrEnum):
     """Supported single-use authentication challenge purposes."""
 

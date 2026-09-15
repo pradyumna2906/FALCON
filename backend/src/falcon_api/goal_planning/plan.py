@@ -70,7 +70,7 @@ class GoalPlanAssumption(StrEnum):
     DEBT_PAYMENT_NOT_DOUBLE_COUNTED = "debt_payment_not_double_counted"
     DEADLINES_ARE_HARD_LIMITS = "deadlines_are_hard_limits"
     NO_CURRENCY_CONVERSION = "no_currency_conversion"
-    PLAN_IS_NON_PERSISTENT = "plan_is_non_persistent"
+    PLAN_DOES_NOT_MOVE_MONEY = "plan_does_not_move_money"
     NO_SCENARIO_OVERRIDES = "no_scenario_overrides"
 
 

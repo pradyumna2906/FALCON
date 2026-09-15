@@ -15,6 +15,13 @@ from falcon_api.models.classification import (
     UserMerchantMemory,
 )
 from falcon_api.models.forecasting import ForecastPoint, ForecastRun
+from falcon_api.models.goal_plan import (
+    GoalPlanAllocation,
+    GoalPlanEvent,
+    GoalPlanOutcome,
+    GoalPlanPeriod,
+    GoalPlanRun,
+)
 from falcon_api.models.import_job import ImportJob, ImportJobIssue
 from falcon_api.models.ledger import Transaction, TransferGroup
 from falcon_api.models.planning import (
@@ -42,6 +49,11 @@ __all__ = [
     "ForecastRun",
     "Goal",
     "GoalContribution",
+    "GoalPlanAllocation",
+    "GoalPlanEvent",
+    "GoalPlanOutcome",
+    "GoalPlanPeriod",
+    "GoalPlanRun",
     "ImportJob",
     "ImportJobIssue",
     "LiabilityDetail",

@@ -33,12 +33,20 @@ def test_phase_10_documentation_freezes_scope_and_deferrals() -> None:
     assert "Batch 2 contains Checkpoints 10.3–10.5" in document
     assert "Batch 3 contains\nCheckpoints 10.6–10.8" in document
     assert "Batch 4 contains Checkpoints 10.9–10.11" in document
+    assert "final Batch 5\ncontains Checkpoints 10.12–10.14" in document
     assert "Batch 2 adds no feasibility probability" in document
     assert "Batch 3 adds feasibility, deadline-risk, ranking" in document
     assert "Batch 4 adds the SciPy/HiGHS constrained optimizer" in document
     assert "Checkpoint 10.9" in document
     assert "Checkpoint 10.10" in document
     assert "Checkpoint 10.11" in document
+    assert "Checkpoint 10.12" in document
+    assert "Checkpoint 10.13" in document
+    assert "Checkpoint 10.14" in document
+    assert "b3e8f6c2d715" in document
+    assert "Approval is\ndecision-only" in document
+    assert "POST` | `/api/v1/goal-plans" in document
+    assert "never logs identity" in document
     assert "Phase 11 owns" in document
 
 

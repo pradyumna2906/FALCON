@@ -4,6 +4,10 @@ from falcon_api.goal_planning.analysis import (
     GoalPlanningAnalysis,
     analyze_goal_planning_snapshot,
 )
+from falcon_api.goal_planning.application import (
+    GoalPlanGenerationCommand,
+    MultiGoalOptimizationService,
+)
 from falcon_api.goal_planning.capacity import (
     CAPACITY_POLICY_VERSION,
     SavingsCapacityPlan,
@@ -61,6 +65,15 @@ from falcon_api.goal_planning.optimizer import (
     optimize_goal_allocations,
     verify_allocation_invariants,
 )
+from falcon_api.goal_planning.monitoring import (
+    GOAL_PLAN_OPERATION_POLICY_VERSION,
+    GoalPlanMonitor,
+    GoalPlanOperation,
+)
+from falcon_api.goal_planning.persistence import (
+    MAX_GOAL_PLAN_HISTORY,
+    GoalPlanRepository,
+)
 from falcon_api.goal_planning.plan import (
     GOAL_OPTIMIZATION_PLAN_POLICY_VERSION,
     GoalContributionSchedule,
@@ -113,8 +126,10 @@ __all__ = [
     "FEASIBILITY_POLICY_VERSION",
     "GOAL_PLANNING_CONTRACT_VERSION",
     "GOAL_OPTIMIZATION_PLAN_POLICY_VERSION",
+    "GOAL_PLAN_OPERATION_POLICY_VERSION",
     "GREEDY_ALLOCATION_POLICY_VERSION",
     "MAX_GOAL_LIST_LIMIT",
+    "MAX_GOAL_PLAN_HISTORY",
     "OPTIMIZATION_GUARDRAIL_POLICY_VERSION",
     "RANKING_POLICY_VERSION",
     "AllocationInvariantReport",
@@ -137,6 +152,10 @@ __all__ = [
     "GoalFundingState",
     "GoalMonthlyAllocation",
     "GoalOptimizationPlan",
+    "GoalPlanGenerationCommand",
+    "GoalPlanMonitor",
+    "GoalPlanOperation",
+    "GoalPlanRepository",
     "GoalPlanAssumption",
     "GoalPlanComparison",
     "GoalPlanReasonCode",
@@ -156,6 +175,7 @@ __all__ = [
     "GreedyAllocationBaseline",
     "GreedyBaselineWarning",
     "MonthlyAllocationPeriod",
+    "MultiGoalOptimizationService",
     "LinearProgramSolution",
     "LinearProgramSolver",
     "LinearSolverStatus",
