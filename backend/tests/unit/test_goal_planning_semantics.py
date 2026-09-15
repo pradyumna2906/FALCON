@@ -31,11 +31,30 @@ def test_phase_10_documentation_freezes_scope_and_deferrals() -> None:
     assert "Goal-planning contract version: `2026.1`" in document
     assert "Batch 1 contains\nCheckpoints 10.0–10.2" in document
     assert "Batch 2 contains Checkpoints 10.3–10.5" in document
-    assert "Batch 3\ncontains Checkpoints 10.6–10.8" in document
+    assert "Batch 3 contains\nCheckpoints 10.6–10.8" in document
+    assert "Batch 4 contains Checkpoints 10.9–10.11" in document
     assert "Batch 2 adds no feasibility probability" in document
     assert "Batch 3 adds feasibility, deadline-risk, ranking" in document
+    assert "Batch 4 adds the SciPy/HiGHS constrained optimizer" in document
     assert "Checkpoint 10.9" in document
+    assert "Checkpoint 10.10" in document
+    assert "Checkpoint 10.11" in document
     assert "Phase 11 owns" in document
+
+
+def test_phase_10_optimizer_dependencies_are_pinned_for_production() -> None:
+    repository_root = Path(__file__).resolve().parents[3]
+    pyproject = (repository_root / "backend" / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
+    dockerfile = (repository_root / "backend" / "Dockerfile").read_text(
+        encoding="utf-8"
+    )
+
+    assert "optimization = [" in pyproject
+    assert '"numpy==2.5.2"' in pyproject
+    assert '"scipy==1.18.1"' in pyproject
+    assert 'python -m pip install --no-compile ".[optimization]"' in dockerfile
 
 
 def test_currency_is_normalized_without_conversion() -> None:

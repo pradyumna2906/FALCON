@@ -11,7 +11,7 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 WORKDIR /build
 COPY backend/pyproject.toml backend/README.md ./
 COPY backend/src ./src
-RUN python -m pip install --no-compile .
+RUN python -m pip install --no-compile ".[optimization]"
 
 FROM ${PYTHON_IMAGE} AS runtime
 

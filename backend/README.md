@@ -32,6 +32,10 @@ The current backend provides:
   live freshness, and privacy-safe aggregate monitoring.
 - A versioned Phase 9 forecasting-target contract and owner-, currency-,
   history-, and cutoff-scoped daily/monthly source-series foundation.
+- A versioned Phase 10 multi-goal planning foundation with exact progress,
+  feasibility and ranking evidence, protected forecast capacity, constrained
+  HiGHS allocation, financial guardrails, deterministic fallback, and auditable
+  non-persistent contribution schedules.
 
 ## Requirements
 
@@ -524,6 +528,14 @@ evidence, a deterministic explainable 0–100 ranking policy, and a non-persiste
 greedy reference allocator that consumes each month's protected 95% lower savings
 capacity at most once. The SciPy/HiGHS constrained optimizer, persisted plans,
 approval workflow, and public optimization API remain deferred.
+
+Phase 10 Batch 4 adds the pinned SciPy/HiGHS constrained optimizer, exact
+post-solver invariant verification, debt-evidence blocking, liquid-balance
+protection, a hard emergency-fund reserve, and deterministic fallback. It returns
+one non-persistent monthly contribution schedule plus greedy-versus-optimized
+score, funding, deadline, and guardrail-compliance evidence. Persisted plan
+versions, approval/application, and the public optimization API remain deferred
+to Checkpoints 10.12–10.14.
 
 The authoritative cumulative contract and checkpoint record is documented in
 [`docs/goals/PHASE_10_IMPLEMENTATION.md`](../docs/goals/PHASE_10_IMPLEMENTATION.md).

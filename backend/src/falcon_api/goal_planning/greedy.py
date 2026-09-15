@@ -51,8 +51,8 @@ class MonthlyAllocationPeriod:
 
 
 @dataclass(frozen=True, slots=True)
-class GoalBaselineProjection:
-    """Projected goal outcome produced by the greedy reference policy."""
+class GoalAllocationProjection:
+    """Projected goal outcome produced by an exact allocation schedule."""
 
     goal_id: UUID
     rank: int
@@ -61,6 +61,10 @@ class GoalBaselineProjection:
     projected_remaining_amount: Decimal
     projected_completion_period: date | None
     deadline_met: bool
+
+
+# Preserve the public Batch 3 name while making the shared type strategy-neutral.
+GoalBaselineProjection = GoalAllocationProjection
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +92,7 @@ def build_greedy_allocation_baseline(
     ranking: GoalRanking,
 ) -> GreedyAllocationBaseline:
     """Allocate protected monthly capacity by rank without database mutation."""
-    _validate_inputs(snapshot=snapshot, ranking=ranking)
+    validate_allocation_inputs(snapshot=snapshot, ranking=ranking)
     goals = {goal.goal_id: goal for goal in snapshot.goals}
     remaining = {
         goal_id: money(goal.remaining_amount) for goal_id, goal in goals.items()
@@ -200,7 +204,7 @@ def build_greedy_allocation_baseline(
     )
 
 
-def _validate_inputs(
+def validate_allocation_inputs(
     *,
     snapshot: GoalPlanningSnapshot,
     ranking: GoalRanking,
@@ -218,6 +222,8 @@ def _validate_inputs(
         raise ValueError("Ranking positions must be contiguous and ordered.")
     for item in ranking.items:
         goal = goal_by_id[item.goal_id]
+        if not goal.remaining_amount.is_finite() or goal.remaining_amount < 0:
+            raise ValueError("Goal remaining amounts must be finite and non-negative.")
         expected_eligibility = (
             goal.remaining_amount > 0 and goal.target_date > goal.calculated_on
         )
@@ -233,10 +239,19 @@ def _validate_inputs(
         raise ValueError("Savings capacity periods must be unique.")
     if any(period < snapshot.local_date for period in periods):
         raise ValueError(
-            "Greedy allocation cannot use capacity before the snapshot date."
+            "Goal allocation cannot use capacity before the snapshot date."
         )
+    if any(not point.protected_amount.is_finite() for point in capacity.points):
+        raise ValueError("Protected savings capacity must be finite.")
     if any(point.protected_amount < 0 for point in capacity.points):
         raise ValueError("Protected savings capacity must be non-negative.")
+    if not capacity.protected_total.is_finite():
+        raise ValueError("Protected savings capacity total must be finite.")
+    point_total = money(
+        sum((point.protected_amount for point in capacity.points), Decimal("0"))
+    )
+    if money(capacity.protected_total) != point_total:
+        raise ValueError("Protected savings capacity total must match its periods.")
 
 
 def _projection(

@@ -3,12 +3,14 @@
 Goal-planning contract version: `2026.1`
 
 This cumulative record freezes the approved Phase 10 semantics. Batch 1 contains
-Checkpoints 10.0–10.2, Batch 2 contains Checkpoints 10.3–10.5, and Batch 3
-contains Checkpoints 10.6–10.8. Together they establish goal management,
-contribution-aware progress, immutable planning evidence, the
-forecast-to-savings-capacity bridge, independent feasibility evidence,
-explainable ranking, and a deterministic greedy reference allocation. They do
-not yet generate a constrained optimized goal plan.
+Checkpoints 10.0–10.2, Batch 2 contains Checkpoints 10.3–10.5, Batch 3 contains
+Checkpoints 10.6–10.8, and Batch 4 contains Checkpoints 10.9–10.11. Together
+they establish goal management, contribution-aware progress, immutable planning
+evidence, the forecast-to-savings-capacity bridge, independent feasibility
+evidence, explainable ranking, a deterministic greedy reference allocation, a
+constrained optimizer, fail-safe financial guardrails, and a unified monthly
+contribution schedule with baseline comparison. The resulting plan is still
+non-persistent and cannot move money.
 
 ## 1. Checkpoint 10.0 — readiness and boundaries
 
@@ -19,9 +21,11 @@ goal types, lifecycle states, composite ownership keys, contribution integrity
 triggers, and priority/deadline indexes. Batch 1 therefore adds no duplicate
 table or migration.
 
-The pinned development stack already includes SciPy with its HiGHS linear
-programming implementation. Solver work remains deferred to Checkpoint 10.9;
-Batch 1 introduces no new runtime dependency.
+The pinned development stack already included SciPy with its HiGHS linear
+programming implementation. Batch 4 formalizes a pinned `optimization` extra
+containing NumPy and SciPy, and the production API image installs that extra.
+The provider remains lazy so a minimal library installation fails safely into a
+deterministic fallback rather than failing application import.
 
 Phase 10 owns goal management, progress, feasibility, completion-probability
 evidence, goal ranking, constrained savings allocation, contribution schedules,
@@ -223,7 +227,85 @@ or use the linear-programming solver.
 `analyze_goal_planning_snapshot()` executes the complete Batch 3 chain against
 one snapshot: feasibility assessment, ranking, and greedy baseline generation.
 
-## 10. Batch boundaries
+## 10. Checkpoint 10.9 — constrained SciPy/HiGHS optimizer
+
+Constrained optimization policy version `2026.1` defines one continuous linear
+program over monthly goal allocations and per-goal funded fractions. It
+maximizes the sum of each explainable ranking score multiplied by that goal's
+funded fraction. A bounded rank-order tie break preserves deterministic choices
+when primary scores are equal.
+
+The hard constraints require all allocations to be non-negative, keep each
+month within that month's protected 95% lower savings capacity, keep every goal
+within its exact remaining amount, link its funded fraction to actual assigned
+money, and forbid assignment after its deadline. Capacity is shared across all
+goals, so it can be consumed only once. The model uses no expected or upside
+forecast money and performs no currency conversion.
+
+`SciPyHighsSolver` is an injectable, lazy adapter around the pinned HiGHS method.
+Provider outcomes are normalized as optimal, infeasible, unbounded, failed, or
+unavailable. Output dimensions, finite values, bounds, and every floating-point
+constraint are checked before any result is accepted. Accepted solver values are
+rounded down to FALCON's four-decimal money scale and then rechecked with exact
+`Decimal` invariants. The candidate includes provider/version/status evidence,
+model dimensions, exact monthly allocations, projections, totals, a weighted
+funding score, and stable outcome codes.
+
+## 11. Checkpoint 10.10 — financial guardrails and safe fallback
+
+Guardrail policy version `2026.1` evaluates the immutable snapshot before the
+solver runs. Missing or zero protected capacity, no allocation-eligible goals,
+or incomplete minimum-payment evidence for any debt account blocks automatic
+allocation. Provisional forecasts and incomplete profile or budget evidence
+remain explicit cautions instead of being silently treated as complete.
+
+Current liquid balances are protected evidence and are never made available to
+the optimizer. When a positive budget baseline exists, the emergency target is
+the user's configured target months or a fixed three-month default, multiplied
+by the monthly expense baseline. Any gap between that target and non-negative
+liquid balance becomes a hard reserve. At every monthly prefix, non-emergency
+allocations cannot exceed cumulative protected capacity minus that reserve.
+Emergency-fund goals may consume the reserved capacity; if no eligible
+emergency-fund goal can use it, it remains unallocated.
+
+Observed savings forecasts already represent income less observed expenses.
+Debt minimum payments are therefore audited for completeness and reported, but
+are not subtracted from forecast savings a second time. This avoids overstating
+capacity through missing debt terms and understating it through double counting.
+
+Every selected schedule is rechecked for exact period identity, monthly totals,
+single-use capacity, known goal and rank, positive allocation, goal cap,
+deadline, emergency reserve, and aggregate reconciliation. If HiGHS is missing,
+fails, reports no usable solution, returns non-finite or unsafe values, or
+underperforms the guardrail-aware deterministic reference after rounding, FALCON
+selects a deterministic guarded greedy schedule. A blocking guardrail instead
+selects a zero-allocation schedule.
+
+## 12. Checkpoint 10.11 — unified schedule and baseline comparison
+
+`build_goal_optimization_plan()` executes the Batch 3 analysis, Batch 4
+guardrails, constrained optimizer, invariant verification, and safe selection in
+one pure orchestration path. It returns one exact monthly contribution schedule,
+per-goal allocated and remaining amounts, projected completion periods, funded
+and deadline-met counts, allocated/unallocated totals, and the selected weighted
+funding score.
+
+The comparison keeps four decisions auditable: the original Checkpoint 10.8
+greedy baseline, whether that baseline complies with the new emergency reserve,
+the guarded deterministic fallback, and the optimized candidate when one exists.
+It exposes score, allocation, funded-goal, deadline, and delta evidence without
+claiming that a larger raw allocation is automatically safer. The selected
+result, reserve, strategy, reasons, and exact schedule produce a deterministic
+SHA-256 plan identifier.
+
+Fixed assumptions explicitly state that the plan uses only protected capacity,
+excludes current liquid balance, treats the savings forecast as post-expense,
+does not double-count debt payments, enforces deadlines, performs no currency
+conversion, accepts no Phase 11 scenario overrides, and is non-persistent. Batch
+4 creates no contribution, changes no goal, stores no approval, and exposes no
+new public endpoint.
+
+## 13. Batch boundaries
 
 Batch 2 adds no feasibility probability, deadline-risk estimator, goal ranking,
 greedy allocator, linear-programming solver, generated-plan table, plan approval,
@@ -237,3 +319,13 @@ user-controlled scenario assumptions, generated-plan persistence, approval or
 application workflow, public optimization endpoint, AI explanation, background
 task, or notification. Those responsibilities remain with Checkpoints 10.9–10.14
 and later phases.
+
+Batch 4 adds the SciPy/HiGHS constrained optimizer, debt and emergency-fund
+guardrails, exact invariant verification, deterministic safe fallback, and a
+unified non-persistent schedule with baseline comparison. It adds no mutable
+policy weights, user-controlled scenario assumptions, generated-plan table,
+approval or contribution-application workflow, public optimization endpoint, AI
+explanation, background task, or notification. Persistence, approval/application,
+and public API responsibilities remain with Checkpoints 10.12–10.14; scenarios,
+generative explanation, and scheduled execution remain assigned to Phases
+11–13.

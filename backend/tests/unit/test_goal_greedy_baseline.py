@@ -302,6 +302,14 @@ def test_baseline_rejects_snapshot_and_ranking_mismatch() -> None:
             snapshot=replace(snapshot, goals=(goal, goal)),
             ranking=ranking,
         )
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        build_greedy_allocation_baseline(
+            snapshot=replace(
+                snapshot,
+                goals=(replace(goal, remaining_amount=Decimal("NaN")),),
+            ),
+            ranking=ranking,
+        )
 
 
 @pytest.mark.parametrize(
@@ -352,6 +360,23 @@ def test_baseline_rejects_snapshot_and_ranking_mismatch() -> None:
                 )
             ),
             "non-negative",
+        ),
+        (
+            replace(_capacity(), protected_total=Decimal("999")),
+            "total must match",
+        ),
+        (
+            _capacity(
+                points=(
+                    SavingsCapacityPoint(
+                        date(2026, 10, 1),
+                        Decimal("NaN"),
+                        Decimal("2"),
+                        Decimal("3"),
+                    ),
+                )
+            ),
+            "must be finite",
         ),
     ],
 )
