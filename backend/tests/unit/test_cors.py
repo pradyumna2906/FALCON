@@ -64,7 +64,7 @@ def test_trusted_preflight_is_limited_correlated_and_logged(
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == TRUSTED_ORIGIN
     assert response.headers["access-control-allow-methods"] == (
-        "DELETE, GET, POST, PUT"
+        "DELETE, GET, PATCH, POST, PUT"
     )
     allowed_headers = {
         header.strip().lower()
@@ -100,7 +100,7 @@ def test_trusted_preflight_is_limited_correlated_and_logged(
     [
         {
             "Origin": TRUSTED_ORIGIN,
-            "Access-Control-Request-Method": "PATCH",
+            "Access-Control-Request-Method": "TRACE",
         },
         {
             "Origin": UNTRUSTED_ORIGIN,

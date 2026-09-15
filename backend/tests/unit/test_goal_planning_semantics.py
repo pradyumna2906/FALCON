@@ -1,0 +1,113 @@
+"""Versioned Phase 10 contract and boundary tests."""
+
+from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
+
+from falcon_api.goal_planning import (
+    GOAL_PLANNING_CONTRACT_VERSION,
+    MAX_GOAL_LIST_LIMIT,
+    goal_status_can_transition,
+    normalize_goal_currency,
+    trusted_local_date,
+)
+from falcon_api.models.enums import GoalStatus
+
+
+def test_goal_contract_has_stable_version_and_limit() -> None:
+    assert GOAL_PLANNING_CONTRACT_VERSION == "2026.1"
+    assert MAX_GOAL_LIST_LIMIT == 100
+
+
+def test_phase_10_documentation_freezes_scope_and_deferrals() -> None:
+    document = (
+        Path(__file__).resolve().parents[3]
+        / "docs"
+        / "goals"
+        / "PHASE_10_IMPLEMENTATION.md"
+    ).read_text(encoding="utf-8")
+
+    assert "Goal-planning contract version: `2026.1`" in document
+    assert "Batch 1 contains\nCheckpoints 10.0–10.2" in document
+    assert "Batch 2 contains Checkpoints 10.3–10.5" in document
+    assert "Batch 3 contains\nCheckpoints 10.6–10.8" in document
+    assert "Batch 4 contains Checkpoints 10.9–10.11" in document
+    assert "final Batch 5\ncontains Checkpoints 10.12–10.14" in document
+    assert "Batch 2 adds no feasibility probability" in document
+    assert "Batch 3 adds feasibility, deadline-risk, ranking" in document
+    assert "Batch 4 adds the SciPy/HiGHS constrained optimizer" in document
+    assert "Checkpoint 10.9" in document
+    assert "Checkpoint 10.10" in document
+    assert "Checkpoint 10.11" in document
+    assert "Checkpoint 10.12" in document
+    assert "Checkpoint 10.13" in document
+    assert "Checkpoint 10.14" in document
+    assert "b3e8f6c2d715" in document
+    assert "Approval is\ndecision-only" in document
+    assert "POST` | `/api/v1/goal-plans" in document
+    assert "never logs identity" in document
+    assert "Phase 11 owns" in document
+
+
+def test_phase_10_optimizer_dependencies_are_pinned_for_production() -> None:
+    repository_root = Path(__file__).resolve().parents[3]
+    pyproject = (repository_root / "backend" / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
+    dockerfile = (repository_root / "backend" / "Dockerfile").read_text(
+        encoding="utf-8"
+    )
+
+    assert "optimization = [" in pyproject
+    assert '"numpy==2.5.2"' in pyproject
+    assert '"scipy==1.18.1"' in pyproject
+    assert 'python -m pip install --no-compile ".[optimization]"' in dockerfile
+
+
+def test_currency_is_normalized_without_conversion() -> None:
+    assert normalize_goal_currency(" inr ") == "INR"
+
+
+@pytest.mark.parametrize("value", ["", "RUPEE", "12R", "₹₹₹", "US$"])
+def test_invalid_currency_fails_closed(value: str) -> None:
+    with pytest.raises(ValueError, match="goal_invalid_currency"):
+        normalize_goal_currency(value)
+
+
+def test_trusted_cutoff_resolves_to_principal_local_date() -> None:
+    instant = datetime(2026, 9, 14, 20, tzinfo=UTC)
+    assert str(trusted_local_date(instant=instant, timezone="Asia/Kolkata")) == (
+        "2026-09-15"
+    )
+
+
+def test_trusted_cutoff_rejects_naive_time_and_unknown_zone() -> None:
+    with pytest.raises(ValueError, match="timezone-aware"):
+        trusted_local_date(
+            instant=datetime(2026, 9, 14),
+            timezone="Asia/Kolkata",
+        )
+    with pytest.raises(ValueError, match="trusted IANA"):
+        trusted_local_date(
+            instant=datetime(2026, 9, 14, tzinfo=UTC),
+            timezone="Mars/Olympus",
+        )
+
+
+@pytest.mark.parametrize(
+    ("current", "target", "allowed"),
+    [
+        (GoalStatus.ACTIVE, GoalStatus.COMPLETED, True),
+        (GoalStatus.ACTIVE, GoalStatus.CANCELLED, True),
+        (GoalStatus.ACTIVE, GoalStatus.ACTIVE, False),
+        (GoalStatus.COMPLETED, GoalStatus.CANCELLED, False),
+        (GoalStatus.CANCELLED, GoalStatus.COMPLETED, False),
+    ],
+)
+def test_only_active_to_terminal_transitions_are_allowed(
+    current: GoalStatus,
+    target: GoalStatus,
+    allowed: bool,
+) -> None:
+    assert goal_status_can_transition(current=current, target=target) is allowed

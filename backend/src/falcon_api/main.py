@@ -30,6 +30,12 @@ from falcon_api.core.config import Settings, get_settings
 from falcon_api.core.logging import configure_logging
 from falcon_api.core.request_context import REQUEST_ID_HEADER
 from falcon_api.forecasting.application import FinancialForecastService
+from falcon_api.goal_planning import (
+    ContributionService,
+    GoalPlanningSnapshotService,
+    GoalService,
+    MultiGoalOptimizationService,
+)
 from falcon_api.infrastructure.database import (
     DatabaseResources,
     create_database_resources,
@@ -41,7 +47,7 @@ from falcon_api.profile import FinancialProfileService
 from falcon_api.transactions import TransactionCursorCodec, TransactionService
 
 
-_CORS_ALLOWED_METHODS = ("DELETE", "GET", "POST", "PUT")
+_CORS_ALLOWED_METHODS = ("DELETE", "GET", "PATCH", "POST", "PUT")
 _CORS_ALLOWED_HEADERS = (
     "Accept",
     "Authorization",
@@ -158,6 +164,12 @@ def create_app(
     application.state.import_service = ImportService()
     application.state.analytics_service = FinancialAnalyticsService()
     application.state.forecasting_service = FinancialForecastService()
+    application.state.goal_service = GoalService()
+    application.state.contribution_service = ContributionService()
+    application.state.goal_planning_snapshot_service = (
+        GoalPlanningSnapshotService()
+    )
+    application.state.goal_plan_service = MultiGoalOptimizationService()
 
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)

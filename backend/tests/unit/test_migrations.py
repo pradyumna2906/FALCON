@@ -22,6 +22,7 @@ _PDF_IMPORT_REVISION = "d8f3a2c7b419"
 _CLASSIFICATION_REVISION = "e4a7c91d2f63"
 _PERSONALIZATION_REVISION = "f7b2d4e8a901"
 _FORECAST_PERSISTENCE_REVISION = "a9c4e2f7b613"
+_GOAL_PLAN_PERSISTENCE_REVISION = "b3e8f6c2d715"
 
 
 def create_alembic_config() -> Config:
@@ -41,14 +42,55 @@ def test_migrations_share_application_metadata() -> None:
     register_models()
 
     assert model_metadata() is Base.metadata
-    assert len(model_metadata().tables) == 23
+    assert len(model_metadata().tables) == 28
 
 
-def test_forecast_persistence_revision_is_the_single_head() -> None:
+def test_goal_plan_persistence_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_FORECAST_PERSISTENCE_REVISION]
+    assert scripts.get_heads() == [_GOAL_PLAN_PERSISTENCE_REVISION]
 
+    plan_revision = scripts.get_revision(_GOAL_PLAN_PERSISTENCE_REVISION)
+
+    assert plan_revision is not None
+    assert plan_revision.down_revision == _FORECAST_PERSISTENCE_REVISION
+    assert callable(plan_revision.module.upgrade)
+    assert callable(plan_revision.module.downgrade)
+
+
+def test_goal_plan_migration_freezes_ownership_immutability_and_history() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+    revision = scripts.get_revision(_GOAL_PLAN_PERSISTENCE_REVISION)
+
+    assert revision is not None
+    source = Path(revision.path).read_text(encoding="utf-8")
+    for statement in (
+        "goal_plan_runs",
+        "goal_plan_outcomes",
+        "goal_plan_periods",
+        "goal_plan_allocations",
+        "goal_plan_events",
+        "fk_goal_plan_runs_user_id_users",
+        "fk_goal_plan_runs_owner_forecast",
+        "fk_goal_plan_runs_owner_predecessor",
+        "fk_goal_plan_allocations_owner_outcome",
+        "fk_goal_plan_events_owner_successor",
+        "uq_goal_plan_events_generated_once",
+        "uq_goal_plan_events_decision_once",
+        "uq_goal_plan_events_superseded_once",
+        "reject_goal_plan_record_update",
+        "validate_goal_plan_event_transition",
+        "require_goal_plan_generated_event",
+        "trg_goal_plan_runs_generated_event",
+        "DEFERRABLE INITIALLY DEFERRED",
+        "BEFORE UPDATE ON {table_name}",
+        "BEFORE INSERT ON goal_plan_events",
+    ):
+        assert statement in source
+
+
+def test_forecast_persistence_precedes_goal_plan_persistence() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
     forecast_revision = scripts.get_revision(_FORECAST_PERSISTENCE_REVISION)
 
     assert forecast_revision is not None

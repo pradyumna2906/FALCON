@@ -32,6 +32,10 @@ The current backend provides:
   live freshness, and privacy-safe aggregate monitoring.
 - A versioned Phase 9 forecasting-target contract and owner-, currency-,
   history-, and cutoff-scoped daily/monthly source-series foundation.
+- A versioned Phase 10 multi-goal planning foundation with exact progress,
+  feasibility and ranking evidence, protected forecast capacity, constrained
+  HiGHS allocation, financial guardrails, deterministic fallback, and auditable
+  immutable plan versions with explicit approval history and authenticated APIs.
 
 ## Requirements
 
@@ -503,3 +507,43 @@ Phases 10–13.
 
 The authoritative cumulative contract and checkpoint record is documented in
 [`docs/forecasting/PHASE_9_IMPLEMENTATION.md`](../docs/forecasting/PHASE_9_IMPLEMENTATION.md).
+
+## Multi-goal optimization implementation
+
+Phase 10 Batch 1 establishes the versioned goal-planning boundary and exposes
+authenticated create, list, get, partial-update, complete, and cancel operations
+under `/api/v1/goals`. Every lookup is owner-scoped, mutations lock the active
+goal before validating its lifecycle, client payloads cannot set ownership or
+status, and terminal goals retain history without further mutation. The existing
+goal schema is reused, so this batch adds no database migration.
+
+Phase 10 Batch 2 adds allocation-safe manual, transaction-linked, and
+opening-balance contributions; exact contribution-aware progress; a cutoff-safe
+owner-scoped planning snapshot; and a conservative bridge from Phase 9 monthly
+savings forecasts to protected, expected, and upside capacity. Goal ranking,
+probability, optimization, and persisted approval history remain deferred.
+
+Phase 10 Batch 3 adds per-goal feasibility probabilities and deadline-risk
+evidence, a deterministic explainable 0–100 ranking policy, and a non-persistent
+greedy reference allocator that consumes each month's protected 95% lower savings
+capacity at most once. The SciPy/HiGHS constrained optimizer, persisted plans,
+approval workflow, and public optimization API remain deferred.
+
+Phase 10 Batch 4 adds the pinned SciPy/HiGHS constrained optimizer, exact
+post-solver invariant verification, debt-evidence blocking, liquid-balance
+protection, a hard emergency-fund reserve, and deterministic fallback. It returns
+one pure monthly contribution schedule plus greedy-versus-optimized score,
+funding, deadline, and guardrail-compliance evidence.
+
+Phase 10 final Batch 5 adds migration `b3e8f6c2d715`, immutable owner-scoped plan
+runs, outcomes, periods, allocations, and append-only lifecycle events. One
+transactional service freezes a new snapshot, builds and verifies the plan, and
+persists it without partial writes. Six authenticated operations under
+`/api/v1/goal-plans` generate, list, retrieve, approve, reject, and regenerate
+plans. Approval records a decision only—it does not move money or create a goal
+contribution. Foreign plans remain indistinguishable from missing plans, clients
+cannot override trusted evidence or policies, and monitoring emits only bounded
+privacy-safe operational fields.
+
+The authoritative cumulative contract and checkpoint record is documented in
+[`docs/goals/PHASE_10_IMPLEMENTATION.md`](../docs/goals/PHASE_10_IMPLEMENTATION.md).
