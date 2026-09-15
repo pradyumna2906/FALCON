@@ -3,7 +3,7 @@
 import asyncio
 import os
 from collections.abc import Iterator
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -64,8 +64,11 @@ _NOW = datetime(2026, 9, 15, 12, tzinfo=UTC)
 
 
 class FixedClock:
+    def __init__(self, instant: datetime = _NOW) -> None:
+        self._instant = instant
+
     def now(self) -> datetime:
-        return _NOW
+        return self._instant
 
 
 class ZeroSolver:
@@ -106,10 +109,6 @@ async def _exercise_goal_plan_history() -> None:
     resources = create_database_resources(integration_settings())
     owner_id = uuid4()
     other_id = uuid4()
-    plans = MultiGoalOptimizationService(
-        solver=ZeroSolver(),
-        clock=FixedClock(),
-    )
     goals = GoalService(clock=FixedClock())
     forecasts = ForecastPersistenceRepository()
     plan_ids: set[UUID] = set()
@@ -140,6 +139,16 @@ async def _exercise_goal_plan_history() -> None:
                 payload=_forecast_payload(),
             )
             forecast_id = forecast.id
+            planning_now = max(
+                _NOW,
+                forecast.created_at,
+                forecast.updated_at,
+            ) + timedelta(seconds=1)
+
+        plans = MultiGoalOptimizationService(
+            solver=ZeroSolver(),
+            clock=FixedClock(planning_now),
+        )
 
         async with transaction_scope(resources.session_factory) as session:
             generated = await plans.generate(
