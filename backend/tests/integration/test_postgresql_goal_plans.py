@@ -48,6 +48,12 @@ from falcon_api.models.goal_plan import (
 )
 from falcon_api.models.planning import GoalContribution
 from falcon_api.models.user import User
+from falcon_api.scenario_simulation import (
+    OneTimeExpenseAssumption,
+    ScenarioAssumptions,
+    ScenarioEvidenceService,
+    ScenarioSnapshotWarning,
+)
 
 
 pytestmark = [
@@ -183,6 +189,44 @@ async def _exercise_goal_plan_history() -> None:
                     plan_id=first_id,
                 )
             assert hidden.value.code == "goal_plan_not_found"
+
+        scenario_evidence = ScenarioEvidenceService(
+            clock=FixedClock(planning_now + timedelta(seconds=1))
+        )
+        assumptions = ScenarioAssumptions(
+            name="Unexpected expense",
+            one_time_expenses=(
+                OneTimeExpenseAssumption(
+                    period_start=date(2026, 10, 1),
+                    amount=Decimal("25.0000"),
+                ),
+            ),
+        )
+        async with transaction_scope(resources.session_factory) as session:
+            snapshot = await scenario_evidence.build(
+                session,
+                user_id=owner_id,
+                source_plan_id=first_id,
+                scenarios=(assumptions,),
+            )
+            assert snapshot.user_id == owner_id
+            assert snapshot.source_plan.run_id == first_id
+            assert snapshot.forecast is not None
+            assert snapshot.forecast.run_id == forecast_id
+            assert snapshot.periods[0].available_capacity == Decimal("50.0000")
+            assert snapshot.scenarios == (assumptions,)
+            assert (
+                ScenarioSnapshotWarning.SOURCE_PLAN_GENERATED_ONLY
+                in snapshot.warnings
+            )
+            with pytest.raises(ApplicationError) as hidden_snapshot:
+                await scenario_evidence.build(
+                    session,
+                    user_id=other_id,
+                    source_plan_id=first_id,
+                    scenarios=(assumptions,),
+                )
+            assert hidden_snapshot.value.code == "scenario_source_plan_not_found"
 
         async with transaction_scope(resources.session_factory) as session:
             approved = await plans.approve(

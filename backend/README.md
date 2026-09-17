@@ -547,3 +547,31 @@ privacy-safe operational fields.
 
 The authoritative cumulative contract and checkpoint record is documented in
 [`docs/goals/PHASE_10_IMPLEMENTATION.md`](../docs/goals/PHASE_10_IMPLEMENTATION.md).
+
+## Scenario simulation implementation
+
+Phase 11 Batch 1 establishes scenario-simulation contract version `2026.1` and
+the boundary between trusted facts and hypothetical user inputs. A draft request
+may identify one owned Phase 10 plan and supply at most ten strictly bounded,
+uniquely named alternatives. Supported assumptions cover percentage income and
+expense changes, one-time or recurring expense adjustments, temporary income
+interruptions, goal target/date/priority/contribution/pause changes, and an
+emergency-fund target. Unknown or server-owned fields are rejected.
+
+`ScenarioEvidenceService.build()` loads only a generated or approved plan through
+its authenticated owner, freezes a new trusted cutoff, loads the exact referenced
+monthly savings forecast through the same owner, and verifies every forecast
+period and protected lower bound against the immutable Phase 10 schedule. When
+percentage income or expense assumptions require a baseline, it also selects an
+owner-, cutoff-, currency-, target-, and horizon-matched Phase 9 forecast; missing
+supplemental evidence remains an explicit warning. Goal
+and period evidence, policy versions, user hypotheses, warnings, and provenance
+form a deterministic SHA-256 snapshot. The service is read-only and never changes
+the source plan, forecast, goals, contributions, profile, budget, account, debt,
+or transaction data.
+
+This batch adds no scenario engine, Monte Carlo simulation, persistence table, or
+public scenario endpoint. Those remain assigned to Checkpoints 11.3–11.14.
+
+The cumulative contract and checkpoint record is documented in
+[`docs/scenarios/PHASE_11_IMPLEMENTATION.md`](../docs/scenarios/PHASE_11_IMPLEMENTATION.md).
