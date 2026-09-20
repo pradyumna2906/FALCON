@@ -586,5 +586,21 @@ plan remains immutable. Batch 2 adds no persistence table or public endpoint;
 Monte Carlo, risk metrics, history, APIs, and closure remain assigned to
 Checkpoints 11.6–11.14.
 
+Phase 11 Batch 3 adds owner-scoped uncertainty calibration from Phase 9's stored
+validation-calibrated 80% and 95% bands, explicit normal/provisional/conservative
+reliability, and a protected point-mass fallback when stochastic evidence is not
+safe. A bounded NumPy PCG64 Monte Carlo engine runs 1,000 trials by default and at
+most 10,000, records replay seeds and sample digests, uses common random numbers
+across alternatives, and vectorizes Phase 10 ranking, deadline, contribution,
+capacity, and emergency-reserve guardrails without repeated solver calls.
+
+The risk reducer reports goal and deadline completion probabilities, reserve
+coverage, raw negative-savings risk, constraint feasibility, expected shortfall,
+capacity and shortfall P10/P50/P90, conditional completion-period percentiles,
+90% tail shortfall, and a transparent 0–100 robustness score. Empirical Monte
+Carlo and Phase 10 analytical probability methods remain distinctly labelled.
+Batch 3 is still non-persistent and has no public scenario endpoint; comparison,
+history, orchestration, APIs, monitoring, and closure remain for 11.9–11.14.
+
 The cumulative contract and checkpoint record is documented in
 [`docs/scenarios/PHASE_11_IMPLEMENTATION.md`](../docs/scenarios/PHASE_11_IMPLEMENTATION.md).

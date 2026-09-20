@@ -60,6 +60,7 @@ class ScenarioForecastEvidence:
     model_version: str
     uncertainty_method: str
     uncertainty_reliability: str
+    calibration_residual_count: int
     data_cutoff_at: datetime
     source_last_updated_at: datetime | None
     points: tuple[ScenarioForecastPointEvidence, ...]
@@ -346,6 +347,7 @@ def _forecast_evidence(forecast: ForecastRun) -> ScenarioForecastEvidence:
         model_version=forecast.model_version,
         uncertainty_method=forecast.uncertainty_method,
         uncertainty_reliability=forecast.uncertainty_reliability,
+        calibration_residual_count=_calibration_residual_count(forecast),
         data_cutoff_at=forecast.data_cutoff_at,
         source_last_updated_at=forecast.source_last_updated_at,
         points=tuple(
@@ -476,6 +478,25 @@ def _validate_forecast_shape(*, run: GoalPlanRun, forecast: ForecastRun) -> None
         for point in forecast.points
     ):
         raise ValueError("Scenario forecast confidence bands must be nested.")
+    if forecast.uncertainty_reliability not in {"normal", "provisional"}:
+        raise ValueError("Scenario forecast reliability must be supported.")
+    if not forecast.uncertainty_method.strip():
+        raise ValueError("Scenario forecast uncertainty methods cannot be blank.")
+    _calibration_residual_count(forecast)
+
+
+def _calibration_residual_count(forecast: ForecastRun) -> int:
+    evidence = forecast.candidate_evidence
+    if not isinstance(evidence, dict):
+        raise ValueError("Scenario forecast evidence must be an object.")
+    value = evidence.get("calibration_residual_count", 0)
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not 0 <= value <= 10_000
+    ):
+        raise ValueError("Scenario calibration evidence must be a bounded count.")
+    return value
 
 
 def _requires_income_forecast(

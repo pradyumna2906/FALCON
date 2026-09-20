@@ -49,12 +49,15 @@ from falcon_api.models.goal_plan import (
 from falcon_api.models.planning import GoalContribution
 from falcon_api.models.user import User
 from falcon_api.scenario_simulation import (
+    MONTE_CARLO_PROBABILITY_METHOD,
+    MonteCarloConfig,
     OneTimeExpenseAssumption,
     ScenarioAssumptions,
     ScenarioEvidenceService,
     ScenarioEvaluationStatus,
     ScenarioSnapshotWarning,
     evaluate_deterministic_scenarios,
+    evaluate_scenario_risk,
 )
 
 
@@ -232,6 +235,15 @@ async def _exercise_goal_plan_history() -> None:
                 evaluations[3].status
                 is ScenarioEvaluationStatus.GUARDED_FALLBACK
             )
+            risk = evaluate_scenario_risk(
+                snapshot,
+                config=MonteCarloConfig(trial_count=128, seed=11),
+                solver=ZeroSolver(),
+            )
+            assert len(risk) == 4
+            assert risk[3].trial_count == 128
+            assert risk[3].probability_method == MONTE_CARLO_PROBABILITY_METHOD
+            assert risk[3].goals[0].completion_denominator == 128
             with pytest.raises(ApplicationError) as hidden_snapshot:
                 await scenario_evidence.build(
                     session,

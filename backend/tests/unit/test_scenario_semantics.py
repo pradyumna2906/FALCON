@@ -3,13 +3,18 @@
 from pathlib import Path
 
 from falcon_api.scenario_simulation import (
+    DEFAULT_MONTE_CARLO_TRIALS,
     MAX_DEBT_PAYMENT_ADJUSTMENTS,
     MAX_GOAL_ADJUSTMENTS,
     MAX_SCENARIO_HORIZON_MONTHS,
     MAX_SCENARIOS_PER_REQUEST,
+    MAX_MONTE_CARLO_TRIALS,
+    SCENARIO_MONTE_CARLO_POLICY_VERSION,
+    SCENARIO_RISK_POLICY_VERSION,
     SCENARIO_SIMULATION_CONTRACT_VERSION,
     SCENARIO_PATH_POLICY_VERSION,
     SCENARIO_REEVALUATION_POLICY_VERSION,
+    SCENARIO_UNCERTAINTY_POLICY_VERSION,
 )
 
 
@@ -21,9 +26,14 @@ def test_scenario_contract_has_stable_limits() -> None:
     assert MAX_DEBT_PAYMENT_ADJUSTMENTS == 12
     assert SCENARIO_PATH_POLICY_VERSION == "2026.1"
     assert SCENARIO_REEVALUATION_POLICY_VERSION == "2026.1"
+    assert SCENARIO_UNCERTAINTY_POLICY_VERSION == "2026.1"
+    assert SCENARIO_MONTE_CARLO_POLICY_VERSION == "2026.1"
+    assert SCENARIO_RISK_POLICY_VERSION == "2026.1"
+    assert DEFAULT_MONTE_CARLO_TRIALS == 1_000
+    assert MAX_MONTE_CARLO_TRIALS == 10_000
 
 
-def test_phase_11_documentation_freezes_batch_2_scope_and_deferrals() -> None:
+def test_phase_11_documentation_freezes_batch_3_scope_and_deferrals() -> None:
     document = (
         Path(__file__).resolve().parents[3]
         / "docs"
@@ -36,6 +46,9 @@ def test_phase_11_documentation_freezes_batch_2_scope_and_deferrals() -> None:
     assert "Checkpoint 11.3" in document
     assert "Checkpoint 11.4" in document
     assert "Checkpoint 11.5" in document
+    assert "Checkpoint 11.6" in document
+    assert "Checkpoint 11.7" in document
+    assert "Checkpoint 11.8" in document
     assert "Checkpoint 11.1" in document
     assert "Checkpoint 11.2" in document
     assert "ScenarioEvidenceService.build()" in document
@@ -45,5 +58,10 @@ def test_phase_11_documentation_freezes_batch_2_scope_and_deferrals() -> None:
     assert "build_deterministic_scenario_paths()" in document
     assert "evaluate_deterministic_scenarios()" in document
     assert "GoalAllocationBound" in document
-    assert "Batch 2 adds no Monte Carlo calibration" in document
+    assert "calibrate_scenario_uncertainty()" in document
+    assert "run_scenario_monte_carlo()" in document
+    assert "evaluate_scenario_risk()" in document
+    assert "1,000 trials by default" in document
+    assert "hard maximum of 10,000 trials" in document
+    assert "Batch 3 adds no cross-scenario sensitivity" in document
     assert "Generative explanations and RAG\nbelong to Phase 12" in document

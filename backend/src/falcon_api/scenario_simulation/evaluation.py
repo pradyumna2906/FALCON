@@ -143,7 +143,7 @@ def _evaluate_path(
 ) -> DeterministicScenarioEvaluation:
     if path.status is ScenarioPathStatus.UNAVAILABLE:
         return _unavailable(snapshot=snapshot, path=path)
-    planning = _planning_snapshot(snapshot=snapshot, path=path)
+    planning = build_scenario_planning_snapshot(snapshot=snapshot, path=path)
     assessments = assess_snapshot_feasibility(
         planning.goals,
         planning.savings_capacity,
@@ -153,7 +153,7 @@ def _evaluate_path(
         goals=planning.goals,
         assessments=assessments,
     )
-    bounds = _allocation_bounds(
+    bounds = build_scenario_allocation_bounds(
         evidence=snapshot,
         path=path,
         planning=planning,
@@ -260,7 +260,7 @@ def _evaluate_path(
     )
 
 
-def _planning_snapshot(
+def build_scenario_planning_snapshot(
     *,
     snapshot: ScenarioEvidenceSnapshot,
     path: DeterministicScenarioPath,
@@ -418,7 +418,7 @@ def _goal_progress(
     )
 
 
-def _allocation_bounds(
+def build_scenario_allocation_bounds(
     *,
     evidence: ScenarioEvidenceSnapshot,
     path: DeterministicScenarioPath,

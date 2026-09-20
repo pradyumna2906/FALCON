@@ -176,6 +176,13 @@ def test_snapshot_translates_invalid_internal_assumptions() -> None:
         lambda run, forecast: setattr(forecast, "horizon", 3),
         lambda run, forecast: setattr(forecast, "forecast_start", date(2026, 9, 1)),
         lambda run, forecast: setattr(forecast.points[0], "lower_80", Decimal("80")),
+        lambda run, forecast: setattr(forecast, "uncertainty_reliability", "unknown"),
+        lambda run, forecast: setattr(forecast, "uncertainty_method", " "),
+        lambda run, forecast: setattr(
+            forecast,
+            "candidate_evidence",
+            {"calibration_residual_count": True},
+        ),
         lambda run, forecast: setattr(run, "goal_count", 2),
         lambda run, forecast: setattr(run, "planning_cutoff_at", NOW + timedelta(days=1)),
     ],
@@ -245,6 +252,37 @@ def test_snapshot_rejects_missing_referenced_forecast() -> None:
             )
         )
     assert error.value.code == "scenario_evidence_unavailable"
+
+
+def test_snapshot_freezes_validation_count_but_excludes_final_test_metrics() -> None:
+    first_forecast = transient_savings_forecast()
+    first_service, _, _, first_run = _service(forecast=first_forecast)
+    first = asyncio.run(
+        first_service.build(
+            AsyncMock(),
+            user_id=OWNER_ID,
+            source_plan_id=first_run.id,
+            scenarios=(_scenario(),),
+        )
+    )
+    second_forecast = transient_savings_forecast()
+    second_forecast.test_mae = Decimal("999")
+    second_forecast.test_rmse = Decimal("999")
+    second_forecast.test_bias = Decimal("999")
+    second_service, _, _, second_run = _service(forecast=second_forecast)
+    second = asyncio.run(
+        second_service.build(
+            AsyncMock(),
+            user_id=OWNER_ID,
+            source_plan_id=second_run.id,
+            scenarios=(_scenario(),),
+        )
+    )
+
+    assert first.forecast is not None
+    assert first.forecast.calibration_residual_count == 12
+    assert first == second
+    assert first.snapshot_id == second.snapshot_id
 
 
 def test_snapshot_rejects_assumptions_outside_source_evidence() -> None:

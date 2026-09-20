@@ -8,6 +8,13 @@ from enum import StrEnum
 SCENARIO_SIMULATION_CONTRACT_VERSION = "2026.1"
 SCENARIO_PATH_POLICY_VERSION = "2026.1"
 SCENARIO_REEVALUATION_POLICY_VERSION = "2026.1"
+SCENARIO_UNCERTAINTY_POLICY_VERSION = "2026.1"
+SCENARIO_MONTE_CARLO_POLICY_VERSION = "2026.1"
+SCENARIO_RISK_POLICY_VERSION = "2026.1"
+DEFAULT_MONTE_CARLO_TRIALS = 1_000
+MAX_MONTE_CARLO_TRIALS = 10_000
+MAX_MONTE_CARLO_SEED = (2**63) - 1
+MAX_MONTE_CARLO_WORK_UNITS = 50_000_000
 MAX_SCENARIOS_PER_REQUEST = 10
 MAX_SCENARIO_HORIZON_MONTHS = 24
 MAX_ONE_TIME_EXPENSES = 12
@@ -54,6 +61,41 @@ class ScenarioEvaluationStatus(StrEnum):
     UNAVAILABLE = "unavailable"
 
 
+class ScenarioCalibrationStatus(StrEnum):
+    """Eligibility of one deterministic path for stochastic simulation."""
+
+    ELIGIBLE = "eligible"
+    CONSERVATIVE_FALLBACK = "conservative_fallback"
+    UNAVAILABLE = "unavailable"
+
+
+class ScenarioCalibrationReliability(StrEnum):
+    """Evidence tier carried into all stochastic outputs."""
+
+    NORMAL = "normal"
+    PROVISIONAL = "provisional"
+    CONSERVATIVE = "conservative"
+    UNAVAILABLE = "unavailable"
+
+
+class ScenarioMonteCarloStatus(StrEnum):
+    """Execution outcome for one bounded seeded simulation."""
+
+    COMPLETED = "completed"
+    CONSERVATIVE_FALLBACK = "conservative_fallback"
+    BLOCKED = "blocked"
+    UNAVAILABLE = "unavailable"
+
+
+class ScenarioRiskStatus(StrEnum):
+    """Availability of empirical risk metrics for one path."""
+
+    AVAILABLE = "available"
+    LIMITED = "limited"
+    BLOCKED = "blocked"
+    UNAVAILABLE = "unavailable"
+
+
 class ScenarioReasonCode(StrEnum):
     """Stable, non-generative explanations for deterministic scenarios."""
 
@@ -76,6 +118,14 @@ class ScenarioReasonCode(StrEnum):
     CONTRIBUTION_CONSTRAINT_INFEASIBLE = "contribution_constraint_infeasible"
     OPTIMIZED_SCHEDULE_SELECTED = "optimized_schedule_selected"
     GUARDED_FALLBACK_SELECTED = "guarded_fallback_selected"
+    VALIDATION_CALIBRATED_BANDS = "validation_calibrated_bands"
+    PROVISIONAL_CALIBRATION = "provisional_calibration"
+    CALIBRATION_EVIDENCE_MISSING = "calibration_evidence_missing"
+    CONSERVATIVE_PROTECTED_FALLBACK = "conservative_protected_fallback"
+    UNSUPPORTED_UNCERTAINTY_METHOD = "unsupported_uncertainty_method"
+    PATH_UNAVAILABLE = "path_unavailable"
+    SEEDED_MONTE_CARLO_COMPLETED = "seeded_monte_carlo_completed"
+    MONTE_CARLO_CONSTRAINT_INFEASIBLE = "monte_carlo_constraint_infeasible"
 
 
 class ScenarioSnapshotWarning(StrEnum):

@@ -3,11 +3,12 @@
 Scenario-simulation contract version: `2026.1`
 
 This cumulative record freezes the approved Phase 11 semantics. Batch 1 contains
-Checkpoints 11.0–11.2 and Batch 2 contains deterministic scenarios, ordered
-financial shocks, and Phase 10 goal-plan reevaluation for 11.3–11.5. Later
-approved batches reserve Monte Carlo and risk metrics for 11.6–11.8, alternative
-comparison and immutable history for 11.9–11.11, and orchestration, authenticated
-APIs, monitoring, security, and closure for 11.12–11.14.
+Checkpoints 11.0–11.2, Batch 2 contains deterministic scenarios, ordered
+financial shocks, and Phase 10 goal-plan reevaluation for 11.3–11.5, and Batch 3
+contains uncertainty calibration, bounded seeded Monte Carlo, and empirical risk
+metrics for 11.6–11.8. Later approved batches reserve cross-scenario comparison
+and immutable history for 11.9–11.11, and orchestration, authenticated APIs,
+monitoring, security, and closure for 11.12–11.14.
 
 Phase 11 answers bounded what-if questions against immutable Phase 9 forecast and
 Phase 10 plan evidence. It does not rewrite observations, forecasts, goals,
@@ -239,7 +240,130 @@ Phase 10 allocated total, funded-goal count, deadline count, and weighted score.
 The source plan remains byte-for-byte unchanged and repeated evaluation of the
 same snapshot produces identical path and evaluation identifiers.
 
-## 7. Security and integrity established through Batch 2
+## 7. Checkpoint 11.6 — owner-scoped uncertainty calibration
+
+`calibrate_scenario_uncertainty()` converts only the Phase 9 evidence already
+frozen inside the private scenario snapshot into a bounded sampling contract.
+It never queries another owner, reloads newer data, consumes final-test metrics,
+or reconstructs raw validation residuals. Phase 9 intentionally persists the
+validation residual count and calibrated 80% and 95% bands rather than private
+raw residuals; Phase 11 preserves that boundary.
+
+For supported `absolute_residual_conformal` evidence, each month receives the
+following piecewise-linear inverse-CDF knots:
+
+| Cumulative probability | Sample value |
+|---:|---|
+| 0% and 2.5% | Raw 95% lower value |
+| 10% | Raw 80% lower value |
+| 50% | Expected value |
+| 90% | Raw 80% upper value |
+| 97.5% and 100% | Raw 95% upper value |
+
+The repeated endpoints make the calibrated 95% interval a hard simulation
+bound instead of extrapolating unsupported tails. User-defined deterministic
+shocks shift all knots by the same exact amount, preserving ordering. Raw
+negative values remain available for downside measurement and are clipped to
+zero only at the allocation boundary.
+
+Reliability is explicit:
+
+- `normal`: supported Phase 9 calibration with at least ten validation
+  residuals and normal source reliability;
+- `provisional`: supported bands with fewer residuals or provisional source
+  reliability;
+- `conservative`: missing residual evidence, an unsupported uncertainty method,
+  or a source plan without a forecast uses a protected point mass;
+- `unavailable`: the deterministic path itself lacks required trusted evidence.
+
+The calibration identifier hashes the snapshot, path, policy, reliability,
+sampling method, knots, residual count, and bounded reason codes. Final-test
+metrics and future observations cannot change the identifier or distribution.
+
+## 8. Checkpoint 11.7 — bounded seeded Monte Carlo
+
+`run_scenario_monte_carlo()` uses NumPy PCG64 with 1,000 trials by default and a
+hard maximum of 10,000 trials. The caller may provide a seed from zero through
+`2^63 − 1`; otherwise the engine deterministically derives one from the snapshot
+and Monte Carlo policy version. The root and resolved scenario seed are retained
+in every result so the run can be replayed exactly and persisted by a later
+checkpoint.
+
+All paths use common random numbers: the same seeded uniform draws are passed
+through each path's inverse CDF. This reduces comparison noise and ensures that
+differences between alternatives come from assumptions rather than unrelated
+random samples. Monthly draws are independent because Phase 9 does not persist a
+validated residual-correlation model; Phase 11 does not invent serial dependence.
+
+Each trial performs this bounded replay:
+
+```text
+sample raw monthly capacity inside Phase 9 bands
+→ record any negative-savings month
+→ clip allocation capacity to zero
+→ apply Phase 10 deterministic rank and deadline eligibility
+→ enforce contribution minimums, caps, and pauses
+→ preserve the emergency reserve for non-emergency goals
+→ enforce monthly capacity and remaining-goal caps
+→ record completion step, deadline result, and final shortfall
+```
+
+The trial engine never invokes a solver thousands of times. It holds the reviewed
+Phase 10 ranking fixed and vectorizes the same guarded fallback policy across all
+trials. Invalid hard contribution minimums make that trial infeasible rather
+than relaxing the constraint. Results use compact little-endian float64, int16,
+and uint8 buffers plus a SHA-256 sample digest. A 50-million work-unit ceiling
+bounds the product of trials, months, goals, and paths before allocation begins.
+
+Monte Carlo runs remain pure and non-persistent. They do not update a forecast,
+goal, contribution, source plan, or scenario record.
+
+## 9. Checkpoint 11.8 — risk, percentiles, tail loss, and robustness
+
+`evaluate_scenario_risk()` reduces the seeded samples into bounded empirical
+metrics. Every probability uses all trials as its denominator unless explicitly
+identified as conditional. Per scenario it reports:
+
+- probability that all goals complete within the horizon;
+- probability that every goal meets its deadline;
+- probability that total non-negative capacity covers the emergency reserve;
+- probability of at least one raw negative-savings month;
+- probability that all hard contribution constraints remain feasible;
+- expected capacity and capacity P10, P50, and P90;
+- expected total shortfall and shortfall P10, P50, and P90;
+- 90% shortfall value-at-risk and mean shortfall across the threshold tail;
+- per-goal completion and deadline probabilities, expected shortfall, shortfall
+  percentiles, and completion-period P10, P50, and P90.
+
+Completion-period percentiles are conditional on completion, so each goal
+returns its completion count as the explicit denominator. All other goal
+probabilities retain the full trial count. Percentiles use a versioned nearest-
+rank definition; the 90% tail expectation includes all ties at the VaR threshold.
+
+The 0–100 robustness score is transparent and fixed:
+
+```text
+100 × (
+  30% all-goals completion
+  + 25% all-deadlines met
+  + 20% emergency-reserve coverage
+  + 15% no negative-savings month
+  + 10% hard-constraint feasibility
+)
+```
+
+Every result labels empirical probabilities as `seeded_empirical_monte_carlo`
+and Phase 10 comparison evidence as `phase_10_analytical_normal_cdf`; the two
+methods are never presented as interchangeable. `normal` runs are available,
+while provisional and conservative runs are explicitly limited. Blocked and
+unavailable paths return no invented statistics.
+
+Protected, expected, and upside references describe deterministic decision
+points but share the same underlying Phase 9 stochastic distribution. Common
+random numbers therefore make their stochastic risk equal when goals and
+guardrails are equal, while their deterministic schedules remain distinct.
+
+## 10. Security and integrity established through Batch 3
 
 - Owner scope appears in both source-plan and forecast repository reads.
 - Foreign resources are indistinguishable from missing resources.
@@ -260,8 +384,17 @@ same snapshot produces identical path and evaluation identifiers.
 - Pauses and contribution bounds are enforced by both solver and fallback.
 - Phase 10 goal, deadline, capacity, and emergency-reserve invariants are reused.
 - Scenario evaluation never changes its source plan or observed financial data.
+- Calibration uses validation-derived bands and excludes final-test metrics.
+- Raw validation residuals and private transaction values are never copied.
+- Sampling distributions are bounded by the stored Phase 9 95% interval.
+- Seeds, policy versions, methods, reliability, and sample digests are explicit.
+- Common random numbers provide order-independent alternative comparison.
+- Negative savings is measured before capacity is safely clipped to zero.
+- Hard contribution and reserve constraints are never probabilistically relaxed.
+- Trial counts, seeds, horizons, scenario counts, and total work are bounded.
+- Monte Carlo samples use compact buffers and are not logged or persisted.
 
-## 8. Validation boundary
+## 11. Validation boundary
 
 Batch 1 validation covers domain and Pydantic assumption limits, immutability,
 server-field rejection, unique alternatives and goals, owner-scoped repository
@@ -275,10 +408,17 @@ reconciliation, emergency-reserve, contribution-bound, infeasibility, HiGHS,
 guarded-fallback, exact-delta, and repeatability tests. Phase 10 regression tests
 verify that optional allocation bounds do not alter existing callers.
 
-## 9. Deferred checkpoints
+Batch 3 adds calibration eligibility and reliability tiers, final-test leakage
+exclusion, fallback point masses, ordered bounded knots, exact seeded equality,
+common-random-number behavior, default and maximum trial limits, work-budget and
+finite-output checks, blocked/unavailable handling, raw-negative detection,
+compact-buffer bounds, probability denominators, nearest-rank percentiles,
+reserve coverage, tail loss, method labels, and robustness-score coverage. The
+real PostgreSQL owner-isolation lifecycle also executes the stochastic risk path.
 
-Batch 2 adds no Monte Carlo calibration, stochastic simulation, percentile or
-tail-risk metric, sensitivity analysis, cross-scenario recommendation ranking,
-scenario persistence, selection history, public endpoint, background execution,
-AI explanation, notification, or frontend. These responsibilities remain with
-Checkpoints 11.6–11.14 and later phases.
+## 12. Deferred checkpoints
+
+Batch 3 adds no cross-scenario sensitivity or recommendation ranking, scenario
+persistence, selection history, public endpoint, background execution, AI
+explanation, notification, or frontend. These responsibilities remain with
+Checkpoints 11.9–11.14 and later phases.

@@ -56,7 +56,7 @@ def transient_savings_forecast() -> ForecastRun:
         model_code="seasonal_naive",
         model_version="builtin-2026.1",
         model_parameters={},
-        candidate_evidence={},
+        candidate_evidence={"calibration_residual_count": 12},
         selection_metric="wape",
         validation_mae=Decimal("1"),
         validation_rmse=Decimal("1"),
