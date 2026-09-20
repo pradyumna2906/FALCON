@@ -47,6 +47,14 @@ from falcon_api.models.goal_plan import (
     GoalPlanRun,
 )
 from falcon_api.models.planning import GoalContribution
+from falcon_api.models.scenario import (
+    ScenarioComparison,
+    ScenarioDefinition,
+    ScenarioEvent,
+    ScenarioGoalOutcome,
+    ScenarioPeriod,
+    ScenarioSimulationRun,
+)
 from falcon_api.models.user import User
 from falcon_api.scenario_simulation import (
     MONTE_CARLO_PROBABILITY_METHOD,
@@ -55,7 +63,9 @@ from falcon_api.scenario_simulation import (
     ScenarioAssumptions,
     ScenarioEvidenceService,
     ScenarioEvaluationStatus,
+    ScenarioSimulationRepository,
     ScenarioSnapshotWarning,
+    analyze_scenario_decisions,
     evaluate_deterministic_scenarios,
     evaluate_scenario_risk,
 )
@@ -122,6 +132,7 @@ async def _exercise_goal_plan_history() -> None:
     other_id = uuid4()
     goals = GoalService(clock=FixedClock())
     forecasts = ForecastPersistenceRepository()
+    simulations = ScenarioSimulationRepository()
     plan_ids: set[UUID] = set()
     try:
         async with transaction_scope(resources.session_factory) as session:
@@ -244,6 +255,24 @@ async def _exercise_goal_plan_history() -> None:
             assert risk[3].trial_count == 128
             assert risk[3].probability_method == MONTE_CARLO_PROBABILITY_METHOD
             assert risk[3].goals[0].completion_denominator == 128
+            analysis = analyze_scenario_decisions(
+                snapshot,
+                config=MonteCarloConfig(trial_count=128, seed=11),
+                solver=ZeroSolver(),
+            )
+            persisted = await simulations.create(
+                session,
+                user_id=owner_id,
+                snapshot=snapshot,
+                analysis=analysis,
+                occurred_at=planning_now + timedelta(seconds=2),
+            )
+            simulation_id = persisted.id
+            assert persisted.root_seed == 11
+            assert persisted.snapshot_id == snapshot.snapshot_id
+            assert persisted.analysis_id == analysis.analysis_id
+            assert len(persisted.definitions) == 4
+            assert len(persisted.comparisons) == 4
             with pytest.raises(ApplicationError) as hidden_snapshot:
                 await scenario_evidence.build(
                     session,
@@ -252,6 +281,59 @@ async def _exercise_goal_plan_history() -> None:
                     scenarios=(assumptions,),
                 )
             assert hidden_snapshot.value.code == "scenario_source_plan_not_found"
+
+        async with transaction_scope(resources.session_factory) as session:
+            owner_run = await simulations.get(
+                session,
+                user_id=owner_id,
+                run_id=simulation_id,
+                for_update=True,
+            )
+            assert owner_run is not None
+            assert owner_run.selected_scenario_id is None
+            assert len(owner_run.events) == 1
+            assert (
+                await simulations.get(
+                    session,
+                    user_id=other_id,
+                    run_id=simulation_id,
+                )
+                is None
+            )
+            selected_id = owner_run.definitions[0].id
+            await simulations.select(
+                session,
+                run=owner_run,
+                user_id=owner_id,
+                scenario_definition_id=selected_id,
+                occurred_at=planning_now + timedelta(seconds=3),
+            )
+            assert owner_run.selected_scenario_id == selected_id
+            await simulations.clear_selection(
+                session,
+                run=owner_run,
+                user_id=owner_id,
+                expected_scenario_definition_id=selected_id,
+                occurred_at=planning_now + timedelta(seconds=4),
+            )
+            assert owner_run.selected_scenario_id is None
+            assert len(owner_run.events) == 3
+
+        with pytest.raises(DBAPIError):
+            async with transaction_scope(resources.session_factory) as session:
+                await session.execute(
+                    delete(GoalPlanRun).where(GoalPlanRun.id == first_id)
+                )
+
+        with pytest.raises(DBAPIError):
+            async with transaction_scope(resources.session_factory) as session:
+                await session.execute(
+                    text(
+                        "UPDATE scenario_simulation_runs SET trial_count = 64 "
+                        "WHERE id = :simulation_id"
+                    ),
+                    {"simulation_id": simulation_id},
+                )
 
         async with transaction_scope(resources.session_factory) as session:
             approved = await plans.approve(
@@ -324,6 +406,12 @@ async def _exercise_goal_plan_history() -> None:
                 GoalPlanPeriod,
                 GoalPlanAllocation,
                 GoalPlanEvent,
+                ScenarioSimulationRun,
+                ScenarioDefinition,
+                ScenarioPeriod,
+                ScenarioGoalOutcome,
+                ScenarioComparison,
+                ScenarioEvent,
             ):
                 remaining = await session.scalar(
                     select(func.count())

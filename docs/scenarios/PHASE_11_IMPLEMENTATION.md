@@ -4,11 +4,12 @@ Scenario-simulation contract version: `2026.1`
 
 This cumulative record freezes the approved Phase 11 semantics. Batch 1 contains
 Checkpoints 11.0–11.2, Batch 2 contains deterministic scenarios, ordered
-financial shocks, and Phase 10 goal-plan reevaluation for 11.3–11.5, and Batch 3
+financial shocks, and Phase 10 goal-plan reevaluation for 11.3–11.5, Batch 3
 contains uncertainty calibration, bounded seeded Monte Carlo, and empirical risk
-metrics for 11.6–11.8. Later approved batches reserve cross-scenario comparison
-and immutable history for 11.9–11.11, and orchestration, authenticated APIs,
-monitoring, security, and closure for 11.12–11.14.
+metrics for 11.6–11.8, and Batch 4 contains cross-scenario comparison, sensitivity,
+decision ranking, and immutable history for 11.9–11.11. Orchestration,
+authenticated APIs, monitoring, security closure, and release readiness remain
+reserved for 11.12–11.14.
 
 Phase 11 answers bounded what-if questions against immutable Phase 9 forecast and
 Phase 10 plan evidence. It does not rewrite observations, forecasts, goals,
@@ -363,7 +364,80 @@ points but share the same underlying Phase 9 stochastic distribution. Common
 random numbers therefore make their stochastic risk equal when goals and
 guardrails are equal, while their deterministic schedules remain distinct.
 
-## 10. Security and integrity established through Batch 3
+## 10. Checkpoint 11.9 — alternative decision comparison
+
+`analyze_scenario_decisions()` executes the approved pure chain once: paths,
+uncertainty calibration, deterministic reevaluation, seeded Monte Carlo, and risk
+reduction. It compares every alternative with the trusted protected reference
+using exact deltas for expected capacity, completion and deadline probability,
+reserve coverage, negative-savings exposure, expected and 90% tail shortfall,
+robustness, weighted funding, funded goals, deadlines met, and additional required
+contribution. Blocked or unavailable evidence remains explicitly non-comparable;
+the engine never invents a neutral value.
+
+The protected reference is a conservative tie-breaker. Expected or upside cases
+can rank ahead only when their measured evidence is better, not merely because a
+more optimistic label was requested. All comparison and analysis identifiers use
+canonical SHA-256 payloads, and validation reconstructs those identities before
+persistence so a mutated score, rank, result, or policy cannot be stored.
+
+## 11. Checkpoint 11.10 — sensitivity, robustness, and decision ranking
+
+The fixed 0–100 decision score weights all-goal completion, deadlines, reserve
+coverage, absence of negative savings, constraint feasibility, expected and tail
+shortfall, weighted goal funding, required contribution, and reliability. Scores
+are deterministic evidence summaries rather than financial advice. Equal scores
+use reliability, protected-to-upside case order, and path identity as stable
+tie-breakers.
+
+Pareto checks mark an alternative dominated only when another safe alternative is
+no worse on every completion, deadline, reserve, feasibility, funding,
+reliability, downside, shortfall, and contribution dimension and is strictly
+better on at least one. A recommendation must be available or limited,
+non-dominated, and rank first; otherwise the result records `no_safe_alternative`.
+
+Sensitivity signals identify which submitted assumption categories most affect
+the scenario. They combine the exact direct capacity effect with equal attribution
+of outcome-only effects, sum to 100, and are explicitly labelled non-causal. The
+engine separately reports the exact additional contribution burden over eligible
+months, excluding funding pauses.
+
+## 12. Checkpoint 11.11 — immutable simulation persistence
+
+`ScenarioSimulationRepository.create()` validates the complete decision graph at
+the storage boundary and writes one transaction containing:
+
+- `scenario_simulation_runs` for owner, source-plan, snapshot, policy, horizon,
+  replay seed, trial count, and method provenance;
+- `scenario_definitions` for normalized assumptions and aggregate deterministic
+  and stochastic outcomes;
+- `scenario_periods` for exact source, shock, selected, allocated, and unallocated
+  monthly amounts;
+- `scenario_goal_outcomes` for deterministic and empirical goal results;
+- `scenario_comparisons` for deltas, score, rank, dominance, recommendation,
+  sensitivity, and bounded reason codes;
+- `scenario_events` for append-only generated, selected, and selection-cleared
+  history.
+
+Composite owner foreign keys prevent cross-owner source plans, definitions,
+comparisons, outcomes, and events. Database checks enforce exact-money
+reconciliation, probability ranges, empirical result shape, bounded seeds/trials,
+unique paths/ranks/case-insensitive names, and at most one recommendation. Update
+triggers make runs, results, comparisons, and events immutable. A deferred trigger
+requires each new run to receive exactly one generated event in the same
+transaction; event triggers enforce chronological valid transitions. Source-plan
+deletion is restricted while history exists, while user erasure cascades through
+the complete graph.
+
+Selection changes never update the run. Each user choice or clear operation
+appends an event after owner, membership, time-order, and expected-current-state
+validation. This provides auditability and stale-decision protection without
+mutating Phase 9 forecasts, Phase 10 plans, goals, contributions, or financial
+records. Compact Monte Carlo sample buffers and private source facts are not
+persisted; the stored seed, snapshot identity, methods, and aggregate evidence are
+sufficient for controlled replay.
+
+## 13. Security and integrity established through Batch 4
 
 - Owner scope appears in both source-plan and forecast repository reads.
 - Foreign resources are indistinguishable from missing resources.
@@ -393,8 +467,20 @@ guardrails are equal, while their deterministic schedules remain distinct.
 - Hard contribution and reserve constraints are never probabilistically relaxed.
 - Trial counts, seeds, horizons, scenario counts, and total work are bounded.
 - Monte Carlo samples use compact buffers and are not logged or persisted.
+- Decision scores, dominance, ranks, deltas, and identifiers are recomputed and
+  validated before persistence.
+- Sensitivity signals are bounded, reconciled to 100, and labelled non-causal.
+- Composite foreign keys enforce the same owner across source plans and all
+  simulation children.
+- Exact-money, probability, event-transition, and generated-event invariants are
+  database-enforced.
+- Immutable update triggers protect runs, outcomes, comparisons, and history.
+- Selection state is derived from append-only events and guarded against stale
+  concurrent decisions.
+- User erasure cascades through scenario history; source-plan deletion is
+  restricted while reproducibility evidence exists.
 
-## 11. Validation boundary
+## 14. Validation boundary
 
 Batch 1 validation covers domain and Pydantic assumption limits, immutability,
 server-field rejection, unique alternatives and goals, owner-scoped repository
@@ -416,9 +502,17 @@ compact-buffer bounds, probability denominators, nearest-rank percentiles,
 reserve coverage, tail loss, method labels, and robustness-score coverage. The
 real PostgreSQL owner-isolation lifecycle also executes the stochastic risk path.
 
-## 12. Deferred checkpoints
+Batch 4 adds deterministic comparison replay, conservative tie-breaking,
+dominance, exact deltas, sensitivity reconciliation, contribution-burden,
+tamper-rejection, model/metadata, owner-scoped repository, append-only selection,
+stale-race, Alembic upgrade/downgrade, immutable-trigger, source-plan deletion,
+stored-seed/snapshot reproducibility, and user-erasure-cascade coverage. The real
+PostgreSQL lifecycle validates the complete Phase 10-to-Phase 11 persistence
+boundary.
 
-Batch 3 adds no cross-scenario sensitivity or recommendation ranking, scenario
-persistence, selection history, public endpoint, background execution, AI
-explanation, notification, or frontend. These responsibilities remain with
-Checkpoints 11.9–11.14 and later phases.
+## 15. Deferred checkpoints
+
+Batch 4 adds no orchestration service, public endpoint, background execution, AI
+explanation, notification, or frontend. Transactional generate/list/detail/select
+or clear orchestration, authenticated APIs, privacy-safe monitoring, final
+security review, and Phase 11 closure remain with Checkpoints 11.12–11.14.

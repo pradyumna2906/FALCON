@@ -602,5 +602,19 @@ Carlo and Phase 10 analytical probability methods remain distinctly labelled.
 Batch 3 is still non-persistent and has no public scenario endpoint; comparison,
 history, orchestration, APIs, monitoring, and closure remain for 11.9–11.14.
 
+Phase 11 Batch 4 adds deterministic cross-scenario comparison, exact baseline
+deltas, non-causal sensitivity attribution, multi-factor robustness scoring,
+Pareto dominance, conservative tie-breaking, and bounded recommendation reason
+codes. The decision graph is validated by canonical SHA-256 identities before it
+can be stored.
+
+Six owner-scoped PostgreSQL tables preserve immutable runs, normalized scenario
+definitions, monthly paths, goal outcomes, comparisons, and append-only selection
+events. Composite ownership keys prevent cross-owner references; exact-money,
+probability, replay-seed, lifecycle, and generated-event rules are database
+enforced. Raw Monte Carlo buffers and private source facts are not stored. Batch 4
+still exposes no public scenario endpoint: orchestration, authenticated APIs,
+privacy-safe monitoring, and Phase 11 closure remain for 11.12–11.14.
+
 The cumulative contract and checkpoint record is documented in
 [`docs/scenarios/PHASE_11_IMPLEMENTATION.md`](../docs/scenarios/PHASE_11_IMPLEMENTATION.md).

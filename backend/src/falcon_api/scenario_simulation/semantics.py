@@ -11,6 +11,10 @@ SCENARIO_REEVALUATION_POLICY_VERSION = "2026.1"
 SCENARIO_UNCERTAINTY_POLICY_VERSION = "2026.1"
 SCENARIO_MONTE_CARLO_POLICY_VERSION = "2026.1"
 SCENARIO_RISK_POLICY_VERSION = "2026.1"
+SCENARIO_COMPARISON_POLICY_VERSION = "2026.1"
+SCENARIO_SENSITIVITY_POLICY_VERSION = "2026.1"
+SCENARIO_DECISION_POLICY_VERSION = "2026.1"
+SCENARIO_PERSISTENCE_POLICY_VERSION = "2026.1"
 DEFAULT_MONTE_CARLO_TRIALS = 1_000
 MAX_MONTE_CARLO_TRIALS = 10_000
 MAX_MONTE_CARLO_SEED = (2**63) - 1
@@ -94,6 +98,31 @@ class ScenarioRiskStatus(StrEnum):
     LIMITED = "limited"
     BLOCKED = "blocked"
     UNAVAILABLE = "unavailable"
+
+
+class ScenarioComparisonStatus(StrEnum):
+    """Decision-readiness of one cross-scenario comparison."""
+
+    AVAILABLE = "available"
+    LIMITED = "limited"
+    BLOCKED = "blocked"
+    UNAVAILABLE = "unavailable"
+
+
+class ScenarioDecisionReasonCode(StrEnum):
+    """Stable non-generative reasons for ranking scenario alternatives."""
+
+    PROTECTED_BASELINE = "protected_baseline"
+    COMPLETION_IMPROVED = "completion_improved"
+    DEADLINES_IMPROVED = "deadlines_improved"
+    RESERVE_PRESERVED = "reserve_preserved"
+    DOWNSIDE_REDUCED = "downside_reduced"
+    WEIGHTED_FUNDING_IMPROVED = "weighted_funding_improved"
+    ADDED_CONTRIBUTION_REQUIRED = "added_contribution_required"
+    LIMITED_EVIDENCE = "limited_evidence"
+    DOMINATED_ALTERNATIVE = "dominated_alternative"
+    RECOMMENDED_ALTERNATIVE = "recommended_alternative"
+    NO_SAFE_ALTERNATIVE = "no_safe_alternative"
 
 
 class ScenarioReasonCode(StrEnum):

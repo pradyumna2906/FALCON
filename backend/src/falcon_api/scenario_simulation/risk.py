@@ -126,6 +126,39 @@ def evaluate_scenario_risk(
         calibrations=calibrations,
         evaluations=evaluations,
     )
+    return reduce_scenario_risk(
+        snapshot,
+        calibrations=calibrations,
+        evaluations=evaluations,
+        simulations=simulations,
+    )
+
+
+def reduce_scenario_risk(
+    snapshot: ScenarioEvidenceSnapshot,
+    *,
+    calibrations: tuple[ScenarioUncertaintyCalibration, ...],
+    evaluations: tuple[DeterministicScenarioEvaluation, ...],
+    simulations: tuple[ScenarioMonteCarloSimulation, ...],
+) -> tuple[ScenarioRiskMetrics, ...]:
+    """Reduce one already-evaluated path set without repeating solver work."""
+    if not (len(calibrations) == len(evaluations) == len(simulations)):
+        raise ValueError("Scenario risk inputs must contain the same paths.")
+    for calibration, evaluation, simulation in zip(
+        calibrations,
+        evaluations,
+        simulations,
+        strict=True,
+    ):
+        if (
+            calibration.snapshot_id != snapshot.snapshot_id
+            or evaluation.snapshot_id != snapshot.snapshot_id
+            or simulation.snapshot_id != snapshot.snapshot_id
+            or calibration.path_id != evaluation.path_id
+            or evaluation.path_id != simulation.path_id
+            or calibration.calibration_id != simulation.calibration_id
+        ):
+            raise ValueError("Scenario risk inputs must share one snapshot and order.")
     return tuple(
         _risk_metrics(
             snapshot=snapshot,
