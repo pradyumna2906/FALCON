@@ -24,6 +24,13 @@ def _payload() -> dict[str, object]:
                         "monthly_delta": "250",
                     }
                 ],
+                "debt_payment_adjustments": [
+                    {
+                        "start_period": "2026-10-01",
+                        "end_period": "2026-11-01",
+                        "monthly_delta": "100",
+                    }
+                ],
                 "income_interruptions": [
                     {
                         "start_period": "2026-11-01",
@@ -49,6 +56,7 @@ def test_draft_request_accepts_only_bounded_hypothetical_inputs() -> None:
     assert scenario.name == "Income shock"
     assert str(scenario.income_change_percent) == "-15.0000"
     assert scenario.goal_adjustments[0].goal_id == GOAL_ID
+    assert str(scenario.debt_payment_adjustments[0].monthly_delta) == "100.0000"
 
 
 @pytest.mark.parametrize(

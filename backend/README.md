@@ -570,8 +570,21 @@ form a deterministic SHA-256 snapshot. The service is read-only and never change
 the source plan, forecast, goals, contributions, profile, budget, account, debt,
 or transaction data.
 
-This batch adds no scenario engine, Monte Carlo simulation, persistence table, or
-public scenario endpoint. Those remain assigned to Checkpoints 11.3–11.14.
+Phase 11 Batch 2 adds deterministic protected, expected, and upside reference
+paths plus user-defined paths. Its fixed shock chain applies income changes and
+interruptions, expense inflation, one-time and recurring expenses, debt-payment
+deltas, emergency-target changes, and per-goal contribution increases or pauses
+with exact monthly reconciliation. Negative capacity is explicitly clipped,
+missing required forecast evidence fails closed, and no hidden stress constants
+are introduced.
+
+Every available path is reevaluated through the Phase 10 feasibility, probability,
+ranking, HiGHS allocation, emergency-reserve, exact invariant, and guarded
+fallback policies. Results contain schedules, completion outcomes, shortfalls,
+scores, reserve status, and exact differences from the source plan. The source
+plan remains immutable. Batch 2 adds no persistence table or public endpoint;
+Monte Carlo, risk metrics, history, APIs, and closure remain assigned to
+Checkpoints 11.6–11.14.
 
 The cumulative contract and checkpoint record is documented in
 [`docs/scenarios/PHASE_11_IMPLEMENTATION.md`](../docs/scenarios/PHASE_11_IMPLEMENTATION.md).

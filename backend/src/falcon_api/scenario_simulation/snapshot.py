@@ -84,6 +84,9 @@ class ScenarioGoalEvidence:
     feasibility_state: str
     deadline_risk: str
     evidence_reliability: str
+    expected_completion_period: date | None
+    projected_completion_period: date | None
+    deadline_met: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +124,7 @@ class ScenarioSourcePlanEvidence:
     unallocated_savings: Decimal
     weighted_funding_score: Decimal
     policy_versions: tuple[tuple[str, str | None], ...]
+    guardrail_reason_codes: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -486,7 +490,11 @@ def _requires_income_forecast(
 def _requires_expense_forecast(
     scenarios: tuple[ScenarioAssumptions, ...],
 ) -> bool:
-    return any(item.expense_change_percent != 0 for item in scenarios)
+    return any(
+        item.expense_change_percent != 0
+        or item.emergency_fund_target_months is not None
+        for item in scenarios
+    )
 
 
 def _validate_assumptions_against_plan(
@@ -502,6 +510,8 @@ def _validate_assumptions_against_plan(
             *(item.period_start for item in scenario.one_time_expenses),
             *(item.start_period for item in scenario.recurring_expense_adjustments),
             *(item.end_period for item in scenario.recurring_expense_adjustments),
+            *(item.start_period for item in scenario.debt_payment_adjustments),
+            *(item.end_period for item in scenario.debt_payment_adjustments),
             *(item.start_period for item in scenario.income_interruptions),
             *(item.end_period for item in scenario.income_interruptions),
             *(
@@ -560,6 +570,9 @@ def _goals(run: GoalPlanRun) -> tuple[ScenarioGoalEvidence, ...]:
             feasibility_state=item.feasibility_state,
             deadline_risk=item.deadline_risk,
             evidence_reliability=item.evidence_reliability,
+            expected_completion_period=item.expected_completion_period,
+            projected_completion_period=item.projected_completion_period,
+            deadline_met=item.deadline_met,
         )
         for item in run.outcomes
     )
@@ -613,6 +626,7 @@ def _source_plan(run: GoalPlanRun) -> ScenarioSourcePlanEvidence:
             ("optimization", run.optimization_policy_version),
             ("guardrail", run.guardrail_policy_version),
         ),
+        guardrail_reason_codes=tuple(run.guardrail_reason_codes),
     )
 
 

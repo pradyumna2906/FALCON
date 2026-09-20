@@ -52,7 +52,9 @@ from falcon_api.scenario_simulation import (
     OneTimeExpenseAssumption,
     ScenarioAssumptions,
     ScenarioEvidenceService,
+    ScenarioEvaluationStatus,
     ScenarioSnapshotWarning,
+    evaluate_deterministic_scenarios,
 )
 
 
@@ -218,6 +220,17 @@ async def _exercise_goal_plan_history() -> None:
             assert (
                 ScenarioSnapshotWarning.SOURCE_PLAN_GENERATED_ONLY
                 in snapshot.warnings
+            )
+            evaluations = evaluate_deterministic_scenarios(
+                snapshot,
+                solver=ZeroSolver(),
+            )
+            assert len(evaluations) == 4
+            assert evaluations[0].allocated_total == Decimal("100.0000")
+            assert evaluations[3].allocated_total == Decimal("75.0000")
+            assert (
+                evaluations[3].status
+                is ScenarioEvaluationStatus.GUARDED_FALLBACK
             )
             with pytest.raises(ApplicationError) as hidden_snapshot:
                 await scenario_evidence.build(

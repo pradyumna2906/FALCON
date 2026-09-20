@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 
 from falcon_api.models.enums import GoalPriority
 from falcon_api.scenario_simulation.assumptions import (
+    DebtPaymentAdjustment,
     GoalScenarioAdjustment,
     IncomeInterruptionAssumption,
     OneTimeExpenseAssumption,
@@ -19,6 +20,7 @@ from falcon_api.scenario_simulation.assumptions import (
     validate_scenario_assumptions,
 )
 from falcon_api.scenario_simulation.semantics import (
+    MAX_DEBT_PAYMENT_ADJUSTMENTS,
     MAX_GOAL_ADJUSTMENTS,
     MAX_INCOME_INTERRUPTION_PERIODS,
     MAX_ONE_TIME_EXPENSES,
@@ -66,6 +68,19 @@ class RecurringExpenseAdjustmentRequest(ScenarioSchema):
 
     def to_domain(self) -> RecurringExpenseAdjustment:
         return RecurringExpenseAdjustment(
+            start_period=self.start_period,
+            end_period=self.end_period,
+            monthly_delta=self.monthly_delta,
+        )
+
+
+class DebtPaymentAdjustmentRequest(ScenarioSchema):
+    start_period: date
+    end_period: date
+    monthly_delta: ScenarioMoney
+
+    def to_domain(self) -> DebtPaymentAdjustment:
+        return DebtPaymentAdjustment(
             start_period=self.start_period,
             end_period=self.end_period,
             monthly_delta=self.monthly_delta,
@@ -123,6 +138,10 @@ class ScenarioDefinitionRequest(ScenarioSchema):
         tuple[RecurringExpenseAdjustmentRequest, ...],
         Field(max_length=MAX_RECURRING_EXPENSE_ADJUSTMENTS),
     ] = ()
+    debt_payment_adjustments: Annotated[
+        tuple[DebtPaymentAdjustmentRequest, ...],
+        Field(max_length=MAX_DEBT_PAYMENT_ADJUSTMENTS),
+    ] = ()
     income_interruptions: Annotated[
         tuple[IncomeInterruptionRequest, ...],
         Field(max_length=MAX_INCOME_INTERRUPTION_PERIODS),
@@ -149,6 +168,9 @@ class ScenarioDefinitionRequest(ScenarioSchema):
             one_time_expenses=tuple(item.to_domain() for item in self.one_time_expenses),
             recurring_expense_adjustments=tuple(
                 item.to_domain() for item in self.recurring_expense_adjustments
+            ),
+            debt_payment_adjustments=tuple(
+                item.to_domain() for item in self.debt_payment_adjustments
             ),
             income_interruptions=tuple(
                 item.to_domain() for item in self.income_interruptions

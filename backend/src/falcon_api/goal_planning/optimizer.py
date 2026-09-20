@@ -77,6 +77,7 @@ class AllocationInvariantViolation(StrEnum):
     DEADLINE_EXCEEDED = "deadline_exceeded"
     EMERGENCY_RESERVE_EXCEEDED = "emergency_reserve_exceeded"
     AGGREGATE_TOTAL_MISMATCH = "aggregate_total_mismatch"
+    ALLOCATION_BOUND_VIOLATION = "allocation_bound_violation"
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +91,16 @@ class LinearProgramSolution:
     solver_version: str | None
     message: str
     iterations: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class GoalAllocationBound:
+    """Optional exact per-goal monthly bound for downstream policy composition."""
+
+    goal_id: UUID
+    period_start: date
+    minimum_amount: Decimal = Decimal("0")
+    maximum_amount: Decimal | None = None
 
 
 class LinearProgramSolver(Protocol):
@@ -232,11 +243,16 @@ def optimize_goal_allocations(
     snapshot: GoalPlanningSnapshot,
     ranking: GoalRanking,
     emergency_reserve_amount: Decimal = Decimal("0"),
+    allocation_bounds: tuple[GoalAllocationBound, ...] = (),
     solver: LinearProgramSolver | None = None,
 ) -> ConstrainedOptimizationResult:
     """Maximize ranking-weighted funded fractions under hard safety limits."""
     validate_allocation_inputs(snapshot=snapshot, ranking=ranking)
     reserve = _validated_reserve(emergency_reserve_amount)
+    bounds = _validated_allocation_bounds(
+        snapshot=snapshot,
+        allocation_bounds=allocation_bounds,
+    )
     eligible = tuple(item for item in ranking.items if item.eligible_for_allocation)
     if not eligible:
         return _empty_result(
@@ -262,6 +278,7 @@ def optimize_goal_allocations(
         snapshot=snapshot,
         ranking=ranking,
         reserve=reserve,
+        allocation_bounds=bounds,
     )
     if not model.allocation_variables:
         return _empty_result(
@@ -322,6 +339,7 @@ def optimize_goal_allocations(
         ranking=ranking,
         periods=periods,
         emergency_reserve_amount=reserve,
+        allocation_bounds=allocation_bounds,
     )
     if not invariants.valid:
         return _empty_result(
@@ -446,9 +464,14 @@ def verify_allocation_invariants(
     ranking: GoalRanking,
     periods: tuple[MonthlyAllocationPeriod, ...],
     emergency_reserve_amount: Decimal = Decimal("0"),
+    allocation_bounds: tuple[GoalAllocationBound, ...] = (),
 ) -> AllocationInvariantReport:
     """Verify capacity, goal, deadline, rank, and emergency-reserve limits."""
     reserve = _validated_reserve(emergency_reserve_amount)
+    bounds = _validated_allocation_bounds(
+        snapshot=snapshot,
+        allocation_bounds=allocation_bounds,
+    )
     violations: list[AllocationInvariantViolation] = []
     expected_points = (
         tuple(
@@ -474,6 +497,7 @@ def verify_allocation_invariants(
     cumulative_capacity = Decimal("0.0000")
     cumulative_non_emergency = Decimal("0.0000")
     allocation_count = 0
+    allocation_by_goal_period: dict[tuple[UUID, date], Decimal] = {}
     for index, period in enumerate(periods):
         expected_capacity = (
             money(expected_points[index].protected_amount)
@@ -541,6 +565,11 @@ def verify_allocation_invariants(
             goal_totals[allocation.goal_id] = money(
                 goal_totals[allocation.goal_id] + allocation.amount
             )
+            key = (allocation.goal_id, period.period_start)
+            allocation_by_goal_period[key] = money(
+                allocation_by_goal_period.get(key, Decimal("0"))
+                + allocation.amount
+            )
             if goal.goal_type is not GoalType.EMERGENCY_FUND:
                 cumulative_non_emergency = money(
                     cumulative_non_emergency + allocation.amount
@@ -562,6 +591,16 @@ def verify_allocation_invariants(
             _add_violation(
                 violations,
                 AllocationInvariantViolation.GOAL_LIMIT_EXCEEDED,
+            )
+    for key, bound in bounds.items():
+        actual = allocation_by_goal_period.get(key, Decimal("0.0000"))
+        if actual < bound.minimum_amount or (
+            bound.maximum_amount is not None
+            and actual > bound.maximum_amount
+        ):
+            _add_violation(
+                violations,
+                AllocationInvariantViolation.ALLOCATION_BOUND_VIOLATION,
             )
     capacity_total = money(
         sum((period.available_capacity for period in periods), Decimal("0"))
@@ -591,6 +630,7 @@ def _build_model(
     snapshot: GoalPlanningSnapshot,
     ranking: GoalRanking,
     reserve: Decimal,
+    allocation_bounds: dict[tuple[UUID, date], GoalAllocationBound],
 ) -> _LinearProgramModel:
     assert snapshot.savings_capacity is not None
     points = tuple(
@@ -665,7 +705,12 @@ def _build_model(
             )
 
     bounds = tuple(
-        (0.0, float(goals[variable.goal_id].remaining_amount))
+        _provider_bound(
+            variable=variable,
+            period_start=points[variable.period_index].period_start,
+            remaining=goals[variable.goal_id].remaining_amount,
+            allocation_bounds=allocation_bounds,
+        )
         for variable in allocation_variables
     ) + tuple((0.0, 1.0) for _ in eligible_items)
     return _LinearProgramModel(
@@ -805,6 +850,71 @@ def _validated_reserve(value: Decimal) -> Decimal:
     if not resolved.is_finite() or resolved < 0:
         raise ValueError("Emergency reserve must be finite and non-negative.")
     return money(resolved)
+
+
+def _validated_allocation_bounds(
+    *,
+    snapshot: GoalPlanningSnapshot,
+    allocation_bounds: tuple[GoalAllocationBound, ...],
+) -> dict[tuple[UUID, date], GoalAllocationBound]:
+    goal_ids = {goal.goal_id for goal in snapshot.goals}
+    periods = {
+        point.period_start
+        for point in (
+            snapshot.savings_capacity.points
+            if snapshot.savings_capacity is not None
+            else ()
+        )
+    }
+    result: dict[tuple[UUID, date], GoalAllocationBound] = {}
+    for bound in allocation_bounds:
+        minimum = Decimal(bound.minimum_amount)
+        maximum = (
+            Decimal(bound.maximum_amount)
+            if bound.maximum_amount is not None
+            else None
+        )
+        if bound.goal_id not in goal_ids or bound.period_start not in periods:
+            raise ValueError(
+                "Allocation bounds must reference scenario goals and periods."
+            )
+        if (
+            not minimum.is_finite()
+            or minimum < 0
+            or (maximum is not None and (not maximum.is_finite() or maximum < minimum))
+        ):
+            raise ValueError(
+                "Allocation bounds must be finite, non-negative, and ordered."
+            )
+        key = (bound.goal_id, bound.period_start)
+        if key in result:
+            raise ValueError(
+                "Allocation bounds must be unique by goal and period."
+            )
+        result[key] = GoalAllocationBound(
+            goal_id=bound.goal_id,
+            period_start=bound.period_start,
+            minimum_amount=money(minimum),
+            maximum_amount=money(maximum) if maximum is not None else None,
+        )
+    return result
+
+
+def _provider_bound(
+    *,
+    variable: _AllocationVariable,
+    period_start: date,
+    remaining: Decimal,
+    allocation_bounds: dict[tuple[UUID, date], GoalAllocationBound],
+) -> tuple[float, float | None]:
+    bound = allocation_bounds.get((variable.goal_id, period_start))
+    if bound is None:
+        return 0.0, float(remaining)
+    upper = min(
+        remaining,
+        bound.maximum_amount if bound.maximum_amount is not None else remaining,
+    )
+    return float(bound.minimum_amount), float(upper)
 
 
 def _scaled_tolerance(value: float) -> float:

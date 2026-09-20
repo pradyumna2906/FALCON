@@ -10,6 +10,7 @@ from uuid import UUID
 from falcon_api.models.enums import GoalPriority
 from falcon_api.scenario_simulation.semantics import (
     MAX_GOAL_ADJUSTMENTS,
+    MAX_DEBT_PAYMENT_ADJUSTMENTS,
     MAX_INCOME_INTERRUPTION_PERIODS,
     MAX_ONE_TIME_EXPENSES,
     MAX_RECURRING_EXPENSE_ADJUSTMENTS,
@@ -108,6 +109,29 @@ class RecurringExpenseAdjustment:
 
 
 @dataclass(frozen=True, slots=True)
+class DebtPaymentAdjustment:
+    """Apply one signed hypothetical debt-payment change without double counting."""
+
+    start_period: date
+    end_period: date
+    monthly_delta: Decimal
+
+    def __post_init__(self) -> None:
+        start, end = _period_range(
+            self.start_period,
+            self.end_period,
+            label="debt-payment adjustment",
+        )
+        object.__setattr__(self, "start_period", start)
+        object.__setattr__(self, "end_period", end)
+        object.__setattr__(
+            self,
+            "monthly_delta",
+            _money(self.monthly_delta, allow_zero=False),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class IncomeInterruptionAssumption:
     """Retain a bounded percentage of forecast income over a month range."""
 
@@ -191,6 +215,7 @@ class ScenarioAssumptions:
     expense_change_percent: Decimal = Decimal("0")
     one_time_expenses: tuple[OneTimeExpenseAssumption, ...] = ()
     recurring_expense_adjustments: tuple[RecurringExpenseAdjustment, ...] = ()
+    debt_payment_adjustments: tuple[DebtPaymentAdjustment, ...] = ()
     income_interruptions: tuple[IncomeInterruptionAssumption, ...] = ()
     goal_adjustments: tuple[GoalScenarioAdjustment, ...] = ()
     emergency_fund_target_months: Decimal | None = None
@@ -230,6 +255,12 @@ class ScenarioAssumptions:
             label="income interruptions",
         )
         _bounded_items(
+            self.debt_payment_adjustments,
+            maximum=MAX_DEBT_PAYMENT_ADJUSTMENTS,
+            label="debt-payment adjustments",
+        )
+        _validate_non_overlapping_interruptions(self.income_interruptions)
+        _bounded_items(
             self.goal_adjustments,
             maximum=MAX_GOAL_ADJUSTMENTS,
             label="goal adjustments",
@@ -261,6 +292,7 @@ class ScenarioAssumptions:
             or self.one_time_expenses
             or self.recurring_expense_adjustments
             or self.income_interruptions
+            or self.debt_payment_adjustments
             or self.goal_adjustments
             or self.emergency_fund_target_months is not None
         )
@@ -281,3 +313,17 @@ def validate_scenario_assumptions(
 def _bounded_items(items: tuple[object, ...], *, maximum: int, label: str) -> None:
     if len(items) > maximum:
         raise ValueError(f"Scenario {label} exceed the supported limit of {maximum}.")
+
+
+def _validate_non_overlapping_interruptions(
+    interruptions: tuple[IncomeInterruptionAssumption, ...],
+) -> None:
+    ordered = sorted(
+        interruptions,
+        key=lambda item: (item.start_period, item.end_period),
+    )
+    if any(
+        current.start_period <= previous.end_period
+        for previous, current in zip(ordered, ordered[1:], strict=False)
+    ):
+        raise ValueError("Scenario income interruptions cannot overlap.")

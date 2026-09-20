@@ -2,12 +2,34 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
+from falcon_api.forecasting.persistence import ForecastPersistenceRepository
+from falcon_api.goal_planning.persistence import GoalPlanRepository
 from falcon_api.models.forecasting import ForecastPoint, ForecastRun
-from goal_plan_test_data import FORECAST_ID, NOW, OWNER_ID
+from falcon_api.scenario_simulation import (
+    ScenarioAssumptions,
+    ScenarioEvidenceService,
+    ScenarioForecastRepository,
+)
+from goal_plan_test_data import (
+    FORECAST_ID,
+    NOW,
+    OWNER_ID,
+    transient_goal_plan_run,
+)
+
+
+SNAPSHOT_NOW = datetime(2026, 9, 15, 13, tzinfo=UTC)
+
+
+class FixedScenarioClock:
+    def now(self) -> datetime:
+        return SNAPSHOT_NOW
 
 
 def transient_savings_forecast() -> ForecastRun:
@@ -69,6 +91,42 @@ def transient_supplemental_forecast(
     for point in run.points:
         point.forecast_run_id = run.id
     return run
+
+
+def transient_scenario_snapshot(
+    scenarios: tuple[ScenarioAssumptions, ...],
+    *,
+    include_supplemental: bool = True,
+):
+    """Build one immutable Phase 11 snapshot through the production service."""
+    run = transient_goal_plan_run()
+    plans = AsyncMock(spec=GoalPlanRepository)
+    plans.get.return_value = run
+    forecasts = AsyncMock(spec=ForecastPersistenceRepository)
+    forecasts.get.return_value = transient_savings_forecast()
+    supplemental = AsyncMock(spec=ScenarioForecastRepository)
+
+    async def latest_eligible(*args, target, **kwargs):
+        del args, kwargs
+        if not include_supplemental:
+            return None
+        return transient_supplemental_forecast(target.value)
+
+    supplemental.latest_eligible.side_effect = latest_eligible
+    service = ScenarioEvidenceService(
+        plan_repository=plans,
+        forecast_repository=forecasts,
+        scenario_forecast_repository=supplemental,
+        clock=FixedScenarioClock(),
+    )
+    return asyncio.run(
+        service.build(
+            AsyncMock(),
+            user_id=OWNER_ID,
+            source_plan_id=run.id,
+            scenarios=scenarios,
+        )
+    )
 
 
 def _point(step: int, period: date) -> ForecastPoint:

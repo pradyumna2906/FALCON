@@ -8,6 +8,7 @@ import pytest
 
 from falcon_api.models.enums import GoalPriority
 from falcon_api.scenario_simulation import (
+    DebtPaymentAdjustment,
     GoalScenarioAdjustment,
     IncomeInterruptionAssumption,
     OneTimeExpenseAssumption,
@@ -38,6 +39,13 @@ def test_complete_scenario_normalizes_exact_values() -> None:
                 monthly_delta=Decimal("250"),
             ),
         ),
+        debt_payment_adjustments=(
+            DebtPaymentAdjustment(
+                start_period=date(2026, 10, 1),
+                end_period=date(2026, 11, 1),
+                monthly_delta=Decimal("50"),
+            ),
+        ),
         income_interruptions=(
             IncomeInterruptionAssumption(
                 start_period=date(2026, 10, 1),
@@ -63,6 +71,7 @@ def test_complete_scenario_normalizes_exact_values() -> None:
     assert scenario.income_change_percent == Decimal("-10.0000")
     assert scenario.one_time_expenses[0].amount == Decimal("1000.1234")
     assert scenario.goal_adjustments[0].priority is GoalPriority.CRITICAL
+    assert scenario.debt_payment_adjustments[0].monthly_delta == Decimal("50.0000")
     assert scenario.has_override is True
 
 
@@ -102,6 +111,14 @@ def test_complete_scenario_normalizes_exact_values() -> None:
             "between 0 and 100",
         ),
         (
+            lambda: DebtPaymentAdjustment(
+                start_period=date(2026, 10, 1),
+                end_period=date(2026, 11, 1),
+                monthly_delta=Decimal("0"),
+            ),
+            "cannot be zero",
+        ),
+        (
             lambda: GoalScenarioAdjustment(goal_id=GOAL_ID),
             "at least one value",
         ),
@@ -135,6 +152,21 @@ def test_scenario_set_requires_unique_bounded_names_and_goals() -> None:
         ScenarioAssumptions(
             name="Duplicate goals",
             goal_adjustments=(duplicate_goal, duplicate_goal),
+        )
+
+    with pytest.raises(ValueError, match="cannot overlap"):
+        ScenarioAssumptions(
+            name="Overlapping interruption",
+            income_interruptions=(
+                IncomeInterruptionAssumption(
+                    start_period=date(2026, 10, 1),
+                    end_period=date(2026, 11, 1),
+                ),
+                IncomeInterruptionAssumption(
+                    start_period=date(2026, 11, 1),
+                    end_period=date(2026, 12, 1),
+                ),
+            ),
         )
 
 

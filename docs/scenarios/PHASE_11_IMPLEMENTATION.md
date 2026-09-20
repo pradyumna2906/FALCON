@@ -3,10 +3,11 @@
 Scenario-simulation contract version: `2026.1`
 
 This cumulative record freezes the approved Phase 11 semantics. Batch 1 contains
-Checkpoints 11.0–11.2; later approved batches reserve deterministic scenarios and
-financial shocks for 11.3–11.5, Monte Carlo and risk metrics for 11.6–11.8,
-alternative comparison and immutable history for 11.9–11.11, and orchestration,
-authenticated APIs, monitoring, security, and closure for 11.12–11.14.
+Checkpoints 11.0–11.2 and Batch 2 contains deterministic scenarios, ordered
+financial shocks, and Phase 10 goal-plan reevaluation for 11.3–11.5. Later
+approved batches reserve Monte Carlo and risk metrics for 11.6–11.8, alternative
+comparison and immutable history for 11.9–11.11, and orchestration, authenticated
+APIs, monitoring, security, and closure for 11.12–11.14.
 
 Phase 11 answers bounded what-if questions against immutable Phase 9 forecast and
 Phase 10 plan evidence. It does not rewrite observations, forecasts, goals,
@@ -57,6 +58,7 @@ One alternative may include:
 | Expense percentage change | −100% through +300% |
 | One-time expense | Positive exact amount on a month boundary |
 | Recurring expense adjustment | Non-zero signed amount over at most 24 months |
+| Debt-payment adjustment | Non-zero signed delta over at most 24 months |
 | Income interruption | Month range plus 0–100% retained income |
 | Goal target | Positive exact amount not below frozen current progress |
 | Goal deadline | Future date |
@@ -73,9 +75,10 @@ value; the unchanged protected/expected/upside reference cases remain
 server-owned rather than client-supplied duplicates.
 
 Maximum collection sizes are closed constants: twelve one-time expenses, twelve
-recurring expense adjustments, four interruption ranges, and one adjustment for
-each of at most one hundred goals. All dated financial events and pause ranges
-must fall within the immutable source-plan horizon.
+recurring expense adjustments, twelve debt-payment adjustments, four
+non-overlapping interruption ranges, and one adjustment for each of at most one
+hundred goals. All dated financial events and pause ranges must fall within the
+immutable source-plan horizon.
 
 The client cannot submit identity, cutoff, historical values, policy versions,
 solver selection, random generator, forecast points, source balances, calculated
@@ -133,7 +136,110 @@ totals, score, all Phase 10 policy versions, forecast model and uncertainty
 provenance, confidence bands, per-goal outcomes, exact monthly allocations,
 normalized hypotheses, and bounded warnings.
 
-## 4. Security and integrity established by Batch 1
+## 4. Checkpoint 11.3 — deterministic scenario paths
+
+`build_deterministic_scenario_paths()` produces three server-owned references
+before the bounded user alternatives:
+
+| Case | Monthly capacity selected |
+|---|---|
+| Protected / worst | Phase 9 non-negative 95% lower savings bound |
+| Expected | Phase 9 non-negative point estimate |
+| Upside / best | Phase 9 non-negative 95% upper savings bound |
+
+Each reference retains exact period identity, all three confidence values,
+source provenance, the Phase 10 emergency reserve, totals, a policy version, and
+a deterministic SHA-256 path identifier. When the source plan has no savings
+forecast, the protected path may reuse its already verified stored capacity as
+limited evidence; expected and upside cases are unavailable instead of invented.
+
+User-defined cases begin with the same protected/expected/upside savings bands
+and apply deterministic adjustments to each band. They select protected capacity
+for allocation safety. There are no hidden salary, inflation, or stress constants:
+a stress case is an explicit bounded hypothesis, while the three standard cases
+remain server-owned. This prevents the user from submitting a duplicate baseline
+or silently controlling confidence semantics.
+
+All paths are pure values. They neither call the database nor update a forecast,
+goal, contribution, or plan.
+
+## 5. Checkpoint 11.4 — ordered financial shocks
+
+The fixed monthly transformation order is:
+
+```text
+trusted savings bands
+→ income percentage change
+→ temporary income interruption and automatic recovery
+→ expense percentage change
+→ one-time expenses
+→ recurring expense changes
+→ debt-payment changes
+→ clipped scenario savings bands
+→ emergency reserve and goal-contribution constraints
+```
+
+Income and expense percentage changes use their matching owner- and cutoff-scoped
+Phase 9 forecasts. An interruption retains 0–100% of the already adjusted income
+inside its non-overlapping month range; the next month automatically returns to
+the percentage-adjusted baseline. Recurring expense and debt-payment changes are
+signed, range-bounded, and additive. A debt delta represents only the hypothetical
+change from the savings forecast's observed post-expense baseline, preventing the
+existing debt payment from being subtracted twice.
+
+One-time expenses are applied exactly once in their named month. Every raw band
+must remain finite and inside the exact `NUMERIC(19,4)` magnitude. Negative
+savings are retained as raw evidence but clipped to zero before allocation, with
+an explicit reason code. Confidence ordering is preserved after every shock.
+
+Without an emergency-target override, the immutable Phase 10 reserve is reused.
+With an override, the engine conservatively multiplies the requested 0–24 months
+by the largest adjusted recurring monthly expense baseline and assumes no liquid
+balance offset because the source plan intentionally does not persist private
+account balances. Missing expense evidence makes that alternative unavailable.
+
+Goal contribution changes become exact solver bounds relative to the immutable
+Phase 10 monthly allocation: a positive delta is a minimum, a negative delta is
+an upper cap, and a pause sets the cap to zero for its month range. Pause semantics
+override a contribution delta in overlapping months. An impossible minimum is
+reported as infeasible and is never silently relaxed.
+
+## 6. Checkpoint 11.5 — scenario-aware goal-plan reevaluation
+
+`evaluate_deterministic_scenarios()` converts each available path into an
+immutable Phase 10-compatible planning snapshot and reuses the existing policies:
+
+```text
+scenario capacity and goal overrides
+→ Phase 10 feasibility and completion probability
+→ Phase 10 explainable ranking
+→ Phase 10 SciPy/HiGHS constrained allocation
+→ exact goal, deadline, capacity, reserve, and contribution-bound verification
+→ bounded guarded-greedy fallback
+→ comparison with the immutable source plan
+```
+
+Goal amount, deadline, and priority overrides are applied only to temporary
+`GoalProgress` values. Existing progress is preserved. The optimizer still uses
+one currency, non-negative capacity, hard deadlines, goal caps, single-use monthly
+capacity, and the emergency reserve. A new generic `GoalAllocationBound` extension
+lets downstream policies add exact monthly minimums or maximums while retaining
+the original Phase 10 behavior when no bounds are supplied.
+
+Solver output is accepted only after Phase 10's exact Decimal invariants also
+validate every scenario contribution bound. The guarded deterministic fallback
+uses the same rank, deadline, reserve, goal-cap, monthly-capacity, and bound rules.
+If mandatory contribution minimums cannot be satisfied, the scenario is marked
+infeasible rather than returning an unsafe fallback.
+
+Each result includes monthly capacity and allocations, completion probability,
+completion period, protected/expected shortfalls, deadline results, reserve
+status, weighted funding score, optimizer evidence, and exact deltas from the
+Phase 10 allocated total, funded-goal count, deadline count, and weighted score.
+The source plan remains byte-for-byte unchanged and repeated evaluation of the
+same snapshot produces identical path and evaluation identifiers.
+
+## 7. Security and integrity established through Batch 2
 
 - Owner scope appears in both source-plan and forecast repository reads.
 - Foreign resources are indistinguishable from missing resources.
@@ -147,8 +253,15 @@ normalized hypotheses, and bounded warnings.
 - Every dated adjustment remains within the frozen horizon.
 - Hypotheses are immutable values and never update financial records.
 - Snapshot identifiers use canonical JSON and SHA-256.
+- Standard reference bands remain server-owned.
+- Missing income or expense evidence makes dependent scenarios unavailable.
+- Shock arithmetic is exact, bounded, ordered, and period-reconciled.
+- Debt-payment changes adjust only the delta and cannot double-count the baseline.
+- Pauses and contribution bounds are enforced by both solver and fallback.
+- Phase 10 goal, deadline, capacity, and emergency-reserve invariants are reused.
+- Scenario evaluation never changes its source plan or observed financial data.
 
-## 5. Validation boundary
+## 8. Validation boundary
 
 Batch 1 validation covers domain and Pydantic assumption limits, immutability,
 server-field rejection, unique alternatives and goals, owner-scoped repository
@@ -157,11 +270,15 @@ rejection, source lifecycle rules, out-of-horizon adjustments, unknown goals,
 missing forecasts, and a real PostgreSQL owner-isolation scenario added to the
 existing goal-plan lifecycle test.
 
-## 6. Deferred checkpoints
+Batch 2 adds deterministic-reference, ordered-shock, recovery, clipping,
+reconciliation, emergency-reserve, contribution-bound, infeasibility, HiGHS,
+guarded-fallback, exact-delta, and repeatability tests. Phase 10 regression tests
+verify that optional allocation bounds do not alter existing callers.
 
-Batch 1 adds no deterministic scenario transformation, financial-shock engine,
-scenario goal-plan reevaluation, Monte Carlo calibration, stochastic simulation,
-percentile or tail-risk metric, sensitivity analysis, alternative ranking,
+## 9. Deferred checkpoints
+
+Batch 2 adds no Monte Carlo calibration, stochastic simulation, percentile or
+tail-risk metric, sensitivity analysis, cross-scenario recommendation ranking,
 scenario persistence, selection history, public endpoint, background execution,
 AI explanation, notification, or frontend. These responsibilities remain with
-Checkpoints 11.3–11.14 and later phases.
+Checkpoints 11.6–11.14 and later phases.

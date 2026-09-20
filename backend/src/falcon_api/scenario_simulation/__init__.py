@@ -1,6 +1,7 @@
 """Public Phase 11 scenario-simulation contracts."""
 
 from falcon_api.scenario_simulation.assumptions import (
+    DebtPaymentAdjustment,
     GoalScenarioAdjustment,
     IncomeInterruptionAssumption,
     OneTimeExpenseAssumption,
@@ -8,8 +9,20 @@ from falcon_api.scenario_simulation.assumptions import (
     ScenarioAssumptions,
     validate_scenario_assumptions,
 )
+from falcon_api.scenario_simulation.evaluation import (
+    DeterministicScenarioEvaluation,
+    ScenarioGoalEvaluation,
+    ScenarioPlanComparison,
+    evaluate_deterministic_scenarios,
+)
+from falcon_api.scenario_simulation.paths import (
+    DeterministicScenarioPath,
+    ScenarioCapacityPeriod,
+    build_deterministic_scenario_paths,
+)
 from falcon_api.scenario_simulation.semantics import (
     MAX_GOAL_ADJUSTMENTS,
+    MAX_DEBT_PAYMENT_ADJUSTMENTS,
     MAX_INCOME_INTERRUPTION_PERIODS,
     MAX_ONE_TIME_EXPENSES,
     MAX_RECURRING_EXPENSE_ADJUSTMENTS,
@@ -17,7 +30,13 @@ from falcon_api.scenario_simulation.semantics import (
     MAX_SCENARIO_NAME_LENGTH,
     MAX_SCENARIOS_PER_REQUEST,
     SCENARIO_SIMULATION_CONTRACT_VERSION,
+    SCENARIO_PATH_POLICY_VERSION,
+    SCENARIO_REEVALUATION_POLICY_VERSION,
+    ScenarioCaseKind,
     ScenarioErrorCode,
+    ScenarioEvaluationStatus,
+    ScenarioPathStatus,
+    ScenarioReasonCode,
     ScenarioSnapshotWarning,
 )
 from falcon_api.scenario_simulation.repository import ScenarioForecastRepository
@@ -34,6 +53,7 @@ from falcon_api.scenario_simulation.snapshot import (
 
 __all__ = [
     "MAX_GOAL_ADJUSTMENTS",
+    "MAX_DEBT_PAYMENT_ADJUSTMENTS",
     "MAX_INCOME_INTERRUPTION_PERIODS",
     "MAX_ONE_TIME_EXPENSES",
     "MAX_RECURRING_EXPENSE_ADJUSTMENTS",
@@ -41,21 +61,35 @@ __all__ = [
     "MAX_SCENARIO_NAME_LENGTH",
     "MAX_SCENARIOS_PER_REQUEST",
     "SCENARIO_SIMULATION_CONTRACT_VERSION",
+    "SCENARIO_PATH_POLICY_VERSION",
+    "SCENARIO_REEVALUATION_POLICY_VERSION",
+    "DebtPaymentAdjustment",
+    "DeterministicScenarioEvaluation",
+    "DeterministicScenarioPath",
     "GoalScenarioAdjustment",
     "IncomeInterruptionAssumption",
     "OneTimeExpenseAssumption",
     "RecurringExpenseAdjustment",
     "ScenarioAssumptions",
+    "ScenarioCapacityPeriod",
+    "ScenarioCaseKind",
     "ScenarioAllocationEvidence",
     "ScenarioEvidenceService",
     "ScenarioEvidenceSnapshot",
     "ScenarioErrorCode",
+    "ScenarioEvaluationStatus",
     "ScenarioForecastEvidence",
     "ScenarioForecastRepository",
     "ScenarioForecastPointEvidence",
     "ScenarioGoalEvidence",
     "ScenarioPeriodEvidence",
+    "ScenarioPathStatus",
+    "ScenarioPlanComparison",
+    "ScenarioReasonCode",
+    "ScenarioGoalEvaluation",
     "ScenarioSnapshotWarning",
     "ScenarioSourcePlanEvidence",
     "validate_scenario_assumptions",
+    "build_deterministic_scenario_paths",
+    "evaluate_deterministic_scenarios",
 ]
