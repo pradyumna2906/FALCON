@@ -299,7 +299,10 @@ class ScenarioDefinition(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     risk_status: Mapped[str] = mapped_column(String(16), nullable=False)
     selected_band: Mapped[str] = mapped_column(String(16), nullable=False)
     reliability: Mapped[str] = mapped_column(String(16), nullable=False)
-    assumptions: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    assumptions: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB(none_as_null=True),
+        nullable=True,
+    )
     reason_codes: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     emergency_reserve_amount: Mapped[MoneyAmount] = mapped_column(nullable=False)
     capacity_total: Mapped[MoneyAmount] = mapped_column(nullable=False)

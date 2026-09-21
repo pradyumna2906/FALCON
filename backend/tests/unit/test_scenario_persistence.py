@@ -74,6 +74,8 @@ def test_create_freezes_complete_replayable_graph() -> None:
     assert len(run.comparisons) == 4
     assert all(len(item.periods) == len(snapshot.periods) for item in run.definitions)
     assert all(len(item.outcomes) == len(snapshot.goals) for item in run.definitions)
+    assert all(item.assumptions is None for item in run.definitions[:3])
+    assert isinstance(run.definitions[3].assumptions, dict)
     assert run.events[0].event_type is ScenarioSimulationEventType.GENERATED
     assert run.events[0].occurred_at == occurred_at
     assert not hasattr(run, "raw_samples")

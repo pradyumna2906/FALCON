@@ -3,6 +3,8 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from sqlalchemy.dialects import postgresql
+
 from falcon_api.infrastructure.persistence import model_metadata
 from falcon_api.models import register_models
 from falcon_api.models.enums import (
@@ -53,6 +55,16 @@ def test_scenario_schema_excludes_private_source_and_raw_sample_payloads() -> No
         "sample_buffer",
         "raw_samples",
     } & columns
+
+
+def test_reference_scenario_assumptions_bind_none_as_sql_null() -> None:
+    register_models()
+    assumptions_type = model_metadata().tables["scenario_definitions"].c.assumptions.type
+    bind = assumptions_type.bind_processor(postgresql.dialect())
+
+    assert assumptions_type.none_as_null is True
+    assert bind is not None
+    assert bind(None) is None
 
 
 def test_selected_scenario_is_derived_only_from_append_only_events() -> None:
