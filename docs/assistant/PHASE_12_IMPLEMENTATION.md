@@ -1,12 +1,14 @@
 # Phase 12 — Grounded AI Assistant
 
-Status: Batch 1 implemented locally on `feat/phase-12-grounded-assistant-foundation`.
+Status: Batches 1–2 implemented on `feat/phase-12-grounded-assistant-foundation`.
 
 This cumulative record freezes the approved Phase 12 semantics. Checkpoints
 12.0–12.2 establish the provider-neutral architecture, closed assistant scope,
 strict answer and citation contracts, evidence-source authorization, prompt data
-allowlists, and threat model. Retrieval, model invocation, persistence, public
-routes, and monitoring remain intentionally absent until their approved batches.
+allowlists, and threat model. Checkpoints 12.3–12.5 add owner-scoped structured retrieval, curated public
+knowledge persistence, PostgreSQL full-text search, and deterministic reranking.
+Model invocation, conversation persistence, public routes, and monitoring remain
+intentionally absent until their approved batches.
 
 ## 1. Phase boundary
 
@@ -149,10 +151,87 @@ before Phase 12 can close.
 - Retrieved documents are evidence and never executable instructions.
 - The assistant has no financial write capability.
 
-## 6. Deferred checkpoints
+## 6. Checkpoint 12.3 — owner-scoped structured evidence registry
 
-- 12.3–12.5: evidence registry adapters, curated knowledge ingestion, retrieval,
-  and reranking;
+`AssistantEvidenceRegistry.retrieve()` is the only source-dispatch boundary. It
+authorizes the complete unique source set before an adapter is called, requires
+the authenticated owner for every private source, bounds requests and results,
+and rejects missing adapters, cross-source output, duplicate evidence identities,
+and oversized result sets.
+
+Five private adapters reuse the existing authoritative application or repository
+paths:
+
+- analytics calls the live owner-scoped dashboard service and removes account
+  identifiers before producing cash-flow and spending aggregates;
+- forecasts load one owner-scoped immutable Phase 9 run and expose validation
+  quality, points, confidence bands, model provenance, and uncertainty;
+- goal progress calls the exact Phase 10 contribution/progress service;
+- goal plans load one owner-scoped immutable Phase 10 schedule and safety result;
+- scenarios load one owner-scoped immutable Phase 11 decision graph.
+
+Every `AssistantEvidenceRecord` is deeply immutable, prompt-allowlisted, bounded,
+time-cutoff aware, reliability-labelled, versioned, and assigned a canonical
+SHA-256 identity. Foreign and missing persisted resources produce no record. The
+model receives no repository, database connection, owner key, raw account, raw
+transaction, final-test forecast metric, or financial write capability.
+
+## 7. Checkpoint 12.4 — curated knowledge ingestion and persistence
+
+Curated educational knowledge is deliberately separate from owner data. Offline
+ingestion accepts a reviewed HTTPS source, lowercase slug, explicit version,
+closed topic set, timezone-aware publication time, and bounded normalized
+Markdown. Deterministic heading-aware chunking produces at most 200 chunks of at
+most 4,000 characters with SHA-256 content identities.
+
+Two PostgreSQL tables store document provenance and bounded chunks. Documents
+are immutable except for one chronological retirement transition; chunks are
+fully immutable. Database constraints enforce source, slug, version, topic,
+hash, ordering, length, and retirement rules. A generated weighted `tsvector`
+and GIN index support lexical retrieval. Retired or future-published versions are
+excluded. The index contains no user identity, account, transaction, statement,
+forecast, goal, scenario, conversation, prompt, model response, or embedding.
+
+## 8. Checkpoint 12.5 — bounded retrieval and deterministic reranking
+
+`AssistantKnowledgeService.retrieve()` normalizes a bounded lexical query and
+selects only active documents at the trusted retrieval cutoff. PostgreSQL
+`websearch_to_tsquery` and `ts_rank_cd` produce at most 50 candidates. Optional
+closed-topic filtering is applied in SQL before results leave the repository.
+
+`rerank_knowledge_candidates()` then combines transparent fixed signals: full-
+text score, token overlap, title match, heading match, exact phrase match, and
+topic match. It performs no model call and uses stable publication, slug, version,
+ordinal, and chunk-ID tie-breaking. Returned hits contain a bounded score and
+reason codes. The raw question is not persisted; provenance records only a query
+digest, retrieval cutoff, policy version, ordered public chunk identities, and a
+canonical retrieval ID.
+
+`KnowledgeEvidenceAdapter` maps each hit into the same immutable allowlisted
+evidence contract as structured evidence. Retrieved document text remains quoted
+evidence and never becomes executable instruction. No semantic embedding or
+external vector service is used; `pgvector` remains conditional on a later fixed
+evaluation showing a material improvement over this lexical baseline.
+
+## 9. Batch 2 security and integrity invariants
+
+- Source authorization completes before any adapter query.
+- The authenticated owner is forwarded unchanged to every private data access.
+- Missing and foreign persisted resources are indistinguishable empty evidence.
+- Adapter output cannot change its registered source family.
+- Evidence payloads pass the recursive prompt allowlist before receiving an ID.
+- Private identifiers and final-test forecast metrics are excluded from prompts.
+- Public knowledge requires HTTPS provenance, explicit version, and closed topics.
+- Knowledge chunks are deterministic, bounded, hashed, and database-immutable.
+- Only active, already-published knowledge versions can be retrieved.
+- Full-text candidate count, final result count, text size, and nesting are bounded.
+- Reranking is deterministic, transparent, provider-free, and replayable.
+- Query text is not stored in knowledge rows or retrieval provenance.
+- Raw financial evidence is never inserted into a full-text or embedding index.
+- Retrieved instructions cannot modify authorization, safety, tools, or policy.
+
+## 10. Deferred checkpoints
+
 - 12.6–12.8: evidence packet construction, provider adapter, grounded generation,
   and citations;
 - 12.9–12.11: conversation persistence, injection controls, verification, and RAG
@@ -160,6 +239,6 @@ before Phase 12 can close.
 - 12.12–12.14: orchestration, authenticated APIs, monitoring, integration, and
   release closure.
 
-Batch 1 deliberately adds no conversation table, knowledge table, embedding,
-model invocation, retrieval query, public assistant endpoint, logging event, or
-external network call.
+Batches 1–2 deliberately add no conversation table, embedding, model invocation,
+public assistant endpoint, assistant response persistence, logging event, or
+external network call. The knowledge tables contain curated public material only.

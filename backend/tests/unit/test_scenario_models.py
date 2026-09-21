@@ -29,7 +29,7 @@ def test_scenario_models_register_complete_owner_scoped_graph() -> None:
     metadata = model_metadata()
 
     assert _TABLES <= set(metadata.tables)
-    assert len(metadata.tables) == 34
+    assert len(metadata.tables) == 36
     for table_name in _TABLES - {"scenario_simulation_runs"}:
         table = metadata.tables[table_name]
         assert {"user_id", "simulation_run_id"} <= set(table.columns.keys())

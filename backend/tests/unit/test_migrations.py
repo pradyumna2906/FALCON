@@ -24,6 +24,7 @@ _PERSONALIZATION_REVISION = "f7b2d4e8a901"
 _FORECAST_PERSISTENCE_REVISION = "a9c4e2f7b613"
 _GOAL_PLAN_PERSISTENCE_REVISION = "b3e8f6c2d715"
 _SCENARIO_PERSISTENCE_REVISION = "c4d7a9e2f816"
+_ASSISTANT_KNOWLEDGE_REVISION = "d6f4b8a1c902"
 
 
 def create_alembic_config() -> Config:
@@ -43,13 +44,45 @@ def test_migrations_share_application_metadata() -> None:
     register_models()
 
     assert model_metadata() is Base.metadata
-    assert len(model_metadata().tables) == 34
+    assert len(model_metadata().tables) == 36
 
 
-def test_scenario_persistence_revision_is_the_single_head() -> None:
+def test_assistant_knowledge_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_SCENARIO_PERSISTENCE_REVISION]
+    assert scripts.get_heads() == [_ASSISTANT_KNOWLEDGE_REVISION]
+
+    assistant_revision = scripts.get_revision(_ASSISTANT_KNOWLEDGE_REVISION)
+
+    assert assistant_revision is not None
+    assert assistant_revision.down_revision == _SCENARIO_PERSISTENCE_REVISION
+    assert callable(assistant_revision.module.upgrade)
+    assert callable(assistant_revision.module.downgrade)
+
+
+def test_assistant_knowledge_migration_freezes_public_provenance_and_search() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+    revision = scripts.get_revision(_ASSISTANT_KNOWLEDGE_REVISION)
+
+    assert revision is not None
+    source = Path(revision.path).read_text(encoding="utf-8")
+    for statement in (
+        "assistant_knowledge_documents",
+        "assistant_knowledge_chunks",
+        "source_uri ~ '^https://'",
+        "content_sha256",
+        "to_tsvector('english'",
+        "postgresql_using=\"gin\"",
+        "validate_assistant_knowledge_document_update",
+        "assistant knowledge documents are immutable except retirement",
+        "reject_assistant_knowledge_chunk_mutation",
+        "trg_assistant_knowledge_chunks_immutable",
+    ):
+        assert statement in source
+
+
+def test_scenario_persistence_precedes_assistant_knowledge() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
 
     scenario_revision = scripts.get_revision(_SCENARIO_PERSISTENCE_REVISION)
 

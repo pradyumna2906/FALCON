@@ -157,8 +157,11 @@ _SOURCE_POLICIES = {
                 "content",
                 "version",
                 "source_uri",
+                "topics",
                 "published_at",
                 "retired_at",
+                "retrieval_score",
+                "retrieval_reasons",
             }
         ),
     ),

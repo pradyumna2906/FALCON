@@ -6,6 +6,9 @@ from enum import StrEnum
 ASSISTANT_CONTRACT_VERSION = "2026.1"
 ASSISTANT_PRIVACY_POLICY_VERSION = "2026.1"
 ASSISTANT_SAFETY_POLICY_VERSION = "2026.1"
+ASSISTANT_EVIDENCE_POLICY_VERSION = "2026.1"
+ASSISTANT_KNOWLEDGE_POLICY_VERSION = "2026.1"
+ASSISTANT_RETRIEVAL_POLICY_VERSION = "2026.1"
 
 MAX_QUESTION_CHARACTERS = 2_000
 MAX_ANSWER_CHARACTERS = 12_000
@@ -19,6 +22,19 @@ MAX_SUGGESTED_QUESTION_CHARACTERS = 300
 MAX_PROMPT_TEXT_CHARACTERS = 8_000
 MAX_PROMPT_COLLECTION_ITEMS = 500
 MAX_PROMPT_NESTING_DEPTH = 6
+MAX_EVIDENCE_REQUESTS = 6
+MAX_EVIDENCE_RECORDS = 20
+MAX_KNOWLEDGE_QUERY_CHARACTERS = 500
+MAX_KNOWLEDGE_RESULTS = 10
+MAX_KNOWLEDGE_DOCUMENT_CHARACTERS = 200_000
+MAX_KNOWLEDGE_CHUNKS_PER_DOCUMENT = 200
+MAX_KNOWLEDGE_CHUNK_CHARACTERS = 4_000
+MIN_KNOWLEDGE_CHUNK_CHARACTERS = 40
+MAX_KNOWLEDGE_TITLE_CHARACTERS = 200
+MAX_KNOWLEDGE_HEADING_CHARACTERS = 200
+MAX_KNOWLEDGE_SOURCE_URI_CHARACTERS = 500
+MAX_KNOWLEDGE_SLUG_CHARACTERS = 128
+MAX_KNOWLEDGE_VERSION_CHARACTERS = 32
 
 
 class AssistantIntent(StrEnum):
@@ -103,3 +119,28 @@ class AssistantThreat(StrEnum):
     UNSAFE_FINANCIAL_ADVICE = "unsafe_financial_advice"
     RAW_PROMPT_LOGGING = "raw_prompt_logging"
     CHAIN_OF_THOUGHT_EXPOSURE = "chain_of_thought_exposure"
+
+
+class AssistantKnowledgeTopic(StrEnum):
+    """Closed educational topics accepted by the curated knowledge index."""
+
+    BUDGETING = "budgeting"
+    CASH_FLOW = "cash_flow"
+    SAVINGS = "savings"
+    EMERGENCY_FUNDS = "emergency_funds"
+    DEBT = "debt"
+    FORECASTING = "forecasting"
+    GOAL_PLANNING = "goal_planning"
+    SCENARIO_PLANNING = "scenario_planning"
+    FINANCIAL_RISK = "financial_risk"
+    FINANCIAL_LITERACY = "financial_literacy"
+
+
+class AssistantRetrievalReason(StrEnum):
+    """Deterministic, non-model reasons that affected knowledge ranking."""
+
+    FULL_TEXT_MATCH = "full_text_match"
+    TITLE_MATCH = "title_match"
+    HEADING_MATCH = "heading_match"
+    TOPIC_MATCH = "topic_match"
+    PHRASE_MATCH = "phrase_match"

@@ -1,4 +1,4 @@
-"""Repository-level Phase 12 Batch 1 boundary tests."""
+"""Repository-level Phase 12 retrieval-boundary tests."""
 
 from pathlib import Path
 
@@ -6,7 +6,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_phase_12_implementation_record_freezes_batch_1_and_deferrals() -> None:
+def test_phase_12_implementation_record_freezes_batches_1_and_2() -> None:
     document = (_ROOT / "docs/assistant/PHASE_12_IMPLEMENTATION.md").read_text(
         encoding="utf-8"
     )
@@ -16,6 +16,10 @@ def test_phase_12_implementation_record_freezes_batch_1_and_deferrals() -> None:
         "Checkpoint 12.1 — intents and response contract",
         "Checkpoint 12.2 — privacy, authorization, and threats",
         "Batch 1 security invariants",
+        "Checkpoint 12.3 — owner-scoped structured evidence registry",
+        "Checkpoint 12.4 — curated knowledge ingestion and persistence",
+        "Checkpoint 12.5 — bounded retrieval and deterministic reranking",
+        "Batch 2 security and integrity invariants",
         "Deferred checkpoints",
     ):
         assert heading in document
@@ -23,7 +27,8 @@ def test_phase_12_implementation_record_freezes_batch_1_and_deferrals() -> None:
         "It cannot edit a profile, account, transaction, budget, goal, contribution",
         "Raw financial data is not embedded or semantically indexed.",
         "Generated answers require evidence summaries and citations.",
-        "Batch 1 deliberately adds no conversation table",
+        "Batches 1–2 deliberately add no conversation table",
+        "Raw financial evidence is never inserted into a full-text or embedding index.",
     ):
         assert boundary in document
 

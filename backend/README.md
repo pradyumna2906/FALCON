@@ -663,3 +663,17 @@ PostgreSQL full-text search for the first curated knowledge index. `pgvector` is
 optional only after measured retrieval improvement; MongoDB and a standalone
 vector database are not introduced. The cumulative contract is documented in
 [`docs/assistant/PHASE_12_IMPLEMENTATION.md`](../docs/assistant/PHASE_12_IMPLEMENTATION.md).
+
+Phase 12 Batch 2 implements that retrieval boundary. Five private adapters reuse
+the existing owner-scoped analytics, forecast, goal-progress, goal-plan, and
+scenario paths and convert their results into immutable, allowlisted evidence
+records with canonical SHA-256 identities. Missing or foreign resources yield no
+evidence, and adapters never expose a database connection or financial write tool.
+
+Curated public education is stored in two dedicated PostgreSQL tables as versioned
+documents and immutable bounded chunks. Offline ingestion requires reviewed HTTPS
+provenance and closed topics. PostgreSQL generated weighted `tsvector` columns and
+a GIN index provide the retrieval baseline; deterministic lexical reranking uses
+full-text score, overlap, title, heading, phrase, and topic signals. Retired or
+future documents are excluded, queries are represented only by digests in
+provenance, and no private financial data or embedding is indexed.
