@@ -635,3 +635,31 @@ aggregate bands and bounded reasons through the structured-log allowlist.
 
 The cumulative contract and checkpoint record is documented in
 [`docs/scenarios/PHASE_11_IMPLEMENTATION.md`](../docs/scenarios/PHASE_11_IMPLEMENTATION.md).
+
+## Grounded assistant foundation
+
+Phase 12 Batch 1 establishes assistant contract version `2026.1` without adding
+an LLM provider, vector database, migration, or public endpoint. The assistant is
+strictly an explanation layer: analytics, forecasting, goal planning, and scenario
+simulation remain authoritative for every financial value.
+
+Ten closed intents cover dashboard, health, spending, forecast, goal, scenario,
+and curated education questions. Generated answers require bounded evidence
+summaries and citations; missing evidence is unavailable rather than guessed, and
+unsafe or unsupported requests receive a closed refusal. Public schemas accept
+only a bounded question and exclude owner identity, evidence selection, prompts,
+provider settings, secrets, and hidden reasoning.
+
+Six closed evidence families use intent-based authorization. Analytics, forecast,
+goal-progress, goal-plan, and scenario evidence require the authenticated owner;
+only curated knowledge can be public. Per-source prompt allowlists recursively
+reject identity, credentials, account and transaction identifiers, raw statements,
+rows, samples, prompts, and chain-of-thought. The fixed threat model covers
+cross-owner access, injection, exfiltration, ungrounded claims, prohibited actions,
+unsafe advice, logging leakage, and raw-financial embedding.
+
+ADR 0004 keeps exact private values in owner-scoped PostgreSQL retrieval and uses
+PostgreSQL full-text search for the first curated knowledge index. `pgvector` is
+optional only after measured retrieval improvement; MongoDB and a standalone
+vector database are not introduced. The cumulative contract is documented in
+[`docs/assistant/PHASE_12_IMPLEMENTATION.md`](../docs/assistant/PHASE_12_IMPLEMENTATION.md).
