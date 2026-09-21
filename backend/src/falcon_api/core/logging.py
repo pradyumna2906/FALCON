@@ -30,6 +30,17 @@ _STRUCTURED_FIELDS = (
     "analytics_item_count",
     "analytics_item_count_capped",
     "analytics_result_state",
+    "scenario_operation_policy_version",
+    "scenario_operation",
+    "scenario_count_band",
+    "scenario_horizon_band",
+    "scenario_trial_band",
+    "scenario_probability_method",
+    "scenario_reliability",
+    "scenario_completion_band",
+    "scenario_negative_savings_risk_band",
+    "scenario_result",
+    "scenario_failure_reason",
 )
 
 

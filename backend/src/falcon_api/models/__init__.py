@@ -30,6 +30,14 @@ from falcon_api.models.planning import (
     Goal,
     GoalContribution,
 )
+from falcon_api.models.scenario import (
+    ScenarioComparison,
+    ScenarioDefinition,
+    ScenarioEvent,
+    ScenarioGoalOutcome,
+    ScenarioPeriod,
+    ScenarioSimulationRun,
+)
 from falcon_api.models.user import FinancialProfile, User
 
 
@@ -59,6 +67,12 @@ __all__ = [
     "LiabilityDetail",
     "RefreshSession",
     "RefreshToken",
+    "ScenarioComparison",
+    "ScenarioDefinition",
+    "ScenarioEvent",
+    "ScenarioGoalOutcome",
+    "ScenarioPeriod",
+    "ScenarioSimulationRun",
     "Transaction",
     "TransactionCategoryCorrection",
     "TransactionClassification",

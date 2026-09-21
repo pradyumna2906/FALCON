@@ -168,6 +168,21 @@ class GoalPlanEventSource(StrEnum):
     USER = "user"
 
 
+class ScenarioSimulationEventType(StrEnum):
+    """Append-only history events for one immutable scenario run."""
+
+    GENERATED = "generated"
+    SELECTED = "selected"
+    SELECTION_CLEARED = "selection_cleared"
+
+
+class ScenarioSimulationEventSource(StrEnum):
+    """Trusted origin of a scenario-simulation history event."""
+
+    SYSTEM = "system"
+    USER = "user"
+
+
 class AuthenticationChallengePurpose(StrEnum):
     """Supported single-use authentication challenge purposes."""
 

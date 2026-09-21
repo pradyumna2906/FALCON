@@ -2,8 +2,8 @@
 
 **FALCON — AI-Augmented Multi-goal Financial Advisor with Cognitive Forecasting** is an India-first personal-finance decision-support web application for people with regular or irregular income.
 
-> Current status: Phases 0–9 are merged; all Phase 10 Checkpoints 10.0–10.14
-> are implemented on the feature branch and await final CI and squash merge.
+> Current status: Phases 0–10 are merged. Phase 11 scenario simulation is fully
+> implemented on its feature branch and is pending final PR review and merge.
 
 ## Purpose
 

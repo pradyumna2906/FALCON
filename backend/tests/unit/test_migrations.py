@@ -23,6 +23,7 @@ _CLASSIFICATION_REVISION = "e4a7c91d2f63"
 _PERSONALIZATION_REVISION = "f7b2d4e8a901"
 _FORECAST_PERSISTENCE_REVISION = "a9c4e2f7b613"
 _GOAL_PLAN_PERSISTENCE_REVISION = "b3e8f6c2d715"
+_SCENARIO_PERSISTENCE_REVISION = "c4d7a9e2f816"
 
 
 def create_alembic_config() -> Config:
@@ -42,14 +43,56 @@ def test_migrations_share_application_metadata() -> None:
     register_models()
 
     assert model_metadata() is Base.metadata
-    assert len(model_metadata().tables) == 28
+    assert len(model_metadata().tables) == 34
 
 
-def test_goal_plan_persistence_revision_is_the_single_head() -> None:
+def test_scenario_persistence_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_GOAL_PLAN_PERSISTENCE_REVISION]
+    assert scripts.get_heads() == [_SCENARIO_PERSISTENCE_REVISION]
 
+    scenario_revision = scripts.get_revision(_SCENARIO_PERSISTENCE_REVISION)
+
+    assert scenario_revision is not None
+    assert scenario_revision.down_revision == _GOAL_PLAN_PERSISTENCE_REVISION
+    assert callable(scenario_revision.module.upgrade)
+    assert callable(scenario_revision.module.downgrade)
+
+
+def test_scenario_migration_freezes_ownership_immutability_and_history() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+    revision = scripts.get_revision(_SCENARIO_PERSISTENCE_REVISION)
+
+    assert revision is not None
+    source = Path(revision.path).read_text(encoding="utf-8")
+    for statement in (
+        "scenario_simulation_runs",
+        "scenario_definitions",
+        "scenario_periods",
+        "scenario_goal_outcomes",
+        "scenario_comparisons",
+        "scenario_events",
+        "fk_scenario_runs_owner_source_plan",
+        "fk_scenario_definitions_owner_run",
+        "fk_scenario_periods_owner_definition",
+        "fk_scenario_goal_outcomes_owner_definition",
+        "fk_scenario_comparisons_owner_baseline",
+        "fk_scenario_events_owner_definition",
+        "uq_scenario_definitions_run_name_ci",
+        "uq_scenario_comparisons_recommended_once",
+        "reject_scenario_record_update",
+        "validate_scenario_event_transition",
+        "require_scenario_generated_event",
+        "trg_scenario_runs_generated_event",
+        "DEFERRABLE INITIALLY DEFERRED",
+        "BEFORE UPDATE ON {table_name}",
+        "BEFORE INSERT ON scenario_events",
+    ):
+        assert statement in source
+
+
+def test_goal_plan_persistence_precedes_scenario_persistence() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
     plan_revision = scripts.get_revision(_GOAL_PLAN_PERSISTENCE_REVISION)
 
     assert plan_revision is not None

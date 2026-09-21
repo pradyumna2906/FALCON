@@ -36,6 +36,9 @@ The current backend provides:
   feasibility and ranking evidence, protected forecast capacity, constrained
   HiGHS allocation, financial guardrails, deterministic fallback, and auditable
   immutable plan versions with explicit approval history and authenticated APIs.
+- A versioned Phase 11 scenario-simulation engine with deterministic shocks,
+  seeded Monte Carlo risk, explainable comparison and sensitivity, immutable
+  owner-scoped history, authenticated lifecycle APIs, and privacy-safe monitoring.
 
 ## Requirements
 
@@ -547,3 +550,88 @@ privacy-safe operational fields.
 
 The authoritative cumulative contract and checkpoint record is documented in
 [`docs/goals/PHASE_10_IMPLEMENTATION.md`](../docs/goals/PHASE_10_IMPLEMENTATION.md).
+
+## Scenario simulation implementation
+
+Phase 11 Batch 1 establishes scenario-simulation contract version `2026.1` and
+the boundary between trusted facts and hypothetical user inputs. A draft request
+may identify one owned Phase 10 plan and supply at most ten strictly bounded,
+uniquely named alternatives. Supported assumptions cover percentage income and
+expense changes, one-time or recurring expense adjustments, temporary income
+interruptions, goal target/date/priority/contribution/pause changes, and an
+emergency-fund target. Unknown or server-owned fields are rejected.
+
+`ScenarioEvidenceService.build()` loads only a generated or approved plan through
+its authenticated owner, freezes a new trusted cutoff, loads the exact referenced
+monthly savings forecast through the same owner, and verifies every forecast
+period and protected lower bound against the immutable Phase 10 schedule. When
+percentage income or expense assumptions require a baseline, it also selects an
+owner-, cutoff-, currency-, target-, and horizon-matched Phase 9 forecast; missing
+supplemental evidence remains an explicit warning. Goal
+and period evidence, policy versions, user hypotheses, warnings, and provenance
+form a deterministic SHA-256 snapshot. The service is read-only and never changes
+the source plan, forecast, goals, contributions, profile, budget, account, debt,
+or transaction data.
+
+Phase 11 Batch 2 adds deterministic protected, expected, and upside reference
+paths plus user-defined paths. Its fixed shock chain applies income changes and
+interruptions, expense inflation, one-time and recurring expenses, debt-payment
+deltas, emergency-target changes, and per-goal contribution increases or pauses
+with exact monthly reconciliation. Negative capacity is explicitly clipped,
+missing required forecast evidence fails closed, and no hidden stress constants
+are introduced.
+
+Every available path is reevaluated through the Phase 10 feasibility, probability,
+ranking, HiGHS allocation, emergency-reserve, exact invariant, and guarded
+fallback policies. Results contain schedules, completion outcomes, shortfalls,
+scores, reserve status, and exact differences from the source plan. The source
+plan remains immutable. Batch 2 adds no persistence table or public endpoint;
+Monte Carlo, risk metrics, history, APIs, and closure remain assigned to
+Checkpoints 11.6–11.14.
+
+Phase 11 Batch 3 adds owner-scoped uncertainty calibration from Phase 9's stored
+validation-calibrated 80% and 95% bands, explicit normal/provisional/conservative
+reliability, and a protected point-mass fallback when stochastic evidence is not
+safe. A bounded NumPy PCG64 Monte Carlo engine runs 1,000 trials by default and at
+most 10,000, records replay seeds and sample digests, uses common random numbers
+across alternatives, and vectorizes Phase 10 ranking, deadline, contribution,
+capacity, and emergency-reserve guardrails without repeated solver calls.
+
+The risk reducer reports goal and deadline completion probabilities, reserve
+coverage, raw negative-savings risk, constraint feasibility, expected shortfall,
+capacity and shortfall P10/P50/P90, conditional completion-period percentiles,
+90% tail shortfall, and a transparent 0–100 robustness score. Empirical Monte
+Carlo and Phase 10 analytical probability methods remain distinctly labelled.
+Batch 3 is still non-persistent and has no public scenario endpoint; comparison,
+history, orchestration, APIs, monitoring, and closure remain for 11.9–11.14.
+
+Phase 11 Batch 4 adds deterministic cross-scenario comparison, exact baseline
+deltas, non-causal sensitivity attribution, multi-factor robustness scoring,
+Pareto dominance, conservative tie-breaking, and bounded recommendation reason
+codes. The decision graph is validated by canonical SHA-256 identities before it
+can be stored.
+
+Six owner-scoped PostgreSQL tables preserve immutable runs, normalized scenario
+definitions, monthly paths, goal outcomes, comparisons, and append-only selection
+events. Composite ownership keys prevent cross-owner references; exact-money,
+probability, replay-seed, lifecycle, and generated-event rules are database
+enforced. Raw Monte Carlo buffers and private source facts are not stored.
+
+Phase 11 final Batch 5 adds `ScenarioSimulationService.simulate()` as the single
+transactional snapshot-to-analysis-to-persistence path. Regeneration reconstructs
+stored user assumptions, preserves the prior seed and trial count, and writes a
+new immutable run. Selection and clearing use owner locks, compare-and-set state,
+and append-only events. CPU work is moved off the async loop and protected by
+bounded process concurrency, queue wait, and per-owner request rate.
+
+Six bearer-authenticated operations under `/api/v1/scenario-simulations`
+generate, list, retrieve, compare, select or clear, and regenerate simulations.
+Strict schemas prevent clients from controlling owner, cutoff, evidence, trials,
+seeds, algorithms, constraints, or policies. Full responses expose bounded
+assumptions, risk percentiles, tail loss, schedules, comparisons, sensitivity,
+rankings, replay provenance, warnings, and policy versions without user identity,
+raw samples, or private financial rows. Privacy-safe telemetry emits only closed
+aggregate bands and bounded reasons through the structured-log allowlist.
+
+The cumulative contract and checkpoint record is documented in
+[`docs/scenarios/PHASE_11_IMPLEMENTATION.md`](../docs/scenarios/PHASE_11_IMPLEMENTATION.md).
