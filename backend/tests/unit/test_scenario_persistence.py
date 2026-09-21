@@ -81,6 +81,51 @@ def test_create_freezes_complete_replayable_graph() -> None:
     session.flush.assert_awaited_once()
 
 
+def test_create_preserves_input_order_separately_from_decision_rank() -> None:
+    scenarios = tuple(
+        ScenarioAssumptions(
+            name=name,
+            one_time_expenses=(
+                OneTimeExpenseAssumption(
+                    date(2026, 10, 1),
+                    Decimal(amount),
+                ),
+            ),
+        )
+        for name, amount in (
+            ("Larger expense", "75"),
+            ("Smaller expense", "25"),
+        )
+    )
+    snapshot = transient_scenario_snapshot(scenarios)
+    analysis = analyze_scenario_decisions(
+        snapshot,
+        config=MonteCarloConfig(trial_count=32, seed=23),
+        solver=ZeroSolver(),
+    )
+
+    run = asyncio.run(
+        ScenarioSimulationRepository().create(
+            _session(),
+            user_id=snapshot.user_id,
+            snapshot=snapshot,
+            analysis=analysis,
+            occurred_at=snapshot.cutoff_at + timedelta(seconds=1),
+        )
+    )
+
+    assert [item.ordinal for item in run.definitions] == [1, 2, 3, 4, 5]
+    assert [item.name for item in run.definitions[3:]] == [
+        "Larger expense",
+        "Smaller expense",
+    ]
+    assert [
+        item.path.name
+        for item in analysis.alternatives
+        if item.path.assumptions is not None
+    ] == ["Smaller expense", "Larger expense"]
+
+
 def test_create_rejects_owner_time_identity_and_seed_mismatches() -> None:
     snapshot, analysis = _evidence()
     repository = ScenarioSimulationRepository()

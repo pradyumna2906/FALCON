@@ -1,4 +1,4 @@
-"""Tests for the future authenticated Phase 11 request boundary."""
+"""Tests for the authenticated Phase 11 request boundary."""
 
 from pydantic import ValidationError
 import pytest

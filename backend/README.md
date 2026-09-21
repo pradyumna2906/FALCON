@@ -36,6 +36,9 @@ The current backend provides:
   feasibility and ranking evidence, protected forecast capacity, constrained
   HiGHS allocation, financial guardrails, deterministic fallback, and auditable
   immutable plan versions with explicit approval history and authenticated APIs.
+- A versioned Phase 11 scenario-simulation engine with deterministic shocks,
+  seeded Monte Carlo risk, explainable comparison and sensitivity, immutable
+  owner-scoped history, authenticated lifecycle APIs, and privacy-safe monitoring.
 
 ## Requirements
 
@@ -612,9 +615,23 @@ Six owner-scoped PostgreSQL tables preserve immutable runs, normalized scenario
 definitions, monthly paths, goal outcomes, comparisons, and append-only selection
 events. Composite ownership keys prevent cross-owner references; exact-money,
 probability, replay-seed, lifecycle, and generated-event rules are database
-enforced. Raw Monte Carlo buffers and private source facts are not stored. Batch 4
-still exposes no public scenario endpoint: orchestration, authenticated APIs,
-privacy-safe monitoring, and Phase 11 closure remain for 11.12–11.14.
+enforced. Raw Monte Carlo buffers and private source facts are not stored.
+
+Phase 11 final Batch 5 adds `ScenarioSimulationService.simulate()` as the single
+transactional snapshot-to-analysis-to-persistence path. Regeneration reconstructs
+stored user assumptions, preserves the prior seed and trial count, and writes a
+new immutable run. Selection and clearing use owner locks, compare-and-set state,
+and append-only events. CPU work is moved off the async loop and protected by
+bounded process concurrency, queue wait, and per-owner request rate.
+
+Six bearer-authenticated operations under `/api/v1/scenario-simulations`
+generate, list, retrieve, compare, select or clear, and regenerate simulations.
+Strict schemas prevent clients from controlling owner, cutoff, evidence, trials,
+seeds, algorithms, constraints, or policies. Full responses expose bounded
+assumptions, risk percentiles, tail loss, schedules, comparisons, sensitivity,
+rankings, replay provenance, warnings, and policy versions without user identity,
+raw samples, or private financial rows. Privacy-safe telemetry emits only closed
+aggregate bands and bounded reasons through the structured-log allowlist.
 
 The cumulative contract and checkpoint record is documented in
 [`docs/scenarios/PHASE_11_IMPLEMENTATION.md`](../docs/scenarios/PHASE_11_IMPLEMENTATION.md).

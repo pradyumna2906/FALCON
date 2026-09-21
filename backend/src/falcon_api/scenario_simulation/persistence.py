@@ -35,6 +35,7 @@ from falcon_api.scenario_simulation.semantics import (
     SCENARIO_MONTE_CARLO_POLICY_VERSION,
     SCENARIO_PERSISTENCE_POLICY_VERSION,
     SCENARIO_RISK_POLICY_VERSION,
+    ScenarioCaseKind,
 )
 from falcon_api.scenario_simulation.snapshot import ScenarioEvidenceSnapshot
 
@@ -64,15 +65,19 @@ class ScenarioSimulationRepository:
         definition_ids = {
             item.path.path_id: uuid4() for item in analysis.alternatives
         }
-        definitions = [
-            _definition(
-                run_id=run_id,
-                definition_id=definition_ids[item.path.path_id],
-                user_id=user_id,
-                alternative=item,
-            )
-            for item in analysis.alternatives
-        ]
+        definitions = sorted(
+            (
+                _definition(
+                    run_id=run_id,
+                    definition_id=definition_ids[item.path.path_id],
+                    user_id=user_id,
+                    ordinal=_definition_ordinal(snapshot, item),
+                    alternative=item,
+                )
+                for item in analysis.alternatives
+            ),
+            key=lambda item: item.ordinal,
+        )
         definitions_by_path = {
             item.path_id: item for item in definitions
         }
@@ -255,6 +260,7 @@ def _definition(
     run_id: UUID,
     definition_id: UUID,
     user_id: UUID,
+    ordinal: int,
     alternative: ScenarioAlternativeDecision,
 ) -> ScenarioDefinition:
     evaluation = alternative.evaluation
@@ -316,7 +322,7 @@ def _definition(
         evaluation_id=evaluation.evaluation_id,
         risk_id=risk.risk_id,
         simulation_id=risk.simulation_id,
-        ordinal=alternative.rank,
+        ordinal=ordinal,
         name=alternative.path.name,
         kind=alternative.path.kind.value,
         evaluation_status=evaluation.status.value,
@@ -358,6 +364,29 @@ def _definition(
         periods=periods,
         outcomes=outcomes,
     )
+
+
+def _definition_ordinal(
+    snapshot: ScenarioEvidenceSnapshot,
+    alternative: ScenarioAlternativeDecision,
+) -> int:
+    assumptions = alternative.path.assumptions
+    if assumptions is None:
+        references = {
+            ScenarioCaseKind.PROTECTED: 1,
+            ScenarioCaseKind.EXPECTED: 2,
+            ScenarioCaseKind.UPSIDE: 3,
+        }
+        try:
+            return references[alternative.path.kind]
+        except KeyError:
+            raise ValueError("Standard scenario definition kind is invalid.") from None
+    try:
+        return snapshot.scenarios.index(assumptions) + 4
+    except ValueError:
+        raise ValueError(
+            "User-defined scenario assumptions are not in the trusted snapshot."
+        ) from None
 
 
 def _goal_outcome(

@@ -7,9 +7,9 @@ Checkpoints 11.0–11.2, Batch 2 contains deterministic scenarios, ordered
 financial shocks, and Phase 10 goal-plan reevaluation for 11.3–11.5, Batch 3
 contains uncertainty calibration, bounded seeded Monte Carlo, and empirical risk
 metrics for 11.6–11.8, and Batch 4 contains cross-scenario comparison, sensitivity,
-decision ranking, and immutable history for 11.9–11.11. Orchestration,
-authenticated APIs, monitoring, security closure, and release readiness remain
-reserved for 11.12–11.14.
+decision ranking, and immutable history for 11.9–11.11. Final Batch 5 completes
+transactional orchestration, authenticated lifecycle APIs, privacy-safe
+monitoring, security closure, and release readiness for 11.12–11.14.
 
 Phase 11 answers bounded what-if questions against immutable Phase 9 forecast and
 Phase 10 plan evidence. It does not rewrite observations, forecasts, goals,
@@ -437,7 +437,109 @@ records. Compact Monte Carlo sample buffers and private source facts are not
 persisted; the stored seed, snapshot identity, methods, and aggregate evidence are
 sufficient for controlled replay.
 
-## 13. Security and integrity established through Batch 4
+Definition ordinals preserve the three standard cases followed by the original
+user-input order; comparison ranks remain separate decision evidence. This keeps
+multi-alternative regeneration faithful even when ranking changes their display
+order.
+
+## 13. Checkpoint 11.12 — transactional simulation orchestration
+
+`ScenarioSimulationService.simulate()` is the only public generation path. It
+executes one owner-scoped chain using the request database transaction:
+
+```text
+validate bounded user alternatives
+→ ScenarioEvidenceService.build()
+→ analyze_scenario_decisions()
+→ ScenarioSimulationRepository.create()
+→ return the complete immutable run
+```
+
+Evidence and analysis complete before the repository adds a run. A validation,
+evidence, solver, invariant, or storage error therefore cannot leave a partial
+scenario graph. CPU-heavy analysis runs off the async event loop, while a
+process-scoped guard permits at most two concurrent analyses, waits at most 250
+milliseconds for capacity, and accepts at most five generation or regeneration
+requests per authenticated owner in a rolling 60-second window. Rejected work
+returns a bounded `429` response without revealing queue state or another owner.
+
+`regenerate()` loads the prior run through the authenticated owner, reconstructs
+only its stored user-defined assumptions, reuses the stored trial count and root
+seed, freezes current cutoff-safe evidence, and persists a new immutable run. It
+does not edit or delete the previous run. This gives reproducible stochastic
+settings while allowing a newer trusted Phase 9/10 evidence cutoff to produce a
+new decision record.
+
+Retrieval and recent-history reads remain owner-scoped. Selection takes an owner
+row lock and uses compare-and-set semantics: the caller must state the selection
+it last observed. Selecting, switching, or clearing appends a new immutable event;
+it never updates a scenario result or creates a transaction, contribution, plan,
+forecast, or goal mutation.
+
+## 14. Checkpoint 11.13 — authenticated scenario APIs
+
+Six bearer-authenticated operations are exposed under
+`/api/v1/scenario-simulations`:
+
+| Method | Endpoint | Result |
+|---|---|---|
+| `POST` | `/api/v1/scenario-simulations` | Generate and persist one run |
+| `GET` | `/api/v1/scenario-simulations` | List up to 100 compact recent summaries |
+| `GET` | `/api/v1/scenario-simulations/{simulation_id}` | Retrieve full immutable evidence |
+| `GET` | `/api/v1/scenario-simulations/{simulation_id}/compare` | Retrieve ranked comparisons and sensitivity |
+| `POST` | `/api/v1/scenario-simulations/{simulation_id}/select` | Compare-and-set or clear the user choice |
+| `POST` | `/api/v1/scenario-simulations/{simulation_id}/regenerate` | Create a replay-configured new run |
+
+The generation body contains only a source plan identifier and one to ten strict
+hypothetical alternatives. The server derives owner, cutoff, timezone, forecast
+evidence, goals, trial count, root seed, probability and percentile methods,
+optimization behavior, constraints, and all policy versions. Unknown fields are
+rejected at every nested level. A selection target is required but nullable;
+`null` explicitly means clear, while `expected_selected_scenario_id` guards stale
+clients.
+
+Full responses expose normalized assumptions, method and reliability labels,
+seed and trial provenance, deterministic and empirical completion evidence,
+completion-date percentiles, shortfall and tail-risk metrics, monthly capacity
+and allocation summaries, comparison deltas, non-causal sensitivity signals,
+decision scores, ranks, recommendations, warnings, policies, and append-only
+events. They omit `user_id`, raw Monte Carlo paths, raw forecasts, accounts,
+transactions, debts, and private evidence rows. History responses are compact;
+request collections, horizons, trials, work units, list limits, and output graph
+sizes all remain bounded. Foreign and missing run identifiers return the same
+safe `404` contract.
+
+## 15. Checkpoint 11.14 — monitoring, security, and release closure
+
+Scenario operational telemetry uses policy version `2026.1` and a closed JSON
+logging allowlist. Successful simulation events may contain only operation,
+scenario-count band, horizon band, trial band, fixed probability method,
+aggregate reliability, completion/risk bands, bounded result state, and duration.
+Selection events contain only operation, result, and duration. Failures use only
+closed reasons such as capacity exhausted, rate limited, evidence unavailable,
+not found, or selection conflict.
+
+Telemetry never includes identity, resource identifiers, scenario or goal names,
+exact target amounts, exact capacities or allocations, assumptions, forecast
+values, sampled paths, account data, transaction data, or debt data. The JSON
+formatter drops all fields outside its reviewed allowlist.
+
+Release closure covers request and response contracts, deterministic paths and
+shocks, Phase 10 invariant reuse, uncertainty calibration, seeded Monte Carlo,
+probability denominators, percentiles, tail loss, comparison, sensitivity,
+dominance and ranking, persistence and replay, lifecycle races, authentication,
+owner isolation, OpenAPI security, bounded work, and privacy-safe monitoring.
+The real PostgreSQL lifecycle exercises service-level generation, selection,
+clear, regeneration, immutable triggers, owner hiding, recent history, source-plan
+protection, and user-erasure cascade. Migration upgrade and downgrade, the full
+backend regression, coverage gate, hooks, compilation, container build, and
+Compose smoke test remain mandatory release gates.
+
+Phase 11 implementation is complete on its feature branch only after those gates
+pass. Project completion is declared after the final pull request is squash-merged
+into `develop`.
+
+## 16. Security and integrity established through Phase 11
 
 - Owner scope appears in both source-plan and forecast repository reads.
 - Foreign resources are indistinguishable from missing resources.
@@ -479,8 +581,16 @@ sufficient for controlled replay.
   concurrent decisions.
 - User erasure cascades through scenario history; source-plan deletion is
   restricted while reproducibility evidence exists.
+- Public generation accepts only bounded hypothetical inputs and derives all
+  trusted identity, evidence, algorithms, random settings, and policies.
+- Generation and regeneration have bounded concurrency, queue wait, per-owner
+  request rate, trial count, horizon, alternatives, and total work.
+- Selection uses an owner row lock and compare-and-set expected state.
+- Public responses omit owner identity, raw samples, and private financial rows.
+- Structured telemetry is constrained by closed enums, aggregate bands, and a
+  JSON formatter allowlist.
 
-## 14. Validation boundary
+## 17. Validation boundary
 
 Batch 1 validation covers domain and Pydantic assumption limits, immutability,
 server-field rejection, unique alternatives and goals, owner-scoped repository
@@ -510,9 +620,18 @@ stored-seed/snapshot reproducibility, and user-erasure-cascade coverage. The rea
 PostgreSQL lifecycle validates the complete Phase 10-to-Phase 11 persistence
 boundary.
 
-## 15. Deferred checkpoints
+Batch 5 adds orchestration success and failure atomicity, complete stored-
+assumption reconstruction, deterministic replay configuration, concurrency and
+per-owner request limiting, owner-hidden retrieval, stale selection conflicts,
+all six authenticated routes, strict nested request rejection, compact history,
+full response serialization, OpenAPI bearer security, safe application errors,
+telemetry banding and privacy allowlisting, service-level PostgreSQL lifecycle,
+full regression, coverage, repository hygiene, and operational release checks.
 
-Batch 4 adds no orchestration service, public endpoint, background execution, AI
-explanation, notification, or frontend. Transactional generate/list/detail/select
-or clear orchestration, authenticated APIs, privacy-safe monitoring, final
-security review, and Phase 11 closure remain with Checkpoints 11.12–11.14.
+## 18. Phase boundary after closure
+
+Phase 11 adds no generative financial explanation, conversational assistant,
+retrieval-augmented generation, autonomous action, background scheduling,
+notification, or frontend. Phase 12 owns grounded explanation and assistant
+behavior. Phase 13 owns production-wide distributed throttling, scheduled work,
+notifications, frontend integration, deployment, and operations.

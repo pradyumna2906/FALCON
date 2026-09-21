@@ -63,7 +63,10 @@ from falcon_api.scenario_simulation import (
     ScenarioAssumptions,
     ScenarioEvidenceService,
     ScenarioEvaluationStatus,
+    ScenarioSelectionCommand,
+    ScenarioSimulationCommand,
     ScenarioSimulationRepository,
+    ScenarioSimulationService,
     ScenarioSnapshotWarning,
     analyze_scenario_decisions,
     evaluate_deterministic_scenarios,
@@ -104,6 +107,14 @@ class ZeroSolver:
             message="valid but dominated",
             iterations=0,
         )
+
+
+def _integration_scenario_analyzer(snapshot, *, config, solver):
+    return analyze_scenario_decisions(
+        snapshot,
+        config=config or MonteCarloConfig(trial_count=128, seed=11),
+        solver=solver,
+    )
 
 
 def integration_settings() -> Settings:
@@ -209,6 +220,13 @@ async def _exercise_goal_plan_history() -> None:
         scenario_evidence = ScenarioEvidenceService(
             clock=FixedClock(planning_now + timedelta(seconds=1))
         )
+        scenario_service = ScenarioSimulationService(
+            evidence_service=scenario_evidence,
+            repository=simulations,
+            solver=ZeroSolver(),
+            analyzer=_integration_scenario_analyzer,
+            clock=FixedClock(planning_now + timedelta(seconds=2)),
+        )
         assumptions = ScenarioAssumptions(
             name="Unexpected expense",
             one_time_expenses=(
@@ -260,14 +278,16 @@ async def _exercise_goal_plan_history() -> None:
                 config=MonteCarloConfig(trial_count=128, seed=11),
                 solver=ZeroSolver(),
             )
-            persisted = await simulations.create(
+            persisted = await scenario_service.simulate(
                 session,
                 user_id=owner_id,
-                snapshot=snapshot,
-                analysis=analysis,
-                occurred_at=planning_now + timedelta(seconds=2),
+                command=ScenarioSimulationCommand(
+                    source_plan_id=first_id,
+                    scenarios=(assumptions,),
+                ),
             )
             simulation_id = persisted.id
+            simulation_ids = {simulation_id}
             assert persisted.root_seed == 11
             assert persisted.snapshot_id == snapshot.snapshot_id
             assert persisted.analysis_id == analysis.analysis_id
@@ -283,41 +303,71 @@ async def _exercise_goal_plan_history() -> None:
             assert hidden_snapshot.value.code == "scenario_source_plan_not_found"
 
         async with transaction_scope(resources.session_factory) as session:
-            owner_run = await simulations.get(
+            owner_run = await scenario_service.get(
                 session,
                 user_id=owner_id,
                 run_id=simulation_id,
-                for_update=True,
             )
-            assert owner_run is not None
             assert owner_run.selected_scenario_id is None
             assert len(owner_run.events) == 1
-            assert (
-                await simulations.get(
+            with pytest.raises(ApplicationError) as hidden_simulation:
+                await scenario_service.get(
                     session,
                     user_id=other_id,
                     run_id=simulation_id,
                 )
-                is None
-            )
+            assert hidden_simulation.value.code == "scenario_simulation_not_found"
             selected_id = owner_run.definitions[0].id
-            await simulations.select(
+            owner_run = await scenario_service.select(
                 session,
-                run=owner_run,
                 user_id=owner_id,
-                scenario_definition_id=selected_id,
-                occurred_at=planning_now + timedelta(seconds=3),
+                run_id=simulation_id,
+                command=ScenarioSelectionCommand(
+                    scenario_definition_id=selected_id,
+                    expected_selected_scenario_id=None,
+                ),
             )
             assert owner_run.selected_scenario_id == selected_id
-            await simulations.clear_selection(
+            owner_run = await scenario_service.select(
                 session,
-                run=owner_run,
                 user_id=owner_id,
-                expected_scenario_definition_id=selected_id,
-                occurred_at=planning_now + timedelta(seconds=4),
+                run_id=simulation_id,
+                command=ScenarioSelectionCommand(
+                    scenario_definition_id=None,
+                    expected_selected_scenario_id=selected_id,
+                ),
             )
             assert owner_run.selected_scenario_id is None
             assert len(owner_run.events) == 3
+
+        async with transaction_scope(resources.session_factory) as session:
+            regenerated = await scenario_service.regenerate(
+                session,
+                user_id=owner_id,
+                run_id=simulation_id,
+            )
+            simulation_ids.add(regenerated.id)
+            assert regenerated.id != simulation_id
+            assert regenerated.source_plan_id == first_id
+            assert regenerated.root_seed == 11
+            assert regenerated.trial_count == 128
+            assert regenerated.snapshot_id == persisted.snapshot_id
+
+        async with transaction_scope(resources.session_factory) as session:
+            recent_simulations = await scenario_service.list_recent(
+                session,
+                user_id=owner_id,
+                limit=10,
+            )
+            assert {item.id for item in recent_simulations} == simulation_ids
+            assert (
+                await scenario_service.list_recent(
+                    session,
+                    user_id=other_id,
+                    limit=10,
+                )
+                == ()
+            )
 
         with pytest.raises(DBAPIError):
             async with transaction_scope(resources.session_factory) as session:

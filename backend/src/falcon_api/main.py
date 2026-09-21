@@ -44,6 +44,7 @@ from falcon_api.imports import ImportService
 from falcon_api.ledger import LedgerService
 from falcon_api.middleware.request_context import RequestContextMiddleware
 from falcon_api.profile import FinancialProfileService
+from falcon_api.scenario_simulation import ScenarioSimulationService
 from falcon_api.transactions import TransactionCursorCodec, TransactionService
 
 
@@ -170,6 +171,7 @@ def create_app(
         GoalPlanningSnapshotService()
     )
     application.state.goal_plan_service = MultiGoalOptimizationService()
+    application.state.scenario_simulation_service = ScenarioSimulationService()
 
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)

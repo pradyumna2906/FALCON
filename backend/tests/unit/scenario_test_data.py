@@ -3,23 +3,28 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 from falcon_api.forecasting.persistence import ForecastPersistenceRepository
 from falcon_api.goal_planning.persistence import GoalPlanRepository
 from falcon_api.models.forecasting import ForecastPoint, ForecastRun
 from falcon_api.scenario_simulation import (
+    MonteCarloConfig,
+    OneTimeExpenseAssumption,
     ScenarioAssumptions,
     ScenarioEvidenceService,
     ScenarioForecastRepository,
+    ScenarioSimulationRepository,
+    analyze_scenario_decisions,
 )
 from goal_plan_test_data import (
     FORECAST_ID,
     NOW,
     OWNER_ID,
+    ZeroSolver,
     transient_goal_plan_run,
 )
 
@@ -127,6 +132,40 @@ def transient_scenario_snapshot(
             scenarios=scenarios,
         )
     )
+
+
+def transient_scenario_run():
+    """Build one complete persisted run without requiring PostgreSQL."""
+    scenario = ScenarioAssumptions(
+        name="Unexpected expense",
+        one_time_expenses=(
+            OneTimeExpenseAssumption(
+                period_start=date(2026, 10, 1),
+                amount=Decimal("25"),
+            ),
+        ),
+    )
+    snapshot = transient_scenario_snapshot((scenario,))
+    analysis = analyze_scenario_decisions(
+        snapshot,
+        config=MonteCarloConfig(trial_count=64, seed=23),
+        solver=ZeroSolver(),
+    )
+    session = AsyncMock()
+    session.add = Mock()
+    occurred_at = snapshot.cutoff_at + timedelta(seconds=1)
+    run = asyncio.run(
+        ScenarioSimulationRepository().create(
+            session,
+            user_id=snapshot.user_id,
+            snapshot=snapshot,
+            analysis=analysis,
+            occurred_at=occurred_at,
+        )
+    )
+    run.created_at = occurred_at
+    run.updated_at = occurred_at
+    return run
 
 
 def _point(step: int, period: date) -> ForecastPoint:

@@ -11,6 +11,7 @@ from falcon_api.api.routes.goals import goal_planning_router, goal_router
 from falcon_api.api.routes.ledger import account_router, category_router
 from falcon_api.api.routes.imports import import_router
 from falcon_api.api.routes.profile import profile_router
+from falcon_api.api.routes.scenarios import scenario_router
 from falcon_api.api.routes.transactions import (
     transaction_router,
     transfer_router,
@@ -32,6 +33,7 @@ api_v1_router.include_router(forecasting_router)
 api_v1_router.include_router(goal_router)
 api_v1_router.include_router(goal_planning_router)
 api_v1_router.include_router(goal_plan_router)
+api_v1_router.include_router(scenario_router)
 
 
 @api_v1_router.get(
