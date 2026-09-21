@@ -314,15 +314,25 @@ def authorize_evidence_sources(
 ) -> tuple[AssistantSourcePolicy, ...]:
     """Authorize source families before any repository retrieval occurs."""
 
+    policies = validate_evidence_source_selection(intent=intent, sources=sources)
+    if any(policy.requires_owner for policy in policies) and user_id is None:
+        raise PermissionError("Authenticated ownership is required for private evidence.")
+    return policies
+
+
+def validate_evidence_source_selection(
+    *,
+    intent: AssistantIntent,
+    sources: tuple[AssistantEvidenceSource, ...],
+) -> tuple[AssistantSourcePolicy, ...]:
+    """Validate intent/source compatibility without substituting an owner."""
+
     if len(set(sources)) != len(sources):
         raise ValueError("Assistant evidence sources must be unique.")
     allowed = _INTENT_SOURCES[intent]
     if any(source not in allowed for source in sources):
         raise PermissionError("Evidence source is not allowed for the resolved intent.")
-    policies = tuple(source_policy(source) for source in sources)
-    if any(policy.requires_owner for policy in policies) and user_id is None:
-        raise PermissionError("Authenticated ownership is required for private evidence.")
-    return policies
+    return tuple(source_policy(source) for source in sources)
 
 
 def prompt_safe_payload(

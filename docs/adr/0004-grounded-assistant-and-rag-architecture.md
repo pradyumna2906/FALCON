@@ -63,9 +63,9 @@ untrusted evidence and cannot supply system instructions.
 
 ### 3. Provider-neutral model boundary
 
-The application layer will depend on an `AssistantModel` protocol, not a provider
-SDK. A provider adapter added in Checkpoint 12.7 must accept a bounded evidence
-packet and return a strict structured response. It must enforce timeout,
+The application layer depends on an `AssistantModel` protocol, not a provider
+SDK. The provider-neutral adapter added in Checkpoint 12.7 accepts a bounded
+evidence packet and returns a strict structured response. It enforces timeout,
 cancellation, token, cost, retry, and output-size limits.
 
 No provider is required to import or start the API. Generation remains disabled
@@ -92,10 +92,10 @@ Every material generated financial answer requires at least one evidence summary
 and one source citation. Each citation records a closed source family, bounded
 reference, human label, timezone-aware cutoff, policy version, and reliability.
 
-The future evidence packet will record retrieval provenance and a canonical
-identity. A post-generation verifier will check numeric consistency, citation
-coverage, source authorization, uncertainty wording, and unsupported claims before
-an answer can be returned or persisted.
+The evidence packet records retrieval provenance and a canonical identity.
+Checkpoint 12.8 performs the first mandatory claim/source, number, and citation
+checks. Checkpoint 12.11 adds the complete post-generation verification and
+evaluation gate before an answer can be persisted or publicly served.
 
 ### 6. Privacy and authorization
 

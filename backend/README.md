@@ -677,3 +677,19 @@ a GIN index provide the retrieval baseline; deterministic lexical reranking uses
 full-text score, overlap, title, heading, phrase, and topic signals. Retired or
 future documents are excluded, queries are represented only by digests in
 provenance, and no private financial data or embedding is indexed.
+
+Phase 12 Batch 3 converts those records into immutable, replayable evidence
+packets. Authenticated ownership is checked before the owner-free packet is built;
+system rules, user text, metadata, and exact facts remain structurally separate.
+Packets choose the latest unambiguous evidence, expose missing and stale sources,
+enforce character/token budgets, and receive canonical SHA-256 identities.
+
+The provider-neutral `AssistantModel` boundary is disabled until an approved
+transport is configured. Its structured adapter allows no tools, enforces low
+temperature, timeout, token, cost, retry, and response-size limits, and rejects
+malformed JSON, hidden fields, duplicate keys, and evidence references outside the
+packet. Grounding then verifies claim/source compatibility and exact numeric
+support, constructs claim-level citations and reliability on the server, and fails
+closed on guarantees, product instructions, money movement, or missing evidence.
+Batch 3 adds no provider SDK, network configuration, conversation persistence, or
+public assistant route.

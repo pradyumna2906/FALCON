@@ -1,14 +1,16 @@
 # Phase 12 — Grounded AI Assistant
 
-Status: Batches 1–2 implemented on `feat/phase-12-grounded-assistant-foundation`.
+Status: Batches 1–3 implemented on `feat/phase-12-grounded-assistant-foundation`.
 
 This cumulative record freezes the approved Phase 12 semantics. Checkpoints
 12.0–12.2 establish the provider-neutral architecture, closed assistant scope,
 strict answer and citation contracts, evidence-source authorization, prompt data
-allowlists, and threat model. Checkpoints 12.3–12.5 add owner-scoped structured retrieval, curated public
-knowledge persistence, PostgreSQL full-text search, and deterministic reranking.
-Model invocation, conversation persistence, public routes, and monitoring remain
-intentionally absent until their approved batches.
+allowlists, and threat model. Checkpoints 12.3–12.5 add owner-scoped structured
+retrieval, curated public knowledge persistence, PostgreSQL full-text search, and
+deterministic reranking. Checkpoints 12.6–12.8 add canonical evidence packets, a
+provider-neutral structured model adapter, and claim-level grounded answers.
+Conversation persistence, public routes, end-to-end orchestration, and monitoring
+remain intentionally absent until their approved batches.
 
 ## 1. Phase boundary
 
@@ -230,15 +232,99 @@ evaluation showing a material improvement over this lexical baseline.
 - Raw financial evidence is never inserted into a full-text or embedding index.
 - Retrieved instructions cannot modify authorization, safety, tools, or policy.
 
-## 10. Deferred checkpoints
+## 10. Checkpoint 12.6 — immutable evidence packets and context builder
 
-- 12.6–12.8: evidence packet construction, provider adapter, grounded generation,
-  and citations;
-- 12.9–12.11: conversation persistence, injection controls, verification, and RAG
-  evaluation;
-- 12.12–12.14: orchestration, authenticated APIs, monitoring, integration, and
-  release closure.
+`build_evidence_packet()` re-authorizes the complete server-selected source set
+using the authenticated owner and then deliberately drops that owner identity.
+The resulting `AssistantEvidencePacket` contains only the normalized question,
+closed intent, retrieval cutoff, requested and missing sources, policy versions,
+reliability, bounded evidence facts, token budgets, and canonical provenance.
 
-Batches 1–2 deliberately add no conversation table, embedding, model invocation,
-public assistant endpoint, assistant response persistence, logging event, or
-external network call. The knowledge tables contain curated public material only.
+The packet builder rejects future cutoffs, duplicate evidence identities,
+unrequested sources, ambiguous current versions, unsupported intents, and missing
+intent-defining source requests. When the same source resource has older and newer
+records, only the latest compatible record is retained. Missing core evidence is
+explicit and makes the packet ineligible for generation; missing optional evidence
+remains visible as a limitation. Source-specific staleness is recorded rather than
+silently hidden.
+
+System generation rules, untrusted user input, retrieval metadata, and typed
+evidence facts occupy separate model-payload sections. Exact financial values stay
+inside evidence facts and are never converted into explanatory prose by the packet
+builder. Nested data is immutable, total serialized context is limited to 64,000
+characters, input and output token budgets are fixed, and SHA-256 over canonical
+content gives every replayable packet a deterministic identity.
+
+## 11. Checkpoint 12.7 — provider-neutral structured model boundary
+
+`AssistantModel.generate()` is the only generation protocol. The default
+`DisabledAssistantModel` fails closed, while `StructuredAssistantModel` can wrap
+an approved deployment transport without exposing provider credentials, headers,
+SDK objects, or endpoints to application services. The transport receives no
+tools and therefore cannot write financial data or call backend services.
+
+`AssistantModelConfiguration` fixes a low temperature of at most 0.2, a maximum
+60-second deadline, bounded input and output tokens, a cost ceiling, and at most
+two explicitly transient retries. Timeouts are not retried. Cancellation remains
+native, and no response or conversation persistence occurs inside this boundary.
+Measured token and cost usage is checked again after the provider returns.
+
+The provider must return one strict JSON object containing typed claims and safe
+follow-up questions. Unknown fields, duplicate JSON keys, hidden reasoning,
+unrecognized claim kinds, invalid evidence identities, unbounded text, malformed
+JSON, and citations outside the packet are rejected. The model cannot choose the
+public answer status, reliability, warnings, policy versions, or final citation
+metadata. A deterministic transport double supports tests without any external
+network or vendor SDK.
+
+## 12. Checkpoint 12.8 — claim-level grounding and citations
+
+Every generated claim declares one of five meanings: observation, forecast, plan,
+simulation, or education. The grounding layer requires at least one cited source
+that is authoritative for that meaning. It rejects packet-external references and
+any numeric value that is absent from the specifically cited evidence. Formatting
+normalization supports currency separators and evidence-backed percentage display,
+but it does not derive new balances, probabilities, gaps, or recommendations.
+
+FALCON, not the model, creates stable `[1]` citation markers, citation objects,
+evidence summaries, worst-case reliability, stale/incomplete warnings, and the
+`answered` or `limited` disposition. Claim labels visibly distinguish current
+observations, forecasts, plans, simulations, and general education. Generated
+guarantees, risk-free language, product buy/sell instructions, money-transfer
+directions, system-prompt requests, and instruction-override language fail closed.
+
+If intent-defining evidence is unavailable,
+`GroundedAssistantGenerator.generate()` does not call a provider. It returns the
+deterministic `unavailable` answer with `insufficient_evidence`. Valid answers
+remain decision-support explanations and always carry the
+`not_financial_advice` warning.
+
+## 13. Batch 3 grounding and provider invariants
+
+- The packet never stores or serializes the authenticated owner identity.
+- Packet instructions and untrusted user text are structurally separated.
+- Only the newest unambiguous version of one evidence resource enters a packet.
+- Missing required evidence prevents every model call.
+- Provider transports receive strict budgets, a response schema, and no tools.
+- No provider secret, endpoint, raw response, or hidden reasoning enters a public
+  answer.
+- Only explicitly transient transport failures are retried; timeouts are not.
+- The model can cite only canonical evidence identities already in its packet.
+- Every material claim has a declared evidence meaning and at least one citation.
+- Every generated number must exist in the claim's cited evidence.
+- Citations, reliability, warnings, and answer status are server-derived.
+- Unsupported numbers, source mismatches, guarantees, and financial actions are
+  rejected before an answer can be returned.
+- No Batch 3 component persists a question, packet, provider response, or answer.
+
+## 14. Deferred checkpoints
+
+- 12.9–12.11: conversation and audit persistence, full prompt-injection controls,
+  post-generation verification, and RAG evaluation;
+- 12.12–12.14: end-to-end retrieval/generation orchestration, authenticated APIs,
+  monitoring, integration, and release closure.
+
+Batches 1–3 deliberately add no conversation table, embedding, public assistant
+endpoint, assistant response persistence, operational logging event, provider SDK,
+or configured external network call. The only Phase 12 database tables continue to
+hold curated public knowledge.

@@ -1,4 +1,4 @@
-"""Repository-level Phase 12 retrieval-boundary tests."""
+"""Repository-level Phase 12 foundation and grounding contract tests."""
 
 from pathlib import Path
 
@@ -6,7 +6,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_phase_12_implementation_record_freezes_batches_1_and_2() -> None:
+def test_phase_12_implementation_record_freezes_batches_1_through_3() -> None:
     document = (_ROOT / "docs/assistant/PHASE_12_IMPLEMENTATION.md").read_text(
         encoding="utf-8"
     )
@@ -20,6 +20,10 @@ def test_phase_12_implementation_record_freezes_batches_1_and_2() -> None:
         "Checkpoint 12.4 — curated knowledge ingestion and persistence",
         "Checkpoint 12.5 — bounded retrieval and deterministic reranking",
         "Batch 2 security and integrity invariants",
+        "Checkpoint 12.6 — immutable evidence packets and context builder",
+        "Checkpoint 12.7 — provider-neutral structured model boundary",
+        "Checkpoint 12.8 — claim-level grounding and citations",
+        "Batch 3 grounding and provider invariants",
         "Deferred checkpoints",
     ):
         assert heading in document
@@ -27,8 +31,10 @@ def test_phase_12_implementation_record_freezes_batches_1_and_2() -> None:
         "It cannot edit a profile, account, transaction, budget, goal, contribution",
         "Raw financial data is not embedded or semantically indexed.",
         "Generated answers require evidence summaries and citations.",
-        "Batches 1–2 deliberately add no conversation table",
+        "Batches 1–3 deliberately add no conversation table",
         "Raw financial evidence is never inserted into a full-text or embedding index.",
+        "Every generated number must exist in the claim's cited evidence.",
+        "Missing required evidence prevents every model call.",
     ):
         assert boundary in document
 
