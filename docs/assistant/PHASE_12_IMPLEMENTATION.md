@@ -1,6 +1,6 @@
 # Phase 12 — Grounded AI Assistant
 
-Status: Batches 1–3 implemented on `feat/phase-12-grounded-assistant-foundation`.
+Status: Batches 1–4 implemented on `feat/phase-12-grounded-assistant-foundation`.
 
 This cumulative record freezes the approved Phase 12 semantics. Checkpoints
 12.0–12.2 establish the provider-neutral architecture, closed assistant scope,
@@ -9,8 +9,9 @@ allowlists, and threat model. Checkpoints 12.3–12.5 add owner-scoped structure
 retrieval, curated public knowledge persistence, PostgreSQL full-text search, and
 deterministic reranking. Checkpoints 12.6–12.8 add canonical evidence packets, a
 provider-neutral structured model adapter, and claim-level grounded answers.
-Conversation persistence, public routes, end-to-end orchestration, and monitoring
-remain intentionally absent until their approved batches.
+Checkpoints 12.9–12.11 introduce encrypted owner-scoped conversation history,
+adversarial safety screening, final verification, and offline RAG evaluation.
+Public routes, end-to-end orchestration, and monitoring remain deferred.
 
 ## 1. Phase boundary
 
@@ -317,14 +318,93 @@ remain decision-support explanations and always carry the
   rejected before an answer can be returned.
 - No Batch 3 component persists a question, packet, provider response, or answer.
 
-## 14. Deferred checkpoints
+## 14. Checkpoint 12.9 — encrypted conversation and audit persistence
 
-- 12.9–12.11: conversation and audit persistence, full prompt-injection controls,
-  post-generation verification, and RAG evaluation;
+Alembic revision `e8c2a6d1f704` adds three private PostgreSQL tables:
+`assistant_conversations`, `assistant_conversation_turns`, and
+`assistant_audit_events`. Composite foreign keys bind every turn and audit row
+to the same authenticated owner as the conversation. Database triggers reject
+updates; deletes are permitted for retention and privacy erasure, with database
+cascades removing turns and audit records. Missing and foreign conversations
+have indistinguishable empty results. Concurrent appends lock the conversation
+and assign an ordinal from 1 to 50. Recent history is capped at 20 turns.
+
+`AssistantHistoryService` requires an injected Fernet key ring and fails closed
+without it. Only the user's bounded question and the *verified public answer*
+are encrypted and stored. The first key encrypts new turns; up to two older keys
+can decrypt history during rotation. Configuration and secure key storage belong
+to the server deployment, not the client, database, prompt, or audit table.
+Audit records hold only owner, conversation and turn IDs, packet/evidence hashes,
+status, model ID, prompt and safety policy versions, elapsed time, and token
+usage. They contain no
+question, answer, raw evidence, provider response, credential, or hidden
+reasoning. The turn also records the generation prompt-policy version.
+
+Conversations expire 90 days after creation. `purge_expired()` erases at most
+1,000 conversations per call; Phase 13 must schedule it. Owner-initiated
+`delete()` and `erase_user()` are immediately available and erase audit rows as
+well as history. User-account deletion cascades to all assistant records.
+The application transaction must commit each write or deletion. No public
+history API or configured encryption key is introduced in Batch 4.
+
+## 15. Checkpoint 12.10 — untrusted input and financial safety
+
+`screen_question()` is the pre-retrieval gate for the Checkpoint 12.12
+orchestration flow. It detects override attempts, other-user
+disclosure, credential access, financial writes, securities-product instructions,
+and guaranteed outcomes. The generation boundary repeats screening after packet
+construction. `screen_packet()` treats all retrieved evidence as data and refuses
+retrieved instructions in evidence facts and labels before a model call. A
+refusal has a closed reason, no citations, and no provider usage. Generated
+claims and follow-up questions are
+also screened for prompt disclosure, private email, token, and account leakage.
+Models still receive no write tools; deterministic screening is a conservative
+layer, not a proof that arbitrary prose is safe. The labelled adversarial cases
+in Checkpoint 12.11 must pass before public release.
+
+## 16. Checkpoint 12.11 — final verification and offline RAG evaluation
+
+`verify_model_output()` is called by the generator and the public grounding
+helper. It retains the Checkpoint 12.8 claim/source and numeric checks, then
+requires displayed currency symbols, codes, and percentages to be backed by
+the claim's authoritative cited source. It checks server-owned citation markers
+and summaries,
+stale/incomplete evidence warnings, prediction certainty language, and leakage
+in both claims and follow-up questions. A failed check raises a bounded error;
+`AssistantHistoryService` accepts only verified results.
+
+`evaluate_assistant()` replays bounded labelled packets and deterministic model
+outputs without a provider or private dataset. It reports retrieval precision
+and recall, citation precision and recall, faithfulness of verified outputs,
+unsupported-claim rate, refusal accuracy, leakage and verification block rates,
+fixture latency p95, and average fixture token usage. The initial release gate
+requires retrieval precision ≥0.80, recall ≥0.90, citation precision/recall 1.00,
+fixture latency p95 ≤5 seconds, average input/output tokens ≤16,000/1,500,
+and all labelled valid, refused, and adversarial cases handled correctly. It
+requires at least one positive, refusal, and leakage case. Missing retrieved
+evidence remains in the recall denominator. These are **offline fixture
+metrics**; live latency, provider accuracy, and semantic entailment require
+measured end-to-end evaluation in Checkpoints 12.12–12.14.
+
+## 17. Batch 4 security and privacy invariants
+
+- Owner predicates protect every history read, append, and deletion.
+- Same-owner composite keys also enforce turn and audit ownership in PostgreSQL.
+- Retained rows cannot be updated; erasure and 90-day expiry delete all related
+  private history and audit data.
+- Conversation text is encrypted before a database write. No key is stored in
+  the database, prompt, audit log, or repository.
+- Generation cannot persist without a successful final verification result.
+- A blocked input or retrieved instruction never reaches a model transport.
+- Financial write requests, product-specific advice, guaranteed outcomes, and
+  private disclosure requests receive bounded refusals.
+- The offline evaluation report contains only aggregate metrics, never prompts
+  or evidence text.
+
+## 18. Deferred checkpoints
+
 - 12.12–12.14: end-to-end retrieval/generation orchestration, authenticated APIs,
-  monitoring, integration, and release closure.
+  measured provider/RAG evaluation, monitoring, integration, and release closure.
 
-Batches 1–3 deliberately add no conversation table, embedding, public assistant
-endpoint, assistant response persistence, operational logging event, provider SDK,
-or configured external network call. The only Phase 12 database tables continue to
-hold curated public knowledge.
+Batch 4 adds no embedding, public assistant endpoint, provider SDK, configured
+external network call, or financial write capability.

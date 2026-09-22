@@ -1,6 +1,11 @@
 """Grounded assistant contracts for Phase 12."""
 
 from falcon_api.assistant.contracts import AssistantAnswer, AssistantCitation
+from falcon_api.assistant.evaluation import (
+    AssistantEvaluationCase,
+    AssistantEvaluationReport,
+    evaluate_assistant,
+)
 from falcon_api.assistant.evidence import (
     AnalyticsEvidenceAdapter,
     AssistantEvidenceAdapter,
@@ -33,6 +38,7 @@ from falcon_api.assistant.grounding import (
     ground_model_output,
     unavailable_answer,
 )
+from falcon_api.assistant.history import AssistantHistoryService, AssistantHistoryTurn
 from falcon_api.assistant.model import (
     AssistantGeneratedClaim,
     AssistantModel,
@@ -68,6 +74,16 @@ from falcon_api.assistant.privacy import (
     prompt_safe_payload,
     source_policy,
     validate_evidence_source_selection,
+)
+from falcon_api.assistant.safety import (
+    refusal,
+    screen_packet,
+    screen_public_text,
+    screen_question,
+)
+from falcon_api.assistant.verification import (
+    AssistantVerificationError,
+    verify_model_output,
 )
 from falcon_api.assistant.semantics import (
     ASSISTANT_CONTRACT_VERSION,
@@ -118,9 +134,13 @@ __all__ = [
     "AssistantEvidenceRecord",
     "AssistantEvidenceRegistry",
     "AssistantEvidenceSource",
+    "AssistantEvaluationCase",
+    "AssistantEvaluationReport",
     "AssistantGeneratedClaim",
     "AssistantGenerationRule",
     "AssistantGroundingError",
+    "AssistantHistoryService",
+    "AssistantHistoryTurn",
     "AssistantKnowledgeRepository",
     "AssistantKnowledgeService",
     "AssistantKnowledgeTopic",
@@ -146,6 +166,7 @@ __all__ = [
     "AssistantThreat",
     "AssistantThreatControl",
     "AssistantWarning",
+    "AssistantVerificationError",
     "AnalyticsEvidenceAdapter",
     "ForecastEvidenceAdapter",
     "GoalPlanEvidenceAdapter",
@@ -161,6 +182,7 @@ __all__ = [
     "ScenarioEvidenceAdapter",
     "authorize_evidence_sources",
     "build_evidence_packet",
+    "evaluate_assistant",
     "chunk_knowledge_document",
     "normalize_knowledge_query",
     "privacy_policy_version",
@@ -168,11 +190,16 @@ __all__ = [
     "model_response_schema",
     "parse_model_output",
     "prompt_safe_payload",
+    "refusal",
     "rerank_knowledge_candidates",
     "source_policy",
+    "screen_packet",
+    "screen_public_text",
+    "screen_question",
     "structured_evidence_adapters",
     "StructuredAssistantModel",
     "unavailable_answer",
     "validate_evidence_source_selection",
     "validate_knowledge_document",
+    "verify_model_output",
 ]

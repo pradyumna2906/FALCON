@@ -693,3 +693,18 @@ support, constructs claim-level citations and reliability on the server, and fai
 closed on guarantees, product instructions, money movement, or missing evidence.
 Batch 3 adds no provider SDK, network configuration, conversation persistence, or
 public assistant route.
+
+Phase 12 Batch 4 adds encrypted owner-scoped conversation turns and append-only
+content-free audit events through migration `e8c2a6d1f704`. Server code must
+inject a configured Fernet key ring; no default or development encryption key is
+provided. The first key encrypts new turns and older keys support rotation.
+Conversations expire after 90 days, hold at most 50 turns, and can be erased by
+owner or with a bounded retention job. User deletion cascades to the audit trail.
+The job is scheduled only when deployment wiring is implemented.
+
+Question and retrieved-text screening runs before generation. Final verification
+checks claim-level source, numeric and unit support, citations, uncertainty, and
+private-data leakage before an answer is eligible for persistence. An offline
+labelled evaluation set measures retrieval precision/recall, citations,
+faithfulness, safety refusals, leakage, and fixture operational budgets. Batch 4
+does not add a public assistant endpoint or external model configuration.

@@ -100,9 +100,10 @@ class GroundedAssistantResult:
     """Internal result ready for later persistence or public serialization."""
 
     answer: AssistantAnswer
-    packet_id: str
+    packet_id: str | None
     used_evidence_ids: tuple[str, ...]
     model_result: AssistantModelResult | None
+    verified: bool = False
 
 
 class GroundedAssistantGenerator:
@@ -115,20 +116,39 @@ class GroundedAssistantGenerator:
         self,
         packet: AssistantEvidencePacket,
     ) -> GroundedAssistantResult:
+        from falcon_api.assistant.safety import screen_packet
+        from falcon_api.assistant.verification import verify_model_output
+
+        denied = screen_packet(packet)
+        if denied is not None:
+            return GroundedAssistantResult(
+                answer=denied,
+                packet_id=packet.packet_id,
+                used_evidence_ids=(),
+                model_result=None,
+                verified=True,
+            )
         if not packet.can_generate:
             return GroundedAssistantResult(
                 answer=unavailable_answer(packet),
                 packet_id=packet.packet_id,
                 used_evidence_ids=(),
                 model_result=None,
+                verified=True,
             )
         model_result = await self._model.generate(packet)
-        answer, used = _ground_model_output(packet, model_result.output)
+        answer = verify_model_output(packet, model_result.output)
+        used = tuple(dict.fromkeys(
+            evidence_id
+            for claim in model_result.output.claims
+            for evidence_id in claim.evidence_ids
+        ))
         return GroundedAssistantResult(
             answer=answer,
             packet_id=packet.packet_id,
             used_evidence_ids=used,
             model_result=model_result,
+            verified=True,
         )
 
 
@@ -138,8 +158,9 @@ def ground_model_output(
 ) -> AssistantAnswer:
     """Create a public answer only from claim-level supported output."""
 
-    answer, _ = _ground_model_output(packet, output)
-    return answer
+    from falcon_api.assistant.verification import verify_model_output
+
+    return verify_model_output(packet, output)
 
 
 def unavailable_answer(packet: AssistantEvidencePacket) -> AssistantAnswer:

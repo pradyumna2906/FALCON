@@ -6,7 +6,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_phase_12_implementation_record_freezes_batches_1_through_3() -> None:
+def test_phase_12_implementation_record_freezes_batches_1_through_4() -> None:
     document = (_ROOT / "docs/assistant/PHASE_12_IMPLEMENTATION.md").read_text(
         encoding="utf-8"
     )
@@ -23,6 +23,9 @@ def test_phase_12_implementation_record_freezes_batches_1_through_3() -> None:
         "Checkpoint 12.6 — immutable evidence packets and context builder",
         "Checkpoint 12.7 — provider-neutral structured model boundary",
         "Checkpoint 12.8 — claim-level grounding and citations",
+        "Checkpoint 12.9 — encrypted conversation and audit persistence",
+        "Checkpoint 12.10 — untrusted input and financial safety",
+        "Checkpoint 12.11 — final verification and offline RAG evaluation",
         "Batch 3 grounding and provider invariants",
         "Deferred checkpoints",
     ):
@@ -31,7 +34,7 @@ def test_phase_12_implementation_record_freezes_batches_1_through_3() -> None:
         "It cannot edit a profile, account, transaction, budget, goal, contribution",
         "Raw financial data is not embedded or semantically indexed.",
         "Generated answers require evidence summaries and citations.",
-        "Batches 1–3 deliberately add no conversation table",
+        "Conversation text is encrypted before a database write.",
         "Raw financial evidence is never inserted into a full-text or embedding index.",
         "Every generated number must exist in the claim's cited evidence.",
         "Missing required evidence prevents every model call.",

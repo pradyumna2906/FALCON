@@ -109,9 +109,12 @@ are rejected recursively, including identity, email, credentials, tokens,
 account and transaction identifiers, raw statements, raw rows, raw samples, raw
 prompts, system prompts, and hidden reasoning.
 
-The user question is client-provided content, not trusted instruction. It will be
-bounded and excluded from operational telemetry. Retention, deletion, and
-conversation persistence remain deferred to Checkpoint 12.9.
+The user question is client-provided content, not trusted instruction. It is
+bounded and excluded from operational telemetry. Checkpoint 12.9 adds encrypted
+question and verified-answer history, requiring a server-injected key ring;
+append-only audit records contain only bounded identifiers and usage metadata.
+Every conversation expires after 90 days and has owner-scoped erasure. Scheduling
+the retention job and key management belong to deployment integration.
 
 ### 7. Threat model
 

@@ -44,6 +44,9 @@ _EXPECTED_TABLES = {
     "accounts",
     "authentication_challenges",
     "authentication_delivery_outbox",
+    "assistant_audit_events",
+    "assistant_conversations",
+    "assistant_conversation_turns",
     "assistant_knowledge_chunks",
     "assistant_knowledge_documents",
     "budget_limits",
@@ -77,6 +80,11 @@ _EXPECTED_TABLES = {
     "user_credentials",
     "user_merchant_memories",
     "users",
+}
+_APPEND_ONLY_ASSISTANT_TABLES = {
+    "assistant_conversations",
+    "assistant_conversation_turns",
+    "assistant_audit_events",
 }
 
 
@@ -129,8 +137,11 @@ def test_every_domain_table_uses_uuid_and_utc_audit_columns() -> None:
         assert table.c.id.default is not None
         assert table.c.created_at.nullable is False
         assert table.c.created_at.type.timezone is True
-        assert table.c.updated_at.nullable is False
-        assert table.c.updated_at.type.timezone is True
+        if table_name in _APPEND_ONLY_ASSISTANT_TABLES:
+            assert "updated_at" not in table.c
+        else:
+            assert table.c.updated_at.nullable is False
+            assert table.c.updated_at.type.timezone is True
 
 
 def test_money_and_rate_columns_use_approved_precision() -> None:

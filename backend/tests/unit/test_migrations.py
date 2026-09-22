@@ -25,6 +25,7 @@ _FORECAST_PERSISTENCE_REVISION = "a9c4e2f7b613"
 _GOAL_PLAN_PERSISTENCE_REVISION = "b3e8f6c2d715"
 _SCENARIO_PERSISTENCE_REVISION = "c4d7a9e2f816"
 _ASSISTANT_KNOWLEDGE_REVISION = "d6f4b8a1c902"
+_ASSISTANT_HISTORY_REVISION = "e8c2a6d1f704"
 
 
 def create_alembic_config() -> Config:
@@ -44,13 +45,19 @@ def test_migrations_share_application_metadata() -> None:
     register_models()
 
     assert model_metadata() is Base.metadata
-    assert len(model_metadata().tables) == 36
+    assert len(model_metadata().tables) == 39
 
 
-def test_assistant_knowledge_revision_is_the_single_head() -> None:
+def test_assistant_history_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_ASSISTANT_KNOWLEDGE_REVISION]
+    assert scripts.get_heads() == [_ASSISTANT_HISTORY_REVISION]
+
+    history_revision = scripts.get_revision(_ASSISTANT_HISTORY_REVISION)
+    assert history_revision is not None
+    assert history_revision.down_revision == _ASSISTANT_KNOWLEDGE_REVISION
+    assert callable(history_revision.module.upgrade)
+    assert callable(history_revision.module.downgrade)
 
     assistant_revision = scripts.get_revision(_ASSISTANT_KNOWLEDGE_REVISION)
 
