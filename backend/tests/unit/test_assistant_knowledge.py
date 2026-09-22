@@ -190,6 +190,46 @@ def test_repository_search_uses_postgresql_full_text_and_active_cutoff() -> None
     assert "assistant_knowledge_documents.topics @>" in sql
 
 
+def test_repository_retirement_uses_one_explicit_controlled_update() -> None:
+    repository = AssistantKnowledgeRepository()
+    session = AsyncMock(spec=AsyncSession)
+    session.execute.return_value = SimpleNamespace(rowcount=1)
+    document = SimpleNamespace(
+        id=uuid4(),
+        published_at=datetime(2026, 9, 1, tzinfo=UTC),
+        retired_at=None,
+    )
+
+    result = asyncio.run(
+        repository.retire(
+            session,
+            document=document,
+            retired_at=NOW,
+        )
+    )
+
+    statement = session.execute.await_args.args[0]
+    compiled = statement.compile(dialect=postgresql.dialect())
+    assert str(compiled).startswith("UPDATE assistant_knowledge_documents")
+    assert "retired_at IS NULL" in str(compiled)
+    assert compiled.params["retired_at"] == NOW
+    assert compiled.params["updated_at"] == NOW
+    session.refresh.assert_awaited_once_with(document)
+    assert result is document
+
+    session.reset_mock()
+    session.execute.return_value = SimpleNamespace(rowcount=0)
+    with pytest.raises(ValueError, match="already retired"):
+        asyncio.run(
+            repository.retire(
+                session,
+                document=document,
+                retired_at=NOW,
+            )
+        )
+    session.refresh.assert_not_awaited()
+
+
 def test_ingestion_persists_versioned_document_and_chunks_once() -> None:
     repository = AsyncMock(spec=AssistantKnowledgeRepository)
     repository.get_version.return_value = None

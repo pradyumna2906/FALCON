@@ -11,7 +11,7 @@ from decimal import ROUND_HALF_EVEN, Decimal
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
-from sqlalchemy import desc, func, or_, select
+from sqlalchemy import desc, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -155,9 +155,21 @@ class AssistantKnowledgeRepository:
             raise ValueError("Knowledge document version is already retired.")
         if retired_at < document.published_at:
             raise ValueError("Knowledge retirement cannot precede publication.")
-        document.retired_at = retired_at
-        document.updated_at = retired_at
-        await session.flush()
+        result = await session.execute(
+            update(AssistantKnowledgeDocument)
+            .where(
+                AssistantKnowledgeDocument.id == document.id,
+                AssistantKnowledgeDocument.retired_at.is_(None),
+            )
+            .values(
+                retired_at=retired_at,
+                updated_at=retired_at,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if result.rowcount != 1:
+            raise ValueError("Knowledge document version is already retired.")
+        await session.refresh(document)
         return document
 
     async def search(
