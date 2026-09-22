@@ -9,6 +9,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from falcon_api import __version__
 from falcon_api.analytics.application import FinancialAnalyticsService
+from falcon_api.assistant import (
+    AssistantEvidenceRegistry,
+    AssistantHistoryService,
+    AssistantModel,
+    DisabledAssistantModel,
+    GroundedAssistantGenerator,
+    KnowledgeEvidenceAdapter,
+    structured_evidence_adapters,
+)
+from falcon_api.assistant.monitoring import AssistantMonitor
+from falcon_api.assistant.orchestration import (
+    AssistantRequestLimiter,
+    GroundedAssistantOrchestrator,
+)
 from falcon_api.api.errors import register_exception_handlers
 from falcon_api.api.router import api_v1_router
 from falcon_api.api.routes.health import health_router
@@ -75,6 +89,7 @@ def create_app(
     settings: Settings | None = None,
     *,
     database_factory: DatabaseFactory = create_database_resources,
+    assistant_model: AssistantModel | None = None,
 ) -> FastAPI:
     """Build an isolated FastAPI application instance."""
     app_settings = settings or get_settings()
@@ -172,6 +187,36 @@ def create_app(
     )
     application.state.goal_plan_service = MultiGoalOptimizationService()
     application.state.scenario_simulation_service = ScenarioSimulationService()
+    assistant_history_service = AssistantHistoryService(
+        encryption_keys=tuple(
+            item.get_secret_value().encode("ascii")
+            for item in app_settings.assistant_history_encryption_keys
+        )
+    )
+    assistant_registry = AssistantEvidenceRegistry(
+        (*structured_evidence_adapters(), KnowledgeEvidenceAdapter())
+    )
+    assistant_monitor = AssistantMonitor()
+    assistant_limiter = AssistantRequestLimiter(
+        requests_per_minute=app_settings.assistant_requests_per_minute,
+        max_concurrent_requests=(
+            app_settings.assistant_max_concurrent_requests
+        ),
+    )
+    application.state.assistant_history_service = assistant_history_service
+    application.state.assistant_evidence_registry = assistant_registry
+    application.state.assistant_monitor = assistant_monitor
+    application.state.assistant_request_limiter = assistant_limiter
+    application.state.assistant_orchestrator = GroundedAssistantOrchestrator(
+        registry=assistant_registry,
+        generator=GroundedAssistantGenerator(
+            assistant_model or DisabledAssistantModel()
+        ),
+        history=assistant_history_service,
+        limiter=assistant_limiter,
+        monitor=assistant_monitor,
+        timeout_seconds=app_settings.assistant_request_timeout_seconds,
+    )
 
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)

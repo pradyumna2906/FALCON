@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -142,3 +143,47 @@ class AssistantAnswerResponse(AssistantSchema):
             safety_policy_version=self.safety_policy_version,
         )
         return self
+
+
+class AssistantConversationResponse(AssistantSchema):
+    """Owner-visible metadata without encrypted content or internal provenance."""
+
+    id: UUID
+    created_at: datetime
+    expires_at: datetime
+    turn_count: Annotated[int, Field(ge=0, le=50)]
+
+
+class AssistantConversationListResponse(AssistantSchema):
+    items: Annotated[
+        tuple[AssistantConversationResponse, ...],
+        Field(max_length=20),
+    ]
+
+
+class AssistantMessageResponse(AssistantSchema):
+    """One decrypted owner-visible exchange and its verified public answer."""
+
+    id: UUID
+    conversation_id: UUID
+    ordinal: Annotated[int, Field(ge=1, le=50)]
+    question: QuestionText
+    answer: AssistantAnswerResponse
+    created_at: datetime
+    replayed: bool = False
+
+
+class AssistantConversationDetailResponse(AssistantConversationResponse):
+    messages: Annotated[
+        tuple[AssistantMessageResponse, ...],
+        Field(max_length=20),
+    ]
+    has_more: bool
+
+
+class AssistantCitationListResponse(AssistantSchema):
+    message_id: UUID
+    items: Annotated[
+        tuple[AssistantCitationResponse, ...],
+        Field(max_length=MAX_CITATIONS),
+    ]

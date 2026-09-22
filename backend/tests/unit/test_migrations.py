@@ -26,6 +26,7 @@ _GOAL_PLAN_PERSISTENCE_REVISION = "b3e8f6c2d715"
 _SCENARIO_PERSISTENCE_REVISION = "c4d7a9e2f816"
 _ASSISTANT_KNOWLEDGE_REVISION = "d6f4b8a1c902"
 _ASSISTANT_HISTORY_REVISION = "e8c2a6d1f704"
+_ASSISTANT_IDEMPOTENCY_REVISION = "f2a7c9e4d816"
 
 
 def create_alembic_config() -> Config:
@@ -48,10 +49,18 @@ def test_migrations_share_application_metadata() -> None:
     assert len(model_metadata().tables) == 39
 
 
-def test_assistant_history_revision_is_the_single_head() -> None:
+def test_assistant_idempotency_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_ASSISTANT_HISTORY_REVISION]
+    assert scripts.get_heads() == [_ASSISTANT_IDEMPOTENCY_REVISION]
+
+    idempotency_revision = scripts.get_revision(
+        _ASSISTANT_IDEMPOTENCY_REVISION
+    )
+    assert idempotency_revision is not None
+    assert idempotency_revision.down_revision == _ASSISTANT_HISTORY_REVISION
+    assert callable(idempotency_revision.module.upgrade)
+    assert callable(idempotency_revision.module.downgrade)
 
     history_revision = scripts.get_revision(_ASSISTANT_HISTORY_REVISION)
     assert history_revision is not None
@@ -65,6 +74,21 @@ def test_assistant_history_revision_is_the_single_head() -> None:
     assert assistant_revision.down_revision == _SCENARIO_PERSISTENCE_REVISION
     assert callable(assistant_revision.module.upgrade)
     assert callable(assistant_revision.module.downgrade)
+
+
+def test_assistant_idempotency_migration_hashes_and_uniquely_scopes_keys() -> None:
+    scripts = ScriptDirectory.from_config(create_alembic_config())
+    revision = scripts.get_revision(_ASSISTANT_IDEMPOTENCY_REVISION)
+
+    assert revision is not None
+    source = Path(revision.path).read_text(encoding="utf-8")
+    for statement in (
+        "idempotency_key_hash",
+        "^[0-9a-f]{64}$",
+        "uq_assistant_turns_conversation_idempotency",
+        'down_revision: str | Sequence[str] | None = "e8c2a6d1f704"',
+    ):
+        assert statement in source
 
 
 def test_assistant_knowledge_migration_freezes_public_provenance_and_search() -> None:

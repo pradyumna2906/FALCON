@@ -195,11 +195,21 @@ class AssistantConversationTurn(UUIDPrimaryKeyMixin, Base):
             name="fk_assistant_conversation_turns_conversation_owner",
         ),
         UniqueConstraint("conversation_id", "ordinal", name="uq_assistant_turns_order"),
+        UniqueConstraint(
+            "conversation_id",
+            "idempotency_key_hash",
+            name="uq_assistant_turns_conversation_idempotency",
+        ),
         UniqueConstraint("id", "user_id", name="uq_assistant_turns_id_owner"),
         CheckConstraint("ordinal BETWEEN 1 AND 50", name="ordinal_bounded"),
         CheckConstraint("char_length(question_ciphertext) BETWEEN 1 AND 16000", name="encrypted_question_bounded"),
         CheckConstraint("char_length(answer_ciphertext) BETWEEN 1 AND 50000", name="encrypted_answer_bounded"),
         CheckConstraint("packet_id ~ '^[0-9a-f]{64}$' OR packet_id IS NULL", name="packet_hash"),
+        CheckConstraint(
+            "idempotency_key_hash ~ '^[0-9a-f]{64}$' "
+            "OR idempotency_key_hash IS NULL",
+            name="idempotency_key_hash",
+        ),
         Index("ix_assistant_turns_owner_conversation", "user_id", "conversation_id", "ordinal"),
     )
 
@@ -209,6 +219,10 @@ class AssistantConversationTurn(UUIDPrimaryKeyMixin, Base):
     question_ciphertext: Mapped[str] = mapped_column(Text, nullable=False)
     answer_ciphertext: Mapped[str] = mapped_column(Text, nullable=False)
     packet_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    idempotency_key_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
     model_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     prompt_version: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[UTCDateTime] = mapped_column(nullable=False)

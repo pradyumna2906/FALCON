@@ -6,11 +6,20 @@ from dataclasses import dataclass
 from decimal import Decimal
 import re
 from statistics import mean
+from time import perf_counter
+from collections.abc import Callable
 
-from falcon_api.assistant.model import AssistantModelOutput
+from falcon_api.assistant.grounding import (
+    AssistantGroundingError,
+    GroundedAssistantGenerator,
+)
+from falcon_api.assistant.model import AssistantModelError, AssistantModelOutput
 from falcon_api.assistant.packet import AssistantEvidencePacket
 from falcon_api.assistant.safety import screen_packet
-from falcon_api.assistant.semantics import AssistantRefusalReason
+from falcon_api.assistant.semantics import (
+    AssistantAnswerStatus,
+    AssistantRefusalReason,
+)
 from falcon_api.assistant.verification import AssistantVerificationError, verify_model_output
 
 
@@ -74,6 +83,46 @@ class AssistantEvaluationReport:
     refusal_accuracy: Decimal
     leakage_block_rate: Decimal
     verification_block_rate: Decimal
+    latency_p95_ms: int
+    mean_input_tokens: int
+    mean_output_tokens: int
+    passed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class AssistantEndToEndEvaluationCase:
+    """Labelled packet for a measured configured-provider release replay."""
+
+    case_id: str
+    packet: AssistantEvidencePacket
+    expected_status: AssistantAnswerStatus
+    expected_evidence_ids: frozenset[str] = frozenset()
+
+    def __post_init__(self) -> None:
+        if not self.case_id or len(self.case_id) > 80 or not self.case_id.isascii():
+            raise ValueError("End-to-end case needs an opaque bounded ID.")
+        expected = frozenset(self.expected_evidence_ids)
+        available = frozenset(item.evidence_id for item in self.packet.evidence)
+        if not expected <= available:
+            raise ValueError("End-to-end citation labels must exist in the packet.")
+        generated = self.expected_status in {
+            AssistantAnswerStatus.ANSWERED,
+            AssistantAnswerStatus.LIMITED,
+        }
+        if generated != bool(expected):
+            raise ValueError("Generated evaluation cases require expected citations.")
+
+
+@dataclass(frozen=True, slots=True)
+class AssistantEndToEndEvaluationReport:
+    """Content-free metrics measured across the complete generation boundary."""
+
+    policy_version: str
+    total_cases: int
+    outcome_accuracy: Decimal
+    citation_precision: Decimal
+    citation_recall: Decimal
+    provider_failure_rate: Decimal
     latency_p95_ms: int
     mean_input_tokens: int
     mean_output_tokens: int
@@ -175,8 +224,100 @@ def evaluate_assistant(cases: tuple[AssistantEvaluationCase, ...]) -> AssistantE
     )
 
 
+async def evaluate_end_to_end_assistant(
+    cases: tuple[AssistantEndToEndEvaluationCase, ...],
+    *,
+    generator: GroundedAssistantGenerator,
+    timer: Callable[[], float] = perf_counter,
+) -> AssistantEndToEndEvaluationReport:
+    """Measure real adapter latency, outcomes, citations, and token budgets."""
+
+    if not 3 <= len(cases) <= 100 or len(
+        {item.case_id for item in cases}
+    ) != len(cases):
+        raise ValueError("End-to-end evaluation requires unique bounded cases.")
+    statuses = {item.expected_status for item in cases}
+    if not statuses.intersection(
+        {AssistantAnswerStatus.ANSWERED, AssistantAnswerStatus.LIMITED}
+    ) or not {
+        AssistantAnswerStatus.REFUSED,
+        AssistantAnswerStatus.UNAVAILABLE,
+    } <= statuses:
+        raise ValueError(
+            "End-to-end evaluation requires generated, refused, and unavailable cases."
+        )
+
+    correct = failures = citation_true = citation_actual = citation_expected = 0
+    latencies: list[int] = []
+    input_tokens: list[int] = []
+    output_tokens: list[int] = []
+    for case in cases:
+        started_at = timer()
+        try:
+            result = await generator.generate(case.packet)
+        except (AssistantModelError, AssistantGroundingError):
+            failures += 1
+            latencies.append(_measured_ms(timer(), started_at))
+            continue
+        latencies.append(_measured_ms(timer(), started_at))
+        actual = frozenset(result.used_evidence_ids)
+        expected = case.expected_evidence_ids
+        citation_true += len(actual & expected)
+        citation_actual += len(actual)
+        citation_expected += len(expected)
+        correct += int(
+            result.verified
+            and result.answer.status is case.expected_status
+            and actual == expected
+        )
+        if result.model_result is not None:
+            input_tokens.append(result.model_result.usage.input_tokens)
+            output_tokens.append(result.model_result.usage.output_tokens)
+
+    ordered = sorted(latencies)
+    p95 = ordered[(95 * len(ordered) + 99) // 100 - 1]
+    mean_input = round(mean(input_tokens)) if input_tokens else 0
+    mean_output = round(mean(output_tokens)) if output_tokens else 0
+    outcome_accuracy = _ratio(correct, len(cases))
+    citation_precision = _ratio(citation_true, citation_actual)
+    citation_recall = _ratio(citation_true, citation_expected)
+    failure_rate = _ratio(failures, len(cases))
+    passed = (
+        outcome_accuracy == Decimal(1)
+        and citation_precision == Decimal(1)
+        and citation_recall == Decimal(1)
+        and failure_rate == Decimal(0)
+        and p95 <= MAX_EVAL_P95_MS
+        and mean_input <= MAX_EVAL_MEAN_INPUT_TOKENS
+        and mean_output <= MAX_EVAL_MEAN_OUTPUT_TOKENS
+    )
+    return AssistantEndToEndEvaluationReport(
+        policy_version=EVALUATION_POLICY_VERSION,
+        total_cases=len(cases),
+        outcome_accuracy=outcome_accuracy,
+        citation_precision=citation_precision,
+        citation_recall=citation_recall,
+        provider_failure_rate=failure_rate,
+        latency_p95_ms=p95,
+        mean_input_tokens=mean_input,
+        mean_output_tokens=mean_output,
+        passed=passed,
+    )
+
+
 def _ratio(numerator: int, denominator: int) -> Decimal:
     return Decimal(numerator) / Decimal(denominator) if denominator else Decimal(0)
 
 
-__all__ = ["AssistantEvaluationCase", "AssistantEvaluationReport", "evaluate_assistant"]
+def _measured_ms(finished_at: float, started_at: float) -> int:
+    return min(60_000, max(0, round((finished_at - started_at) * 1_000)))
+
+
+__all__ = [
+    "AssistantEndToEndEvaluationCase",
+    "AssistantEndToEndEvaluationReport",
+    "AssistantEvaluationCase",
+    "AssistantEvaluationReport",
+    "evaluate_assistant",
+    "evaluate_end_to_end_assistant",
+]

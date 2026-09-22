@@ -7,6 +7,10 @@ from falcon_api.core.config import AppEnvironment, Settings, get_settings
 from pydantic import ValidationError
 
 
+_PRODUCTION_HISTORY_KEY = (
+    "ZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGQ="
+)
+
 def test_prefixed_environment_variables_are_loaded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -287,9 +291,89 @@ def test_production_accepts_strong_authentication_secret() -> None:
         auth_delivery_encryption_key=(
             "YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI="
         ),
+        assistant_history_encryption_keys=(_PRODUCTION_HISTORY_KEY,),
     )
 
     assert settings.env is AppEnvironment.PRODUCTION
+
+
+def test_assistant_settings_load_key_ring_and_operational_limits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    older = "ZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWU="
+    monkeypatch.setenv(
+        "FALCON_ASSISTANT_HISTORY_ENCRYPTION_KEYS",
+        f'["{_PRODUCTION_HISTORY_KEY}","{older}"]',
+    )
+    monkeypatch.setenv("FALCON_ASSISTANT_REQUESTS_PER_MINUTE", "12")
+    monkeypatch.setenv("FALCON_ASSISTANT_MAX_CONCURRENT_REQUESTS", "2")
+    monkeypatch.setenv("FALCON_ASSISTANT_REQUEST_TIMEOUT_SECONDS", "25")
+
+    settings = Settings(_env_file=None)
+
+    assert tuple(
+        item.get_secret_value()
+        for item in settings.assistant_history_encryption_keys
+    ) == (_PRODUCTION_HISTORY_KEY, older)
+    assert settings.assistant_requests_per_minute == 12
+    assert settings.assistant_max_concurrent_requests == 2
+    assert settings.assistant_request_timeout_seconds == 25
+    assert _PRODUCTION_HISTORY_KEY not in repr(settings)
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [
+        ("invalid",),
+        (_PRODUCTION_HISTORY_KEY, _PRODUCTION_HISTORY_KEY),
+        (
+            _PRODUCTION_HISTORY_KEY,
+            "ZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWU=",
+            "ZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmY=",
+            "Z2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2c=",
+        ),
+    ],
+)
+def test_assistant_history_key_ring_is_bounded_and_valid(keys) -> None:
+    with pytest.raises(ValidationError):
+        Settings(assistant_history_encryption_keys=keys)
+
+
+def test_production_rejects_placeholder_or_reused_assistant_history_key() -> None:
+    common = {
+        "_env_file": None,
+        "env": AppEnvironment.PRODUCTION,
+        "debug": False,
+        "auth_signing_secret": "x" * 48,
+        "auth_delivery_encryption_key": (
+            "YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI="
+        ),
+    }
+    with pytest.raises(ValidationError, match="assistant history encryption key"):
+        Settings(**common)
+    with pytest.raises(ValidationError, match="must be independent"):
+        Settings(
+            **common,
+            assistant_history_encryption_keys=(
+                common["auth_delivery_encryption_key"],
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("assistant_requests_per_minute", 0),
+        ("assistant_requests_per_minute", 61),
+        ("assistant_max_concurrent_requests", 0),
+        ("assistant_max_concurrent_requests", 5),
+        ("assistant_request_timeout_seconds", 0),
+        ("assistant_request_timeout_seconds", 61),
+    ],
+)
+def test_invalid_assistant_operational_limits_are_rejected(field, value) -> None:
+    with pytest.raises(ValidationError):
+        Settings(**{field: value})
 
 
 def test_access_token_algorithm_is_fixed() -> None:

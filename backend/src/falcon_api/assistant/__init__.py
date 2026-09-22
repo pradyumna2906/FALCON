@@ -2,9 +2,12 @@
 
 from falcon_api.assistant.contracts import AssistantAnswer, AssistantCitation
 from falcon_api.assistant.evaluation import (
+    AssistantEndToEndEvaluationCase,
+    AssistantEndToEndEvaluationReport,
     AssistantEvaluationCase,
     AssistantEvaluationReport,
     evaluate_assistant,
+    evaluate_end_to_end_assistant,
 )
 from falcon_api.assistant.evidence import (
     AnalyticsEvidenceAdapter,
@@ -38,7 +41,19 @@ from falcon_api.assistant.grounding import (
     ground_model_output,
     unavailable_answer,
 )
-from falcon_api.assistant.history import AssistantHistoryService, AssistantHistoryTurn
+from falcon_api.assistant.history import (
+    AssistantConversationSummary,
+    AssistantHistoryCapacityError,
+    AssistantHistoryService,
+    AssistantHistoryTurn,
+    AssistantIdempotencyConflict,
+    hash_idempotency_key,
+)
+from falcon_api.assistant.monitoring import (
+    AssistantFailureReason,
+    AssistantMonitor,
+    AssistantProviderOutcome,
+)
 from falcon_api.assistant.model import (
     AssistantGeneratedClaim,
     AssistantModel,
@@ -63,6 +78,15 @@ from falcon_api.assistant.model import (
 from falcon_api.assistant.packet import (
     AssistantEvidencePacket,
     build_evidence_packet,
+)
+from falcon_api.assistant.orchestration import (
+    AssistantEvidencePlan,
+    AssistantEvidencePlanner,
+    AssistantIntentClassifier,
+    AssistantMessageResult,
+    AssistantRequestLimiter,
+    DeterministicAssistantEvidencePlanner,
+    GroundedAssistantOrchestrator,
 )
 from falcon_api.assistant.privacy import (
     ASSISTANT_THREAT_MODEL,
@@ -128,19 +152,28 @@ __all__ = [
     "AssistantAnswerStatus",
     "AssistantCitation",
     "AssistantClaimKind",
+    "AssistantConversationSummary",
     "AssistantEvidencePacket",
     "AssistantEvidenceAdapter",
+    "AssistantEvidencePlan",
+    "AssistantEvidencePlanner",
     "AssistantEvidenceQuery",
     "AssistantEvidenceRecord",
     "AssistantEvidenceRegistry",
     "AssistantEvidenceSource",
+    "AssistantEndToEndEvaluationCase",
+    "AssistantEndToEndEvaluationReport",
     "AssistantEvaluationCase",
     "AssistantEvaluationReport",
+    "AssistantFailureReason",
     "AssistantGeneratedClaim",
     "AssistantGenerationRule",
     "AssistantGroundingError",
+    "AssistantHistoryCapacityError",
     "AssistantHistoryService",
     "AssistantHistoryTurn",
+    "AssistantIdempotencyConflict",
+    "AssistantIntentClassifier",
     "AssistantKnowledgeRepository",
     "AssistantKnowledgeService",
     "AssistantKnowledgeTopic",
@@ -158,10 +191,14 @@ __all__ = [
     "AssistantModelTransportResponse",
     "AssistantModelUnavailableError",
     "AssistantModelUsage",
+    "AssistantMessageResult",
+    "AssistantMonitor",
     "AssistantIntent",
+    "AssistantProviderOutcome",
     "AssistantRefusalReason",
     "AssistantReliability",
     "AssistantRetrievalReason",
+    "AssistantRequestLimiter",
     "AssistantSourcePolicy",
     "AssistantThreat",
     "AssistantThreatControl",
@@ -177,16 +214,20 @@ __all__ = [
     "KnowledgeRetrieval",
     "KnowledgeSearchCandidate",
     "DisabledAssistantModel",
+    "DeterministicAssistantEvidencePlanner",
     "GroundedAssistantGenerator",
     "GroundedAssistantResult",
+    "GroundedAssistantOrchestrator",
     "ScenarioEvidenceAdapter",
     "authorize_evidence_sources",
     "build_evidence_packet",
     "evaluate_assistant",
+    "evaluate_end_to_end_assistant",
     "chunk_knowledge_document",
     "normalize_knowledge_query",
     "privacy_policy_version",
     "ground_model_output",
+    "hash_idempotency_key",
     "model_response_schema",
     "parse_model_output",
     "prompt_safe_payload",

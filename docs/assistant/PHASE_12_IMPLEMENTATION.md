@@ -1,6 +1,6 @@
 # Phase 12 — Grounded AI Assistant
 
-Status: Batches 1–4 implemented on `feat/phase-12-grounded-assistant-foundation`.
+Status: Phase 12 complete on `feat/phase-12-grounded-assistant-foundation`.
 
 This cumulative record freezes the approved Phase 12 semantics. Checkpoints
 12.0–12.2 establish the provider-neutral architecture, closed assistant scope,
@@ -11,7 +11,9 @@ deterministic reranking. Checkpoints 12.6–12.8 add canonical evidence packets,
 provider-neutral structured model adapter, and claim-level grounded answers.
 Checkpoints 12.9–12.11 introduce encrypted owner-scoped conversation history,
 adversarial safety screening, final verification, and offline RAG evaluation.
-Public routes, end-to-end orchestration, and monitoring remain deferred.
+Checkpoints 12.12–12.14 complete atomic orchestration, authenticated APIs,
+idempotency, privacy-safe monitoring, measured end-to-end evaluation, and the
+Phase 12 release boundary.
 
 ## 1. Phase boundary
 
@@ -401,10 +403,126 @@ measured end-to-end evaluation in Checkpoints 12.12–12.14.
 - The offline evaluation report contains only aggregate metrics, never prompts
   or evidence text.
 
-## 18. Deferred checkpoints
+## 18. Checkpoint 12.12 — atomic assistant orchestration
 
-- 12.12–12.14: end-to-end retrieval/generation orchestration, authenticated APIs,
-  measured provider/RAG evaluation, monitoring, integration, and release closure.
+`GroundedAssistantOrchestrator.send_message()` owns the complete request chain:
 
-Batch 4 adds no embedding, public assistant endpoint, provider SDK, configured
-external network call, or financial write capability.
+1. enforce the per-owner process-local rate and concurrency limits;
+2. lock the owner-scoped live conversation and resolve message idempotency;
+3. classify the question with the closed deterministic intent classifier;
+4. screen unsafe or unsupported input before evidence retrieval;
+5. select resource IDs, source families, knowledge topics, timezone, and currency
+   on the server;
+6. authorize and retrieve structured financial and curated knowledge evidence;
+7. build the bounded owner-free packet;
+8. generate through the provider-neutral model boundary;
+9. run final safety, citation, numeric, unit, and grounding verification;
+10. encrypt and append the verified public exchange and content-free audit row;
+11. return only after the request transaction can commit.
+
+The deterministic planner chooses the current owner-scoped forecast, named or
+highest-priority goal, current goal plan, and current scenario graph through the
+existing repositories. Clients cannot submit an owner, intent, source family,
+resource ID, cutoff, topic, model, policy, prompt, or reliability. Missing
+resources use an owner-scoped empty lookup so packet construction can explicitly
+mark required evidence unavailable instead of guessing.
+
+The request session is the single transaction boundary. The conversation row is
+locked before retrieval or provider work, so concurrent messages in one
+conversation cannot receive ambiguous ordinals. Cancellation propagates normally;
+an overall deadline converts timeout to a safe service error and causes rollback.
+Provider unavailability, budget failure, malformed output, and verification
+failure never append partial history.
+
+Every message POST requires a bounded `Idempotency-Key`. Only its SHA-256 digest
+is stored. A unique conversation/digest constraint makes a completed retry return
+the original decrypted exchange, while reuse for a different question returns a
+safe conflict. Process-local throttling is deliberately bounded; Phase 13 owns a
+distributed limiter.
+
+## 19. Checkpoint 12.13 — authenticated owner-only APIs
+
+The non-streaming Phase 12 API is mounted under `/api/v1/assistant/conversations`:
+
+| Method and path | Behavior |
+|---|---|
+| `POST /assistant/conversations` | Create a 90-day encrypted owner conversation |
+| `GET /assistant/conversations` | List at most 20 live owner conversations |
+| `GET /assistant/conversations/{conversation_id}` | Read at most 20 recent decrypted owner turns |
+| `POST /assistant/conversations/{conversation_id}/messages` | Atomically produce and persist one verified grounded answer |
+| `GET /assistant/conversations/{conversation_id}/messages/{message_id}/citations` | Read the verified owner-only public citations |
+| `DELETE /assistant/conversations/{conversation_id}` | Erase the conversation, turns, and audit rows |
+
+Every operation uses mandatory Bearer authentication and the trusted principal's
+owner ID, timezone, and default currency. Foreign, expired, and missing resources
+share the same 404 behavior. Message requests accept only `question`; the
+idempotency key is a required header. New messages return 201, exact retries return
+200, and bounded 404, 409, 422, 429, and 503 responses use the shared safe error
+contract. OpenAPI records Bearer security and excludes provider configuration,
+raw evidence, hidden reasoning, and streaming.
+
+The configured history key ring is server-only, contains one to three Fernet
+keys, and uses the first key for new ciphertext. Production rejects the development
+placeholder and reuse of the authentication-delivery key. The API starts without
+an external provider SDK or credential; an approved `AssistantModel` is injected
+at the composition root. With no approved model, generated requests fail closed
+with 503 while deterministic refusals and insufficient-evidence responses remain
+available.
+
+## 20. Checkpoint 12.14 — monitoring, measured evaluation, and closure
+
+`AssistantMonitor` emits only low-cardinality aggregate fields: intent, source
+types, evidence-count band, answer status, closed refusal/failure reason, citation
+count, token bands, elapsed milliseconds, policy version, and provider outcome.
+It never receives or logs an owner ID, question, answer, exact financial value,
+raw prompt, evidence row, citation content, provider/model identifier, endpoint,
+credential, response, or chain-of-thought. The structured logger allowlist contains
+only those approved fields.
+
+`evaluate_end_to_end_assistant()` complements the offline Checkpoint 12.11 replay.
+It runs labelled generated, refused, and unavailable packets through the actual
+configured `GroundedAssistantGenerator`, measures adapter latency and token usage,
+and reports only aggregate outcome accuracy, citation precision/recall, provider
+failure rate, latency p95, and mean token use. Release requires exact labelled
+outcomes, citation precision/recall 1.00, no provider failures, latency p95 at most
+5 seconds, and mean input/output usage at most 16,000/1,500 tokens. Provider
+timeout, malformed output, retrieval error, prompt injection, leakage, ownership,
+retention, deletion, migration, authentication, and OpenAPI paths are also covered
+by executable regression tests.
+
+Alembic revision `f2a7c9e4d816` adds the bounded idempotency digest and unique
+conversation boundary without storing the original key. The application factory,
+environment example, and Compose service wire encryption and process-local
+operational limits. The default provider remains disabled in accordance with ADR
+0004, so no secret or external network dependency is needed for startup or tests.
+
+## 21. Batch 5 release invariants
+
+- The only execution order is classify, authorize, retrieve, packetize, generate,
+  verify, persist, and return.
+- A refusal is decided before retrieval and never calls a provider.
+- A missing required source never calls a provider and returns `unavailable`.
+- Server code, never request data, selects owners, resource IDs, evidence sources,
+  topics, timezone, currency, policies, model, and budgets.
+- A timeout, cancellation, malformed response, failed verification, or database
+  failure cannot leave a partial conversation turn.
+- Completed message retries are deterministic and do not repeat retrieval,
+  generation, token use, or history writes.
+- Foreign and missing conversations, messages, and citations are indistinguishable.
+- Every public route is authenticated, bounded, non-streaming, and owner-scoped.
+- Telemetry contains aggregates only and cannot reconstruct private content.
+- SQL remains authoritative; the model explains verified backend calculations.
+- No assistant component has a financial write tool or embeds raw financial rows.
+
+## 22. Phase 12 closure and Phase 13 boundary
+
+Phase 12 is implementation-complete when the full backend regression, coverage,
+offline and measured RAG gates, OpenAPI contract, Alembic chain/offline SQL,
+container configuration, privacy/adversarial cases, and repository hooks pass.
+The feature branch then targets `develop` through the normal squash-merge workflow.
+
+Phase 13 owns the React assistant UI, streaming presentation, distributed rate
+limiting, provider/deployment secret integration, scheduled retention execution,
+notifications, production deployment, and production operations. Those deferred
+capabilities cannot weaken Phase 12 owner isolation, evidence authorization,
+grounding, citations, verification, deletion, or no-write boundaries.

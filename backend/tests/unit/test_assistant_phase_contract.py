@@ -6,7 +6,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_phase_12_implementation_record_freezes_batches_1_through_4() -> None:
+def test_phase_12_implementation_record_freezes_all_five_batches() -> None:
     document = (_ROOT / "docs/assistant/PHASE_12_IMPLEMENTATION.md").read_text(
         encoding="utf-8"
     )
@@ -27,7 +27,11 @@ def test_phase_12_implementation_record_freezes_batches_1_through_4() -> None:
         "Checkpoint 12.10 — untrusted input and financial safety",
         "Checkpoint 12.11 — final verification and offline RAG evaluation",
         "Batch 3 grounding and provider invariants",
-        "Deferred checkpoints",
+        "Checkpoint 12.12 — atomic assistant orchestration",
+        "Checkpoint 12.13 — authenticated owner-only APIs",
+        "Checkpoint 12.14 — monitoring, measured evaluation, and closure",
+        "Batch 5 release invariants",
+        "Phase 12 closure and Phase 13 boundary",
     ):
         assert heading in document
     for boundary in (
@@ -38,6 +42,9 @@ def test_phase_12_implementation_record_freezes_batches_1_through_4() -> None:
         "Raw financial evidence is never inserted into a full-text or embedding index.",
         "Every generated number must exist in the claim's cited evidence.",
         "Missing required evidence prevents every model call.",
+        "Completed message retries are deterministic",
+        "Telemetry contains aggregates only",
+        "Phase 12 is implementation-complete",
     ):
         assert boundary in document
 
@@ -57,8 +64,10 @@ def test_assistant_adr_selects_postgresql_and_provider_neutral_boundary() -> Non
         assert premature_dependency not in dependencies.casefold()
 
 
-def test_project_status_marks_phase_11_merged_and_phase_12_active() -> None:
+def test_project_status_marks_phase_12_complete_and_ready_for_review() -> None:
     readme = (_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "Phases 0–11 are merged" in readme
     assert "Phase 12 grounded assistant and RAG" in readme
+    assert "implementation is complete" in readme
+    assert "ready for review" in readme

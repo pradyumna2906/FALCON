@@ -28,6 +28,7 @@ from falcon_api.assistant import (
     AssistantReliability,
     GroundedAssistantGenerator,
     build_evidence_packet,
+    hash_idempotency_key,
 )
 from falcon_api.core.config import AppEnvironment, Settings
 from falcon_api.infrastructure.database import create_database_resources
@@ -47,6 +48,7 @@ pytestmark = [
 
 ROOT = Path(__file__).resolve().parents[3]
 NOW = datetime(2026, 9, 22, 12, tzinfo=UTC)
+IDEMPOTENCY_KEY = "postgres-message-key-0001"
 
 
 class FixedClock:
@@ -116,6 +118,7 @@ async def _exercise_history():
             turn = await service.append(
                 session, user_id=owner, conversation_id=conversation_id,
                 question=packet.question, result=verified, latency_ms=100,
+                idempotency_key=IDEMPOTENCY_KEY,
             )
             assert turn is not None
 
@@ -128,8 +131,24 @@ async def _exercise_history():
             assert not await service.delete(session, user_id=stranger, conversation_id=conversation_id)
             history = await service.recent(session, user_id=owner, conversation_id=conversation_id)
             assert len(history) == 1 and history[0].answer == verified.answer
+            exists, replay = await service.lock_and_find(
+                session,
+                user_id=owner,
+                conversation_id=conversation_id,
+                idempotency_key=IDEMPOTENCY_KEY,
+            )
+            assert exists and replay == history[0]
             audit = await session.scalar(select(AssistantAuditEvent).where(AssistantAuditEvent.user_id == owner))
             assert audit is not None and audit.evidence_ids == [evidence.evidence_id]
+            stored = await session.scalar(
+                select(AssistantConversationTurn).where(
+                    AssistantConversationTurn.user_id == owner
+                )
+            )
+            assert stored is not None
+            assert stored.idempotency_key_hash == hash_idempotency_key(
+                IDEMPOTENCY_KEY
+            )
 
         with pytest.raises(DBAPIError):
             async with transaction_scope(resources.session_factory) as session:

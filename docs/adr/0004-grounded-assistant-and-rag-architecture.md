@@ -169,5 +169,6 @@ contract.
   semantic index.
 - RAG quality must be measured; embeddings are optional, not assumed.
 - Some questions will correctly return unavailable or refused responses.
-- Conversation storage and the real provider adapter require later approved
-  checkpoints.
+- Phase 12 stores encrypted owner-scoped conversation history and exposes the
+  provider-neutral API; an approved production provider transport and its secrets
+  remain deployment integration owned by Phase 13.
