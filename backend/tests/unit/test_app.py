@@ -10,6 +10,10 @@ from falcon_api.main import DatabaseFactory, create_app
 from fastapi.testclient import TestClient
 
 
+_PRODUCTION_HISTORY_KEY = (
+    "ZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGQ="
+)
+
 def test_factory_uses_injected_settings(test_settings: Settings) -> None:
     application = create_app(test_settings)
 
@@ -23,6 +27,9 @@ def test_factory_uses_injected_settings(test_settings: Settings) -> None:
     assert application.state.contribution_service is not None
     assert application.state.goal_planning_snapshot_service is not None
     assert application.state.goal_plan_service is not None
+    assert application.state.assistant_history_service is not None
+    assert application.state.assistant_evidence_registry is not None
+    assert application.state.assistant_orchestrator is not None
 
 
 def test_factory_returns_isolated_applications(test_settings: Settings) -> None:
@@ -68,6 +75,7 @@ def test_production_documentation_is_disabled_by_default() -> None:
         auth_delivery_encryption_key=(
             "YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI="
         ),
+        assistant_history_encryption_keys=(_PRODUCTION_HISTORY_KEY,),
     )
 
     with TestClient(create_app(settings)) as client:
@@ -86,6 +94,7 @@ def test_production_documentation_requires_explicit_enablement() -> None:
         auth_delivery_encryption_key=(
             "YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI="
         ),
+        assistant_history_encryption_keys=(_PRODUCTION_HISTORY_KEY,),
     )
 
     with TestClient(create_app(settings)) as client:

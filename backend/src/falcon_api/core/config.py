@@ -25,6 +25,9 @@ _AUTH_SECRET_PLACEHOLDER = (
 _AUTH_DELIVERY_KEY_PLACEHOLDER = (
     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 )
+_ASSISTANT_HISTORY_KEY_PLACEHOLDER = (
+    "ZmFsY29uLWFzc2lzdGFudC1oaXN0b3J5LWtleS12MSE="
+)
 _DEFAULT_CLASSIFICATION_ARTIFACT_ROOT = (
     Path(__file__).resolve().parents[4] / "ml" / "artifacts" / "classification"
 )
@@ -111,6 +114,18 @@ class Settings(BaseSettings):
         default=128,
         ge=12,
         le=128,
+    )
+    assistant_history_encryption_keys: tuple[SecretStr, ...] = Field(
+        default=(SecretStr(_ASSISTANT_HISTORY_KEY_PLACEHOLDER),),
+        min_length=1,
+        max_length=3,
+    )
+    assistant_requests_per_minute: int = Field(default=20, ge=1, le=60)
+    assistant_max_concurrent_requests: int = Field(default=1, ge=1, le=4)
+    assistant_request_timeout_seconds: float = Field(
+        default=30.0,
+        gt=0,
+        le=60,
     )
     db_host: str = Field(default="127.0.0.1", min_length=1, max_length=253)
     db_port: int = Field(default=5433, ge=1, le=65535)
@@ -220,6 +235,31 @@ class Settings(BaseSettings):
             )
 
         return value
+
+    @field_validator("assistant_history_encryption_keys")
+    @classmethod
+    def validate_assistant_history_keys(
+        cls,
+        values: tuple[SecretStr, ...],
+    ) -> tuple[SecretStr, ...]:
+        """Require a unique bounded Fernet key ring for private history."""
+
+        encoded: list[str] = []
+        for value in values:
+            key = value.get_secret_value()
+            try:
+                Fernet(key.encode("ascii"))
+            except (UnicodeEncodeError, ValueError):
+                raise ValueError(
+                    "Assistant history encryption key is invalid."
+                ) from None
+            if key in encoded:
+                raise ValueError(
+                    "Assistant history encryption keys must be unique."
+                )
+            encoded.append(key)
+        return values
+
     @model_validator(mode="after")
     def validate_cross_field_security(self) -> Self:
         """Reject unsafe production and authentication combinations."""
@@ -252,6 +292,20 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "Production requires an independent authentication "
                     "delivery encryption key.",
+                )
+            history_keys = tuple(
+                item.get_secret_value()
+                for item in self.assistant_history_encryption_keys
+            )
+            if _ASSISTANT_HISTORY_KEY_PLACEHOLDER in history_keys:
+                raise ValueError(
+                    "Production requires an independent assistant history "
+                    "encryption key."
+                )
+            if delivery_key in history_keys:
+                raise ValueError(
+                    "Assistant history and authentication delivery keys "
+                    "must be independent."
                 )
 
         return self

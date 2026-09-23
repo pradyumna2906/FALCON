@@ -1,6 +1,13 @@
 """Typed SQLAlchemy domain and authentication models."""
 
 from falcon_api.models.account import Account, LiabilityDetail
+from falcon_api.models.assistant import (
+    AssistantAuditEvent,
+    AssistantConversation,
+    AssistantConversationTurn,
+    AssistantKnowledgeChunk,
+    AssistantKnowledgeDocument,
+)
 from falcon_api.models.auth import (
     AuthenticationChallenge,
     AuthenticationDelivery,
@@ -49,6 +56,11 @@ __all__ = [
     "Account",
     "AuthenticationChallenge",
     "AuthenticationDelivery",
+    "AssistantAuditEvent",
+    "AssistantConversation",
+    "AssistantConversationTurn",
+    "AssistantKnowledgeChunk",
+    "AssistantKnowledgeDocument",
     "Budget",
     "BudgetLimit",
     "Category",

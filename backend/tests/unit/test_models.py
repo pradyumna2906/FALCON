@@ -12,6 +12,8 @@ from falcon_api.infrastructure.persistence import (
 )
 from falcon_api.models import (
     Account,
+    AssistantKnowledgeChunk,
+    AssistantKnowledgeDocument,
     Budget,
     BudgetLimit,
     Category,
@@ -42,6 +44,11 @@ _EXPECTED_TABLES = {
     "accounts",
     "authentication_challenges",
     "authentication_delivery_outbox",
+    "assistant_audit_events",
+    "assistant_conversations",
+    "assistant_conversation_turns",
+    "assistant_knowledge_chunks",
+    "assistant_knowledge_documents",
     "budget_limits",
     "budgets",
     "categories",
@@ -73,6 +80,11 @@ _EXPECTED_TABLES = {
     "user_credentials",
     "user_merchant_memories",
     "users",
+}
+_APPEND_ONLY_ASSISTANT_TABLES = {
+    "assistant_conversations",
+    "assistant_conversation_turns",
+    "assistant_audit_events",
 }
 
 
@@ -125,8 +137,11 @@ def test_every_domain_table_uses_uuid_and_utc_audit_columns() -> None:
         assert table.c.id.default is not None
         assert table.c.created_at.nullable is False
         assert table.c.created_at.type.timezone is True
-        assert table.c.updated_at.nullable is False
-        assert table.c.updated_at.type.timezone is True
+        if table_name in _APPEND_ONLY_ASSISTANT_TABLES:
+            assert "updated_at" not in table.c
+        else:
+            assert table.c.updated_at.nullable is False
+            assert table.c.updated_at.type.timezone is True
 
 
 def test_money_and_rate_columns_use_approved_precision() -> None:
@@ -209,11 +224,40 @@ def test_controlled_value_checks_are_present() -> None:
         "ck_transaction_classifications_reason_codes_allowed"
         in check_names("transaction_classifications")
     )
+    assert (
+        "ck_assistant_knowledge_documents_content_hash_sha256_hex"
+        in check_names("assistant_knowledge_documents")
+    )
+    assert (
+        "ck_assistant_knowledge_documents_topics_allowed"
+        in check_names("assistant_knowledge_documents")
+    )
+    assert (
+        "ck_assistant_knowledge_chunks_character_count_matches"
+        in check_names("assistant_knowledge_chunks")
+    )
 
     assert "'bank'" in enum_sql_values(AccountType)
     assert "'expense'" in enum_sql_values(CategoryKind)
     assert "'transfer'" in enum_sql_values(TransactionType)
     assert "'completed'" in enum_sql_values(GoalStatus)
+
+
+def test_assistant_knowledge_uses_public_provenance_and_full_text_index() -> None:
+    documents = AssistantKnowledgeDocument.__table__
+    chunks = AssistantKnowledgeChunk.__table__
+
+    assert documents.c.source_uri.type.length == 500
+    assert documents.c.topics.type.__class__.__name__ == "JSONB"
+    assert chunks.c.search_vector.computed is not None
+    assert "to_tsvector('english'" in str(chunks.c.search_vector.computed.sqltext)
+    assert "ix_assistant_knowledge_chunks_search_vector" in index_names(
+        "assistant_knowledge_chunks"
+    )
+    assert (
+        "fk_assistant_knowledge_chunks_document_id_documents"
+        in foreign_key_names("assistant_knowledge_chunks")
+    )
 
 
 def test_composite_ownership_foreign_keys_are_present() -> None:

@@ -41,6 +41,17 @@ _STRUCTURED_FIELDS = (
     "scenario_negative_savings_risk_band",
     "scenario_result",
     "scenario_failure_reason",
+    "assistant_policy_version",
+    "assistant_intent",
+    "assistant_source_types",
+    "assistant_evidence_count_band",
+    "assistant_status",
+    "assistant_refusal_reason",
+    "assistant_citation_count",
+    "assistant_input_token_band",
+    "assistant_output_token_band",
+    "assistant_provider_outcome",
+    "assistant_failure_reason",
 )
 
 

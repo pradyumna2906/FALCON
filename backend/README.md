@@ -635,3 +635,76 @@ aggregate bands and bounded reasons through the structured-log allowlist.
 
 The cumulative contract and checkpoint record is documented in
 [`docs/scenarios/PHASE_11_IMPLEMENTATION.md`](../docs/scenarios/PHASE_11_IMPLEMENTATION.md).
+
+## Grounded assistant foundation
+
+Phase 12 Batch 1 establishes assistant contract version `2026.1` without adding
+an LLM provider, vector database, migration, or public endpoint. The assistant is
+strictly an explanation layer: analytics, forecasting, goal planning, and scenario
+simulation remain authoritative for every financial value.
+
+Ten closed intents cover dashboard, health, spending, forecast, goal, scenario,
+and curated education questions. Generated answers require bounded evidence
+summaries and citations; missing evidence is unavailable rather than guessed, and
+unsafe or unsupported requests receive a closed refusal. Public schemas accept
+only a bounded question and exclude owner identity, evidence selection, prompts,
+provider settings, secrets, and hidden reasoning.
+
+Six closed evidence families use intent-based authorization. Analytics, forecast,
+goal-progress, goal-plan, and scenario evidence require the authenticated owner;
+only curated knowledge can be public. Per-source prompt allowlists recursively
+reject identity, credentials, account and transaction identifiers, raw statements,
+rows, samples, prompts, and chain-of-thought. The fixed threat model covers
+cross-owner access, injection, exfiltration, ungrounded claims, prohibited actions,
+unsafe advice, logging leakage, and raw-financial embedding.
+
+ADR 0004 keeps exact private values in owner-scoped PostgreSQL retrieval and uses
+PostgreSQL full-text search for the first curated knowledge index. `pgvector` is
+optional only after measured retrieval improvement; MongoDB and a standalone
+vector database are not introduced. The cumulative contract is documented in
+[`docs/assistant/PHASE_12_IMPLEMENTATION.md`](../docs/assistant/PHASE_12_IMPLEMENTATION.md).
+
+Phase 12 Batch 2 implements that retrieval boundary. Five private adapters reuse
+the existing owner-scoped analytics, forecast, goal-progress, goal-plan, and
+scenario paths and convert their results into immutable, allowlisted evidence
+records with canonical SHA-256 identities. Missing or foreign resources yield no
+evidence, and adapters never expose a database connection or financial write tool.
+
+Curated public education is stored in two dedicated PostgreSQL tables as versioned
+documents and immutable bounded chunks. Offline ingestion requires reviewed HTTPS
+provenance and closed topics. PostgreSQL generated weighted `tsvector` columns and
+a GIN index provide the retrieval baseline; deterministic lexical reranking uses
+full-text score, overlap, title, heading, phrase, and topic signals. Retired or
+future documents are excluded, queries are represented only by digests in
+provenance, and no private financial data or embedding is indexed.
+
+Phase 12 Batch 3 converts those records into immutable, replayable evidence
+packets. Authenticated ownership is checked before the owner-free packet is built;
+system rules, user text, metadata, and exact facts remain structurally separate.
+Packets choose the latest unambiguous evidence, expose missing and stale sources,
+enforce character/token budgets, and receive canonical SHA-256 identities.
+
+The provider-neutral `AssistantModel` boundary is disabled until an approved
+transport is configured. Its structured adapter allows no tools, enforces low
+temperature, timeout, token, cost, retry, and response-size limits, and rejects
+malformed JSON, hidden fields, duplicate keys, and evidence references outside the
+packet. Grounding then verifies claim/source compatibility and exact numeric
+support, constructs claim-level citations and reliability on the server, and fails
+closed on guarantees, product instructions, money movement, or missing evidence.
+Batch 3 adds no provider SDK, network configuration, conversation persistence, or
+public assistant route.
+
+Phase 12 Batch 4 adds encrypted owner-scoped conversation turns and append-only
+content-free audit events through migration `e8c2a6d1f704`. Server code must
+inject a configured Fernet key ring; no default or development encryption key is
+provided. The first key encrypts new turns and older keys support rotation.
+Conversations expire after 90 days, hold at most 50 turns, and can be erased by
+owner or with a bounded retention job. User deletion cascades to the audit trail.
+The job is scheduled only when deployment wiring is implemented.
+
+Question and retrieved-text screening runs before generation. Final verification
+checks claim-level source, numeric and unit support, citations, uncertainty, and
+private-data leakage before an answer is eligible for persistence. An offline
+labelled evaluation set measures retrieval precision/recall, citations,
+faithfulness, safety refusals, leakage, and fixture operational budgets. Batch 4
+does not add a public assistant endpoint or external model configuration.
