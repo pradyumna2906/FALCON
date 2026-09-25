@@ -3,7 +3,7 @@
 import asyncio
 import os
 from collections.abc import Iterator
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4

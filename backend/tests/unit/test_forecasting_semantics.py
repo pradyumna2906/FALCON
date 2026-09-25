@@ -90,7 +90,7 @@ def test_forecasting_dependencies_are_pinned_and_prophet_is_optional() -> None:
     pyproject = (_REPOSITORY_ROOT / "backend" / "pyproject.toml").read_text(
         encoding="utf-8"
     )
-    assert '"anyio==4.14.0"' in pyproject
+    assert '"anyio==4.14.2"' in pyproject
     for package in (
         '"pandas==3.0.5"',
         '"statsmodels==0.15.0"',

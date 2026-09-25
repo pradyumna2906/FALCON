@@ -64,10 +64,11 @@ def test_assistant_adr_selects_postgresql_and_provider_neutral_boundary() -> Non
         assert premature_dependency not in dependencies.casefold()
 
 
-def test_project_status_marks_phase_12_complete_and_ready_for_review() -> None:
+def test_project_status_marks_phase_12_merged_and_phase_13_next() -> None:
     readme = (_ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert "Phases 0–11 are merged" in readme
-    assert "Phase 12 grounded assistant and RAG" in readme
-    assert "implementation is complete" in readme
-    assert "ready for review" in readme
+    assert "Phases 0–12 are complete and merged" in readme
+    assert "Phase 13" in readme
+    assert "frontend integration" in readme
+    assert "production provider wiring" in readme
+    assert "deployment are next" in readme

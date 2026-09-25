@@ -6,8 +6,6 @@ from datetime import date
 from uuid import UUID
 
 from falcon_api.infrastructure.persistence import (
-    MONEY_PRECISION,
-    MONEY_SCALE,
     Base,
     CurrencyCode,
     MoneyAmount,
@@ -30,7 +28,6 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
-    Numeric,
     String,
     Text,
     UniqueConstraint,

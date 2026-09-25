@@ -2,9 +2,8 @@
 
 **FALCON — AI-Augmented Multi-goal Financial Advisor with Cognitive Forecasting** is an India-first personal-finance decision-support web application for people with regular or irregular income.
 
-> Current status: Phases 0–11 are merged. Phase 12 grounded assistant and RAG
-> implementation is complete on its feature branch and ready for review into
-> `develop`.
+> Current status: Phases 0–12 are complete and merged into `develop`. Phase 13
+> frontend integration, production provider wiring, and deployment are next.
 
 ## Purpose
 
@@ -48,4 +47,6 @@ FALCON is being developed incrementally:
 5. Commit and push.
 6. Merge through a pull request.
 
-Setup and execution instructions will be added when the frontend and backend foundations are created.
+Backend setup and execution instructions are maintained in
+[`backend/README.md`](backend/README.md). Phase 13 will add the frontend and
+production deployment instructions.

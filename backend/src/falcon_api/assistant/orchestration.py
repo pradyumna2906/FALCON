@@ -46,7 +46,6 @@ from falcon_api.assistant.safety import screen_question
 from falcon_api.assistant.semantics import (
     MAX_KNOWLEDGE_QUERY_CHARACTERS,
     MAX_QUESTION_CHARACTERS,
-    AssistantAnswerStatus,
     AssistantEvidenceSource,
     AssistantIntent,
     AssistantKnowledgeTopic,

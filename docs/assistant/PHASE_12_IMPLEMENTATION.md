@@ -1,6 +1,7 @@
 # Phase 12 — Grounded AI Assistant
 
-Status: Phase 12 complete on `feat/phase-12-grounded-assistant-foundation`.
+Status: Phase 12 complete and squash-merged into `develop` through PR #61
+(`464e7c84d890944b69cf2a6cc10c6d0b9f481980`).
 
 This cumulative record freezes the approved Phase 12 semantics. Checkpoints
 12.0–12.2 establish the provider-neutral architecture, closed assistant scope,
