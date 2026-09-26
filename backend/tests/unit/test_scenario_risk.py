@@ -4,8 +4,6 @@ from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from falcon_api.scenario_simulation import (
     DETERMINISTIC_PROBABILITY_METHOD,
     EMPIRICAL_PERCENTILE_METHOD,

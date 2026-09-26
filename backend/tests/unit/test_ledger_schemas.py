@@ -78,7 +78,7 @@ def test_account_create_rejects_server_owned_values() -> None:
 
 def test_public_responses_exclude_ownership_and_internal_names() -> None:
     now = datetime.now(UTC)
-    account = AccountResponse(
+    AccountResponse(
         id=uuid4(),
         name="Cash",
         account_type="cash",
@@ -90,7 +90,7 @@ def test_public_responses_exclude_ownership_and_internal_names() -> None:
         created_at=now,
         updated_at=now,
     )
-    category = CategoryResponse(
+    CategoryResponse(
         id=uuid4(),
         name="Groceries",
         classification_code="groceries",

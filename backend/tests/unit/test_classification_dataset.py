@@ -8,7 +8,6 @@ import pytest
 from falcon_api.classification.dataset import (
     CLASSIFICATION_DATASET_VERSION,
     ClassificationDataset,
-    DatasetRecord,
     DatasetSourceKind,
     LabeledFeatureSample,
     build_classification_dataset,

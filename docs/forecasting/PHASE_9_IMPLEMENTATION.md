@@ -22,8 +22,8 @@ perform Phase 10 optimization.
 
 ## 2. Checkpoint 9.0 — dependency and environment hardening
 
-Runtime dependency `anyio==4.14.0` is pinned because the next unbounded release
-currently makes Starlette's test-client deprecation warning fail FALCON's
+Runtime dependency `anyio==4.14.2` is pinned to the validated security-patch
+baseline while preserving Starlette compatibility and FALCON's
 warnings-as-errors test policy. The forecasting dependency group pins NumPy,
 Pandas, scikit-learn, SciPy, Statsmodels, Joblib, Threadpoolctl, and XGBoost.
 The normal development group contains the same modeling stack so CI and local

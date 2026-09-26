@@ -39,6 +39,10 @@ The current backend provides:
 - A versioned Phase 11 scenario-simulation engine with deterministic shocks,
   seeded Monte Carlo risk, explainable comparison and sensitivity, immutable
   owner-scoped history, authenticated lifecycle APIs, and privacy-safe monitoring.
+- A versioned Phase 12 grounded assistant with owner-scoped structured evidence,
+  curated PostgreSQL full-text retrieval, encrypted conversation history,
+  claim-level citations and verification, deterministic safety controls,
+  authenticated APIs, and privacy-safe monitoring.
 
 ## Requirements
 
@@ -67,7 +71,8 @@ py -3.13 -m venv .venv
 & .\.venv\Scripts\python.exe -m pytest backend\tests\unit
 ```
 
-The unit command does not require PostgreSQL and enforces at least 90% statement and branch coverage for the current backend package.
+The unit command does not require PostgreSQL and enforces at least 90% combined
+statement-and-branch coverage for the current backend package.
 
 ### PostgreSQL integration test
 

@@ -3,7 +3,6 @@
 import asyncio
 import threading
 from contextlib import asynccontextmanager
-from datetime import date
 from decimal import Decimal
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID, uuid4
