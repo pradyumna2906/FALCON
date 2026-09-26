@@ -18,6 +18,7 @@ from falcon_api.api.routes.transactions import (
     transfer_router,
 )
 from falcon_api.schemas.api import ApiIndexResponse
+from falcon_api.api.routes.setup import setup_router
 
 
 api_v1_router = APIRouter(prefix="/api/v1", tags=["api"])
@@ -36,6 +37,7 @@ api_v1_router.include_router(goal_planning_router)
 api_v1_router.include_router(goal_plan_router)
 api_v1_router.include_router(scenario_router)
 api_v1_router.include_router(assistant_router)
+api_v1_router.include_router(setup_router)
 
 
 @api_v1_router.get(
