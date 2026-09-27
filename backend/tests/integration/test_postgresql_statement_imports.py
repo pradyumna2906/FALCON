@@ -1,5 +1,7 @@
 """Real PostgreSQL statement-import ownership and rollback tests."""
 
+from .verification import verify_registered_user
+
 import asyncio
 import io
 import os
@@ -272,6 +274,7 @@ def _register_and_login(
         },
     )
     assert registration.status_code == 201, registration.text
+    verify_registered_user(client, UUID(registration.json()["id"]))
     login = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": _PASSWORD},

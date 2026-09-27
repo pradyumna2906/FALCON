@@ -1,5 +1,6 @@
 """Registration, verification, login, and session-lifecycle routes."""
 
+from datetime import UTC, datetime
 from typing import Annotated, Final, cast
 
 from fastapi import (
@@ -168,7 +169,7 @@ def _set_refresh_cookie(
     response: Response,
     *,
     token: str,
-    expires_at,
+    expires_at: datetime,
     settings: Settings,
 ) -> None:
     """Set the narrowly scoped protected refresh cookie."""
@@ -176,7 +177,8 @@ def _set_refresh_cookie(
         key=_REFRESH_COOKIE_NAME,
         value=token,
         max_age=settings.auth_refresh_token_lifetime_days * 86_400,
-        expires=expires_at,
+        # Database drivers may return ZoneInfo, while HTTP dates require UTC.
+        expires=expires_at.astimezone(UTC),
         path=_REFRESH_COOKIE_PATH,
         secure=settings.env is not AppEnvironment.DEVELOPMENT,
         httponly=True,

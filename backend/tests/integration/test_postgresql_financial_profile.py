@@ -1,5 +1,7 @@
 """Real PostgreSQL financial-profile lifecycle and isolation tests."""
 
+from .verification import verify_registered_user
+
 import asyncio
 import os
 from collections.abc import Iterator
@@ -340,6 +342,7 @@ def test_authenticated_profile_api_isolates_users_in_postgresql() -> None:
             },
         )
         assert registration.status_code == 201, registration.text
+        verify_registered_user(client, UUID(registration.json()["id"]))
         user_ids.append(UUID(registration.json()["id"]))
         login = client.post(
             "/api/v1/auth/login",

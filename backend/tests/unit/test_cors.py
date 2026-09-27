@@ -78,6 +78,7 @@ def test_trusted_preflight_is_limited_correlated_and_logged(
         "authorization",
         "content-language",
         "content-type",
+        "idempotency-key",
         "x-request-id",
     }
     assert response.headers["access-control-allow-credentials"] == "true"

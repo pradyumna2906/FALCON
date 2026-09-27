@@ -67,6 +67,7 @@ _CORS_ALLOWED_HEADERS = (
     "Accept",
     "Authorization",
     "Content-Type",
+    "Idempotency-Key",
     REQUEST_ID_HEADER,
 )
 DatabaseFactory = Callable[[Settings], DatabaseResources]
