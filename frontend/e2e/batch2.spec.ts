@@ -23,6 +23,7 @@ test('onboard, import, correct and review in the production browser build', asyn
     if (path === '/accounts') { if (method === 'POST') { hasAccount = true; return reply(account, 201); } return reply({ items: hasAccount ? [account] : [] }); }
     if (path === '/categories') return reply({ items: [category] });
     if (path === '/transactions') return reply({ items: imported ? [{ ...transaction, category_id: corrected ? category.id : null }] : [], next_cursor: null });
+    if (path.endsWith('/classification')) return reply({});
     if (path.endsWith('/classification/correction')) { expect(request.postDataJSON()).toEqual({ category_id: category.id }); corrected = true; return reply({}); }
     if (path === '/imports') { if (method === 'POST') { expect(request.postData()).toContain('synthetic.csv'); imported = true; return reply(job, 201); } return reply({ items: imported ? [job] : [], has_more: false }); }
     if (path === `/imports/${job.id}`) return reply(job);

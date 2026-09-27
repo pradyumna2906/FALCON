@@ -28,7 +28,8 @@ Playwright 1.63.0 is an exact development-only pin compatible with the Node 24
 baseline. The browser workflow uses synthetic API fixtures; real PostgreSQL
 API integration is tested separately in the backend CI job.
 After backend contract changes, run `python scripts/export-openapi.py` from
-the repository root with the backend installed, then `npm run generate:api`
+the repository root with `backend[optimization]` installed (the API runtime
+requires NumPy/SciPy), then `npm run generate:api`
 here. Commit both generated files together. CI checks contract drift.
 
 Access tokens remain in memory; refresh cookies are HttpOnly. Session exit

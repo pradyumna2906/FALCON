@@ -68,8 +68,8 @@ it('preserves decimal strings when recording transactions and invalidates histor
   await waitFor(() => expect(fetcher.mock.calls.filter(([url]) => url.startsWith('/api/v1/transactions?')).length).toBeGreaterThan(1));
 });
 
-it('does not expose manual edit/delete for imported transactions but permits corrections', async () => {
-  const transaction = { id: 'dddddddd-dddd-4ddd-dddd-dddddddddddd', account_id: account.id, category_id: category.id, amount: '20.0000', transaction_date: '2026-09-01', transaction_type: 'expense', description: 'Imported groceries', source_type: 'import', status: 'posted' };
+it.each([false, true])('corrects imported transactions with stored provenance (already corrected: %s)', async (alreadyCorrected) => {
+  const transaction = { id: 'dddddddd-dddd-4ddd-dddd-dddddddddddd', account_id: account.id, category_id: alreadyCorrected ? category.id : null, is_user_modified: alreadyCorrected, amount: '20.0000', transaction_date: '2026-09-01', transaction_type: 'expense', description: 'Imported groceries', source_type: 'import', status: 'posted' };
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith('/accounts')) return response({ items: [account] });
     if (url.endsWith('/categories')) return response({ items: [category] });
@@ -80,8 +80,11 @@ it('does not expose manual edit/delete for imported transactions but permits cor
   await screen.findByText('Imported groceries');
   expect(screen.queryByRole('button', { name: 'Edit transaction' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Delete transaction' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('combobox', { name: 'Reviewed category' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Food (expense)' }));
   await userEvent.click(screen.getByRole('button', { name: 'Apply correction' }));
   await waitFor(() => expect(fetcher.mock.calls.some(([url, init]) => url.endsWith('/classification/correction') && init?.body === JSON.stringify({ category_id: category.id }))).toBe(true));
+  expect(fetcher.mock.calls.filter(([, init]) => init?.method === 'POST').map(([url]) => url.split('/').at(-1))).toEqual(alreadyCorrected ? ['correction'] : ['classification', 'correction']);
 });
 
 it('requires confirmation before uploading a statement and shows row rejections', async () => {

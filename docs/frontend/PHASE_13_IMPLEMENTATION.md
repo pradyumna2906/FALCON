@@ -99,8 +99,8 @@ bypassing verification. No migration or production provider is introduced.
 
 ### Batch 2 validation and remaining gates
 
-- Frontend: 30 unit/component tests passed; TypeScript, ESLint, production build
-  and production dependency audit passed. All JS bundles total about 233.4 KiB
+- Frontend: 31 unit/component tests passed; TypeScript, ESLint, production build
+  and production dependency audit passed. All JS bundles total about 233.5 KiB
   gzip, below the conservative 350 KiB build gate. Pages are split by route.
 - Backend: 1,992 unit tests passed with 94.49% branch-inclusive coverage,
   including the contract-driven financial verification gate.
@@ -118,3 +118,8 @@ action exposes actual backend recommendations without inventing notifications.
 Email provider delivery remains 13.12. Dedicated analytics/forecast/goal/scenario/
 assistant/report screens remain in their later approved checkpoints. This batch
 does not claim full production readiness or complete accessibility certification.
+
+CI hardening installs the API optimization dependencies for contract export.
+Imported category corrections first store classification provenance when needed;
+repeat corrections preserve the existing user override. Manual categories use
+the transaction edit form. Tests cover both first-time and repeated corrections.

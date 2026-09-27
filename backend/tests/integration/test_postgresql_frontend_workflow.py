@@ -89,7 +89,7 @@ def test_verified_onboarding_import_correction_dashboard_and_logout():
             )
             assert account.status_code == 201, account.text
             account_id = account.json()["id"]
-            statement = f"Date,Description,Amount,Reference\n{today},Synthetic groceries,-123.4567,ROW1\n{today},Invalid row,0,ROW2\n".encode()
+            statement = f"Date,Description,Merchant,Amount,Reference\n{today},Synthetic groceries,Swiggy,-123.4567,ROW1\n{today},Invalid row,,0,ROW2\n".encode()
             imported = client.post(
                 "/api/v1/imports",
                 headers=headers,
@@ -119,6 +119,11 @@ def test_verified_onboarding_import_correction_dashboard_and_logout():
                 for item in categories
                 if item["kind"] == "expense" and item["classification_code"]
             )
+            classification = client.post(
+                f"/api/v1/transactions/{rows[0]['id']}/classification",
+                headers=headers,
+            )
+            assert classification.status_code == 200, classification.text
             correction = client.post(
                 f"/api/v1/transactions/{rows[0]['id']}/classification/correction",
                 headers=headers,

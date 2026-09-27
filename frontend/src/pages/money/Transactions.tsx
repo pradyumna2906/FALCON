@@ -215,7 +215,9 @@ export default function Transactions() {
                 }
               />
             )}
-          {["income", "expense"].includes(transaction.transaction_type) && (
+          {transaction.source_type !== "manual" &&
+            transaction.status === "posted" &&
+            ["income", "expense"].includes(transaction.transaction_type) && (
             <Form
               title="Correct category"
               submit="Apply correction"
@@ -231,6 +233,14 @@ export default function Transactions() {
                 },
               ]}
               onSubmit={async (data) => {
+                // Corrections require stored classifier provenance. Subsequent
+                // user corrections must not rerun automatic classification.
+                if (!transaction.category_id && !transaction.is_user_modified) {
+                  await mutate(
+                    `/transactions/${transaction.id}/classification`,
+                    "POST",
+                  );
+                }
                 await mutate(
                   `/transactions/${transaction.id}/classification/correction`,
                   "POST",
