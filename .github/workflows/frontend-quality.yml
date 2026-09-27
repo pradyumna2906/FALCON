@@ -48,3 +48,8 @@ jobs:
           npm run lint
           npm test
           npm run build
+      - name: Browser workflow checks
+        working-directory: frontend
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:browser

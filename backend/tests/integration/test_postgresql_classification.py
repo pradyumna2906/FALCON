@@ -14,6 +14,7 @@ from falcon_api.core.config import AppEnvironment, Settings
 from falcon_api.core.event_loop import create_psycopg_compatible_event_loop
 from falcon_api.main import create_app
 from fastapi.testclient import TestClient
+from .verification import verify_registered_user
 
 
 pytestmark = [
@@ -62,6 +63,7 @@ def _register_login_and_account(
         },
     )
     assert registration.status_code == 201, registration.text
+    verify_registered_user(client, UUID(registration.json()["id"]))
     user_id = UUID(registration.json()["id"])
     login = client.post(
         "/api/v1/auth/login",

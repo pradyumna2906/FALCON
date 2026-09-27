@@ -1,5 +1,7 @@
 """Real PostgreSQL analytics aggregation and owner-isolation tests."""
 
+from .verification import verify_registered_user
+
 import asyncio
 import os
 import secrets
@@ -1112,6 +1114,7 @@ def _register_login_account(
         },
     )
     assert registration.status_code == 201, registration.text
+    verify_registered_user(client, UUID(registration.json()["id"]))
     user_id = UUID(registration.json()["id"])
     login = client.post(
         "/api/v1/auth/login",

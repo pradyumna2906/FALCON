@@ -6,6 +6,23 @@ const json = (value: unknown, status = 200) => new Response(JSON.stringify(value
 afterEach(() => vi.unstubAllGlobals());
 
 describe('secure transport', () => {
+  it('logs in without trimming passwords and authorizes the current-user request', async () => {
+    const user = { id: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa', email: 'synthetic@example.com', display_name: null, email_verified: false, timezone: 'UTC', default_currency: 'INR' };
+    const fetcher = vi.fn().mockResolvedValueOnce(json(credentials)).mockResolvedValueOnce(json(user));
+    vi.stubGlobal('fetch', fetcher);
+    const client = new ApiClient();
+    expect(await client.login(user.email, '  synthetic password  ')).toEqual(user);
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).password).toBe('  synthetic password  ');
+    expect(fetcher.mock.calls[1][1].headers.get('Authorization')).toBe('Bearer test-token');
+  });
+
+  it('does not attempt refresh or replay invalid login credentials', async () => {
+    const fetcher = vi.fn().mockResolvedValue(json({}, 401));
+    vi.stubGlobal('fetch', fetcher);
+    await expect(new ApiClient().login('synthetic@example.com', 'invalid')).rejects.toMatchObject({ status: 401 });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it('discards response bodies completed after sign-out', async () => {
     let resolve!: (value: unknown) => void;
     const body = new Promise(r => { resolve = r; });

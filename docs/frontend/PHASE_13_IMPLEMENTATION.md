@@ -68,7 +68,53 @@ historical retention after archival. It must pass in database CI before Batch 1
 is accepted as fully validated. Unit tests and mocked browser tests do not
 establish production readiness, browser accessibility or end-to-end behavior.
 
-Review follow-up for Batch 2: existing financial endpoints do not universally
-enforce verified email on the server. New setup endpoints do. Align existing
-endpoint authorization with ADR 0003 while implementing authentication and
-onboarding; do not treat the frontend route guard as that enforcement.
+Batch 2 closes the recorded email-verification enforcement gap on all financial
+routers. Authentication and recovery retain their separate access contracts.
+
+## Batch 2 — Checkpoints 13.3–13.5
+
+Approved scope: implementation, staging, commit and push. Built on Batch 1
+commit `2ed31e2`; Batch 1 is still unmerged, so review includes that dependency.
+
+| Checkpoint | Implemented behavior |
+| --- | --- |
+| 13.3 Authentication and onboarding | Registration, login/logout, verification/resend, recovery/reset, current-user refresh, verified route guards, editable financial profile and guided account/import links |
+| 13.4 Overview | Responsive navigation, date/currency filters, server-provided income/expense/cash-flow/savings cards, cash-flow history table, spending shares, health factors, prioritized insights, goal progress, freshness and completeness |
+| 13.5 Money | Account creation/metadata/archive, liability terms, manual transaction create/edit/delete, filters/cursor pagination, transfers, CSV/XLSX/PDF review-confirm-upload and issue history, category corrections and merchant memory |
+
+Money values remain decimal strings. Only visual bar positioning converts a
+server-supplied ratio to a browser number. Currency is not inferred across
+accounts, nor are financial totals recalculated in JavaScript. Imported and
+transfer transactions do not expose unsupported manual editing/deletion.
+Server errors preserve form context; writes are never replayed after ambiguous
+network/server failures. Confirmation dialogs precede destructive UI actions.
+Files/passwords stay in memory for the import and are cleared on completion,
+cancellation or navigation away. No private data is persisted in browser storage.
+
+All financial API routers now enforce verified email centrally and document
+403 in OpenAPI. A contract-driven test exercises every financial operation
+with an unverified principal. Existing PostgreSQL API fixtures now consume real
+verification challenges via a test-only encrypted-outbox helper instead of
+bypassing verification. No migration or production provider is introduced.
+
+### Batch 2 validation and remaining gates
+
+- Frontend: 30 unit/component tests passed; TypeScript, ESLint, production build
+  and production dependency audit passed. All JS bundles total about 233.4 KiB
+  gzip, below the conservative 350 KiB build gate. Pages are split by route.
+- Backend: 1,992 unit tests passed with 94.49% branch-inclusive coverage,
+  including the contract-driven financial verification gate.
+- PostgreSQL: 46 integration tests collect, including a new registration →
+  verification → profile → account → CSV import → correction → merchant memory
+  → dashboard → refresh/logout workflow. Execution requires database CI.
+- Chromium: a production-build workflow covers onboarding, account creation,
+  import confirmation/rejections, correction, overview, mobile width and logout
+  using synthetic API fixtures. Browser downloads failed in this workspace;
+  this gate is configured in frontend CI and must pass before merge.
+- Docker/Compose and PostgreSQL execution remain unavailable locally.
+
+Notification persistence and delivery remain 13.11; the overview's Insights
+action exposes actual backend recommendations without inventing notifications.
+Email provider delivery remains 13.12. Dedicated analytics/forecast/goal/scenario/
+assistant/report screens remain in their later approved checkpoints. This batch
+does not claim full production readiness or complete accessibility certification.

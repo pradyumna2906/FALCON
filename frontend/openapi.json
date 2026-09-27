@@ -9938,6 +9938,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           }
         },
         "security": [
@@ -9984,6 +9994,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "409": {
             "content": {
@@ -10516,6 +10536,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -10645,6 +10675,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -10767,6 +10807,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -10884,6 +10934,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -11024,6 +11084,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -11170,6 +11240,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -11292,6 +11372,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -11405,6 +11495,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -11466,6 +11566,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -11510,6 +11620,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           }
         },
         "security": [
@@ -11552,6 +11672,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -11631,6 +11761,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -11732,6 +11872,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -11841,6 +11991,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -12674,6 +12834,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           }
         },
         "security": [
@@ -12745,6 +12915,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -12800,6 +12980,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -12863,6 +13053,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -12931,6 +13131,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -13013,6 +13223,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -13067,6 +13287,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "422": {
             "content": {
@@ -13126,6 +13356,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -13205,6 +13445,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -13266,6 +13516,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -13320,6 +13580,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "422": {
             "content": {
@@ -13379,6 +13649,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -13448,6 +13728,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -13528,6 +13818,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -13606,6 +13906,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -13704,6 +14014,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -13758,6 +14078,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "422": {
             "content": {
@@ -13817,6 +14147,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -13894,6 +14234,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -13974,6 +14324,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -14052,6 +14412,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -14132,6 +14502,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -14208,6 +14588,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -14291,6 +14681,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -14369,6 +14769,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -14539,6 +14949,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -14638,6 +15058,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -14859,6 +15289,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -14925,6 +15365,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -14986,6 +15436,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -15040,6 +15500,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "422": {
             "content": {
@@ -15110,6 +15580,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -15179,6 +15659,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -15247,6 +15737,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -15336,6 +15836,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -15538,6 +16048,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -15593,6 +16113,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -15656,6 +16186,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -15735,6 +16275,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -15812,6 +16362,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -15892,6 +16452,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {
@@ -15983,6 +16553,16 @@
             },
             "description": "The access token is missing, invalid, or expired."
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
+          },
           "404": {
             "content": {
               "application/json": {
@@ -16060,6 +16640,16 @@
               }
             },
             "description": "The access token is missing, invalid, or expired."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Email verification is required for financial access."
           },
           "404": {
             "content": {

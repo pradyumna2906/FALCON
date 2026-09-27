@@ -4967,6 +4967,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     create_account: {
@@ -4993,6 +5002,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5392,6 +5410,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The requested owner-scoped budget was not found. */
             404: {
                 headers: {
@@ -5445,6 +5472,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The analytics selection violates the bounded contract. */
             422: {
                 headers: {
@@ -5489,6 +5525,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The analytics selection violates the bounded contract. */
             422: {
                 headers: {
@@ -5525,6 +5570,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5578,6 +5632,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5639,6 +5702,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The analytics selection violates the bounded contract. */
             422: {
                 headers: {
@@ -5676,6 +5748,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5726,6 +5807,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The analytics selection violates the bounded contract. */
             422: {
                 headers: {
@@ -5759,6 +5849,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5804,6 +5903,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     get_assistant_conversation: {
@@ -5830,6 +5938,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5877,6 +5994,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5941,6 +6067,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6018,6 +6153,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6665,6 +6809,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     list_merchant_memories: {
@@ -6690,6 +6843,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6732,6 +6894,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6786,6 +6957,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description An owned transaction or required category was not found. */
             404: {
                 headers: {
@@ -6830,6 +7010,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6895,6 +7084,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -6937,6 +7135,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The forecast request or available history is insufficient. */
             422: {
                 headers: {
@@ -6970,6 +7177,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7026,6 +7242,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The request violates the goal-planning contract. */
             422: {
                 headers: {
@@ -7059,6 +7284,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7108,6 +7342,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Trusted evidence could not produce a safe goal plan. */
             422: {
                 headers: {
@@ -7141,6 +7384,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7190,6 +7442,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7255,6 +7516,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The owner-scoped goal plan was not found. */
             404: {
                 headers: {
@@ -7306,6 +7576,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7372,6 +7651,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -7414,6 +7702,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The request violates the goal-planning contract. */
             422: {
                 headers: {
@@ -7447,6 +7744,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7500,6 +7806,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7565,6 +7880,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The owner-scoped goal was not found. */
             404: {
                 headers: {
@@ -7616,6 +7940,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7681,6 +8014,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The owner-scoped goal was not found. */
             404: {
                 headers: {
@@ -7727,6 +8069,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7791,6 +8142,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The owner-scoped goal was not found. */
             404: {
                 headers: {
@@ -7842,6 +8202,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7968,6 +8337,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The requested owned import resource was not found. */
             404: {
                 headers: {
@@ -8037,6 +8415,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8225,6 +8612,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The authenticated user has no financial profile. */
             404: {
                 headers: {
@@ -8276,6 +8672,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The request violates the profile contract. */
             422: {
                 headers: {
@@ -8309,6 +8714,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8351,6 +8765,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8407,6 +8830,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The owner-scoped scenario simulation was not found. */
             404: {
                 headers: {
@@ -8456,6 +8888,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The owner-scoped scenario simulation was not found. */
             404: {
                 headers: {
@@ -8498,6 +8939,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8560,6 +9010,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8632,6 +9091,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The request violates the transaction contract. */
             422: {
                 headers: {
@@ -8667,6 +9135,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8723,6 +9200,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The requested owned ledger resource was not found. */
             404: {
                 headers: {
@@ -8769,6 +9255,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8832,6 +9327,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The requested owned ledger resource was not found. */
             404: {
                 headers: {
@@ -8883,6 +9387,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8952,6 +9465,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Email verification is required for financial access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description An owned transaction or required category was not found. */
             404: {
                 headers: {
@@ -9005,6 +9527,15 @@ export interface operations {
             };
             /** @description The access token is missing, invalid, or expired. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Email verification is required for financial access. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

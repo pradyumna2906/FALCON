@@ -13,7 +13,7 @@ const userSchema = z.object({
 
 export class ApiError extends Error {
   constructor(public status: number, public requestId: string | null) {
-    super(status === 401 ? 'Please sign in again.' : status === 403 ? 'This action is not available for your account.' : status === 429 ? 'Too many requests. Please try again shortly.' : 'The request could not be completed.');
+    super(status === 401 ? 'Sign-in failed or your session expired. Check your credentials and sign in again.' : status === 403 ? 'Verify your email before accessing financial data.' : status === 409 ? 'This conflicts with an existing record. Refresh and review before retrying.' : status === 422 ? 'Check the entered values, dates and category compatibility.' : status === 413 ? 'The file exceeds the supported upload size.' : status === 415 ? 'This file format is not supported.' : status === 429 ? 'Too many requests. Please try again shortly.' : 'The request could not be completed.');
   }
 }
 
@@ -25,6 +25,16 @@ export class ApiClient {
   private onSessionEnd: () => void = () => {};
 
   setSessionEndHandler(handler: () => void) { this.onSessionEnd = handler; }
+  async login(email: string, password: string): Promise<CurrentUser> {
+    this.clearSession();
+    // Finish any previous rotation before issuing a new login cookie.
+    try { await this.refreshing; } catch { /* Login can recover a failed restore. */ }
+    const generation = this.generation;
+    const result = await this.request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }, false);
+    if (generation !== this.generation) throw new ApiError(401, null);
+    this.token = credentialSchema.parse(result).access_token;
+    return this.currentUser();
+  }
   clearSession() {
     this.generation += 1;
     this.token = null;

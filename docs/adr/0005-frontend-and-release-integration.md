@@ -34,11 +34,11 @@ currency and opening balances cannot be edited by the presentation-update API.
 Archive accounts and budgets rather than deleting historical financial records.
 Database schema changes are unnecessary if the existing models suffice.
 
-The new setup endpoints require verified email. Existing financial endpoints
-currently use the shared authenticated principal without a universal verified
-email gate. Aligning those existing capabilities with ADR 0003 is a Batch 2
-backend authentication acceptance requirement; frontend guards alone do not
-close that gap.
+All financial routers now require verified email through a shared server-side
+dependency, closing the existing enforcement gap against ADR 0003 in Batch 2.
+Identity, refresh, verification and recovery endpoints remain reachable for
+unverified users where their individual authentication contracts allow it.
+Frontend guards supplement this enforcement; they do not replace it.
 
 ## UX and boundaries
 

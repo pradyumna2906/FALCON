@@ -12,13 +12,21 @@ to it so browser requests and refresh cookies remain same-origin. Production
 must provide the same `/api/v1` reverse proxy and SPA route fallback.
 No frontend environment variable may contain a secret.
 
-Batch 1 provides the public preview and guarded navigation shell. Sign-in,
-registration, verification and onboarding screens arrive in Batch 2; the
-navigation sections currently explain their pending implementation.
+Batch 1 provides the public preview and guarded navigation shell. Batch 2 adds
+registration, sign-in, verification/resend, password recovery/reset, financial
+profile onboarding, the live overview and Money screens for accounts, debt
+terms, transactions, transfers, imports and merchant/category corrections.
+Later navigation sections explain their pending implementation. Email requests
+use the backend delivery queue; production delivery remains a 13.12 gate.
 
 ## Validation and contracts
 
 Run `npm run lint`, `npm test`, and `npm run build` (includes TypeScript).
+For production-build browser validation, install Chromium with
+`npx playwright install --with-deps chromium`, then run `npm run test:browser`.
+Playwright 1.63.0 is an exact development-only pin compatible with the Node 24
+baseline. The browser workflow uses synthetic API fixtures; real PostgreSQL
+API integration is tested separately in the backend CI job.
 After backend contract changes, run `python scripts/export-openapi.py` from
 the repository root with the backend installed, then `npm run generate:api`
 here. Commit both generated files together. CI checks contract drift.
