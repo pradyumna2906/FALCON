@@ -129,7 +129,8 @@ def test_verified_onboarding_import_correction_dashboard_and_logout():
                 headers=headers,
                 json={"category_id": category["id"]},
             )
-            assert correction.status_code == 200, correction.text
+            assert correction.status_code == 201, correction.text
+            assert correction.json()["selected_category_id"] == category["id"]
             memory = client.put(
                 "/api/v1/classification/merchant-memories",
                 headers=headers,

@@ -109,9 +109,10 @@ bypassing verification. No migration or production provider is introduced.
   → dashboard → refresh/logout workflow. Execution requires database CI.
 - Chromium: a production-build workflow covers onboarding, account creation,
   import confirmation/rejections, correction, overview, mobile width and logout
-  using synthetic API fixtures. Browser downloads failed in this workspace;
-  this gate is configured in frontend CI and must pass before merge.
-- Docker/Compose and PostgreSQL execution remain unavailable locally.
+  using synthetic API fixtures. This workflow passed in frontend CI, together
+  with contract export, generated-type drift checks, lint, tests and build.
+- API container build and Compose smoke passed in CI. Docker/Compose and
+  PostgreSQL execution remain unavailable locally.
 
 Notification persistence and delivery remain 13.11; the overview's Insights
 action exposes actual backend recommendations without inventing notifications.
