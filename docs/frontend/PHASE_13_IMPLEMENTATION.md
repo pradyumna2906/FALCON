@@ -124,3 +124,10 @@ CI hardening installs the API optimization dependencies for contract export.
 Imported category corrections first store classification provenance when needed;
 repeat corrections preserve the existing user override. Manual categories use
 the transaction edit form. Tests cover both first-time and repeated corrections.
+
+The HTTPS PostgreSQL workflow also exposed a refresh-cookie formatting error:
+database timezone objects were rejected by the HTTP date formatter. Cookie
+expiry now normalizes to `datetime.UTC`, preserving the expiry instant. Two
+additional unit cases reproduce UTC `ZoneInfo` and non-UTC database timestamps;
+both failed before the fix and pass after it. The integration workflow covers
+refresh rotation and logout revocation with secure cookies enabled.

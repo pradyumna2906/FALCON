@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -70,9 +71,11 @@ def session_dependencies(
         client.app.dependency_overrides.clear()
 
 
+@pytest.mark.parametrize("refresh_timezone", [UTC, ZoneInfo("UTC"), ZoneInfo("Asia/Kolkata")])
 def test_refresh_rotates_cookie_and_returns_access_token(
     client: TestClient,
     session_dependencies: tuple[Mock, AsyncMock],
+    refresh_timezone,
 ) -> None:
     service, session = session_dependencies
     user_id = uuid4()
@@ -84,7 +87,7 @@ def test_refresh_rotates_cookie_and_returns_access_token(
         access_token="new-access-token",
         access_token_expires_at=_NOW + timedelta(minutes=15),
         refresh_token=_NEW_REFRESH_TOKEN,
-        refresh_token_expires_at=_NOW + timedelta(days=7),
+        refresh_token_expires_at=(_NOW + timedelta(days=7)).astimezone(refresh_timezone),
     )
 
     response = _post_with_refresh_cookie(
@@ -110,6 +113,7 @@ def test_refresh_rotates_cookie_and_returns_access_token(
     assert "SameSite=lax" in cookie
     assert "Secure" in cookie
     assert "Max-Age=604800" in cookie
+    assert "expires=Wed, 26 Aug 2026 14:00:00 GMT" in cookie
 
     service.refresh.assert_awaited_once_with(
         session,
