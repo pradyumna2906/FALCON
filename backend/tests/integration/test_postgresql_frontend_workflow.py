@@ -35,6 +35,8 @@ def test_verified_onboarding_import_correction_dashboard_and_logout():
     try:
         with TestClient(
             create_app(settings),
+            # Test mode protects refresh cookies with Secure, as production does.
+            base_url="https://testserver",
             backend_options={"loop_factory": create_psycopg_compatible_event_loop},
         ) as client:
             email = f"frontend-{uuid4().hex}@example.com"
@@ -153,7 +155,7 @@ def test_verified_onboarding_import_correction_dashboard_and_logout():
                 == 1
             )
             refresh = client.post("/api/v1/auth/refresh")
-            assert refresh.status_code == 200
+            assert refresh.status_code == 200, refresh.text
             fresh_headers = {
                 "Authorization": f"Bearer {refresh.json()['access_token']}"
             }
