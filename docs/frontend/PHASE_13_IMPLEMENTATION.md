@@ -171,3 +171,64 @@ and browser execution are CI merge gates; the PR records their final results.
 Scenarios (13.9), Assistant (13.10), reports/privacy/notifications (13.11),
 production delivery (13.12), deployment (13.13), and release audit (13.14) remain
 outside this batch. It does not claim all of Phase 13 is complete.
+
+## Batch 4 — Checkpoints 13.9–13.11
+
+Baseline: merged PR #64 (`67ebb9c`). Implementation, stage, commit and push are
+approved together. This batch integrates the Phase 11/12 APIs and adds the
+missing owner workspace endpoints for reports, privacy and notifications.
+
+| Checkpoint | Implemented behavior |
+| --- | --- |
+| 13.9 Scenarios | Alternative builder for income, expense, one-time costs, recurring costs, debt, income interruptions, goal targets/deadlines/priorities/contributions/pauses and reserves; saved-plan source; Monte Carlo history; ranked comparison, probability/shortfall evidence, sensitivity, monthly capacity, selection/clear/regeneration and event history |
+| 13.10 Assistant | Conversations/history, bounded questions, completed verified answers, evidence/citations/reliability/warnings/refusals, suggested follow-ups, copy with citations, retention expiry and confirmed deletion; stable idempotency key when retrying an unchanged question |
+| 13.11 Workspace | Monthly cash-flow PDF, transaction CSV, persisted import notification inbox/read/dismiss/preferences, account preferences, active session listing/revocation, password-confirmed whole-user JSON export, typed-confirmation account erasure |
+
+### Data and safety contract
+
+- Financial calculations and ownership remain server-controlled. Scenario
+  inputs do not update real transactions, goals or approved plan allocations.
+  Unknown probability remains unavailable; zero is displayed as zero.
+- Assistant displays only the atomic verified response. A failed provider or
+  network response never reveals partial/unverified text. External assistant
+  provider activation remains 13.12; unavailable responses remain explicit.
+- Downloads are authenticated same-origin requests with `no-store` and a
+  response-generation guard. A response finishing after sign-out is discarded.
+  CSV cells neutralize spreadsheet formulas; monetary decimals remain strings.
+- PDF summarizes eligible posted records for a completed month and currency,
+  including confidence and exclusions. CSV includes all monthly owner records
+  in that currency with status/type columns. Files are generated synchronously
+  and not retained as server jobs or public download URLs.
+- Export includes all retained owner financial tables and decrypted assistant
+  turns; password hashes, refresh tokens, challenge tokens, delivery payloads,
+  and global knowledge are excluded. A 100,000-row / 32 MiB limit fails explicitly
+  instead of silently truncating. This is a portable data export, not a restore
+  archive or a transactionally frozen analytical snapshot.
+- Password reauthentication guards export, erasure and session revocation. A
+  dedicated process-local limiter bounds these sensitive actions to ten per
+  owner per minute, one at a time. Distributed edge enforcement is a 13.12 gate.
+- Erasure deletes the live user ownership root and cascades private records,
+  invalidating all sessions. Deployment backup retention and deletion from a
+  user's downloaded files are outside this live-database action.
+- Notification migration `a3d9e6f8b215` adds two owner-cascading tables. Import
+  status events are refreshed explicitly from the latest 100 imports and
+  deduplicated by owner/source/status. Dismissal persists across synchronization.
+  Opt-out suppresses new events; existing inbox history is retained. No email,
+  push delivery or scheduled background job is claimed in this checkpoint.
+
+### Validation
+
+Local frontend validation: 55 tests, lint, TypeScript and production build pass;
+all JavaScript totals 253.7 KiB gzip against the 350 KiB budget.
+Focused tests cover PDF text extraction, exact CSV decimals and formula
+protection, secret exclusion/owner predicates, reauthentication, export bounds,
+scenario input semantics, compare-and-set confirmation, assistant idempotency
+and safe failure, binary downloads after sign-out, notification dismissal and
+password preservation. The real PostgreSQL workflow now adds simulation and
+selection, reports, inbox lifecycle, assistant refusal/replay/deletion, portable
+export and whole-user erasure with foreign-owner checks. A production-build
+Chromium workflow covers scenario → assistant → report → notification actions.
+The Batch 4 PR records final unit, database, browser and container CI results.
+
+Checkpoints 13.12–13.14 (production delivery, deployment and release audit)
+remain pending. Batch 4 does not deploy or declare production readiness.

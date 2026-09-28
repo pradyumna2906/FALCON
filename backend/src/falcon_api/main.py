@@ -208,6 +208,9 @@ def create_app(
     application.state.assistant_evidence_registry = assistant_registry
     application.state.assistant_monitor = assistant_monitor
     application.state.assistant_request_limiter = assistant_limiter
+    application.state.workspace_limiter = AssistantRequestLimiter(
+        requests_per_minute=10, max_concurrent_requests=1,
+    )
     application.state.assistant_orchestrator = GroundedAssistantOrchestrator(
         registry=assistant_registry,
         generator=GroundedAssistantGenerator(
