@@ -3,8 +3,9 @@
 ## Batch 1 scope (13.0–13.2)
 
 Baseline: Phase 12 audit squash merge `fa579f0` (PR #62).
-Implementation status: implemented; database and container CI gates pending.
-Stage, commit and push approved for Batch 1. Not released or merged.
+Implementation status: Batches 1 and 2 merged in PR #63 (`8ab0566`) after all
+database, browser, container and unit CI gates passed. The validation records
+below preserve the results available at each implementation stage.
 
 ### 13.0 — Architecture and release contract
 
@@ -131,3 +132,42 @@ expiry now normalizes to `datetime.UTC`, preserving the expiry instant. Two
 additional unit cases reproduce UTC `ZoneInfo` and non-UTC database timestamps;
 both failed before the fix and pass after it. The integration workflow covers
 refresh rotation and logout revocation with secure cookies enabled.
+
+## Batch 3 — Checkpoints 13.6–13.8
+
+Baseline: PR #63 squash merge `8ab0566`. Implementation, stage, commit and push
+approved together. This batch reuses the Phase 8–10 APIs; no production service,
+new dependency or database migration is introduced.
+
+| Checkpoint | Implemented behavior |
+| --- | --- |
+| 13.6 Analytics | Date/currency filters; prior-period cash-flow and spending comparison; category, merchant and account views; bounded account transaction drill-down; recurring/subscription evidence; leak/anomaly evaluations; budget creation, variance and overspend risk; health factors and prioritized insights |
+| 13.7 Forecasts | Four forecast targets; history and horizon controls; immutable run history/detail; selected model and error metrics; expected line with 80%/95% intervals; exact-value table; explicit reliability and insufficient-history guidance |
+| 13.8 Goals and planning | Create/edit/complete/cancel goals; manual and transaction-linked contributions; contribution removal; server progress; currency-specific planning snapshot; generate/approve/reject/regenerate plans; allocation schedules, probabilities, shortfalls, risk labels and decision/version history |
+
+All financial numbers remain server-owned decimal strings. SVG conversion is
+limited to chart positioning. Unknown probability is shown as unavailable,
+not zero. Mixed currencies are never combined by the frontend. Goals use the
+backend cancellation lifecycle, retaining history rather than inventing delete.
+Blocked plans cannot be approved; rejected/superseded plans cannot regenerate.
+Approval, rejection, regeneration and destructive actions require confirmation.
+Writes retain the existing single-attempt failure behavior and owner cache scope.
+
+Analytics queries load only for the selected section. History lists and
+transaction drill-down use documented bounds. Each analytical result has
+loading, error/retry, empty and partial-data evidence; absence of a result never
+creates an example balance. Forecast charts have exact tabular alternatives.
+
+Local validation: 47 frontend tests, TypeScript, ESLint and production build
+passed; all emitted JavaScript is approximately 245.7 KiB gzip against 350 KiB.
+The additional PostgreSQL test collects successfully. It imports 12 months of
+synthetic transactions, generates/retrieves all four forecasts, checks analytics,
+then exercises contributions, snapshot/plan generation, approval, regeneration,
+rejection, cancellation and foreign-owner isolation through real API routes.
+A new production-build Chromium workflow covers the corresponding UI journey,
+confirmations, mobile width and absence of private browser storage. PostgreSQL
+and browser execution are CI merge gates; the PR records their final results.
+
+Scenarios (13.9), Assistant (13.10), reports/privacy/notifications (13.11),
+production delivery (13.12), deployment (13.13), and release audit (13.14) remain
+outside this batch. It does not claim all of Phase 13 is complete.

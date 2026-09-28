@@ -8,6 +8,9 @@ const AuthPage = lazy(() => import('./pages/Auth'));
 const Overview = lazy(() => import('./pages/Overview'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const Money = lazy(() => import('./pages/Money'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const Forecasts = lazy(() => import('./pages/Forecasts'));
+const Goals = lazy(() => import('./pages/Goals'));
 
 export const navigation = [
   ['overview', 'Overview'], ['money', 'Money'], ['analytics', 'Analytics'],
@@ -70,8 +73,11 @@ export const routes = [
       { index: true, element: <Navigate to="overview" replace /> },
       { path: 'overview', element: <Overview /> },
       { path: 'money', element: <Money /> },
+      { path: 'analytics', element: <Analytics /> },
+      { path: 'forecasts', element: <Forecasts /> },
+      { path: 'goals', element: <Goals /> },
       { path: 'onboarding', element: <Onboarding /> },
-      ...navigation.filter(([path]) => !['overview', 'money'].includes(path)).map(([path, title]) => ({ path, element: <Paper><EmptyState title={title} detail="This authenticated section is reserved for an approved later checkpoint. No financial results have been generated." /></Paper> })),
+      ...navigation.filter(([path]) => !['overview', 'money', 'analytics', 'forecasts', 'goals'].includes(path)).map(([path, title]) => ({ path, element: <Paper><EmptyState title={title} detail="This authenticated section is reserved for an approved later checkpoint. No financial results have been generated." /></Paper> })),
     ] },
   ] },
   { path: '*', element: <EmptyState title="Page not found" detail="Return to the home page to continue." /> },

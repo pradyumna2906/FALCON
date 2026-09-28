@@ -179,6 +179,9 @@ export default function Transactions() {
       {query.data?.items.map((transaction) => (
         <Paper key={transaction.id} sx={{ p: 2 }}>
           <Typography variant="h3">{transaction.description}</Typography>
+          <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
+            Transaction ID: {transaction.id}
+          </Typography>
           <Typography>
             {transaction.transaction_date} · {transaction.transaction_type} ·{" "}
             {money(
