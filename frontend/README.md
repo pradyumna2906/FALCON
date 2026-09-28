@@ -16,7 +16,10 @@ Batch 1 provides the public preview and guarded navigation shell. Batch 2 adds
 registration, sign-in, verification/resend, password recovery/reset, financial
 profile onboarding, the live overview and Money screens for accounts, debt
 terms, transactions, transfers, imports and merchant/category corrections.
-Later navigation sections explain their pending implementation. Email requests
+Batch 3 adds Analytics with comparison and account drill-down, budget setup and
+risk, forecast generation/history with uncertainty bands and exact tables, and
+goal contributions, planning evidence, allocation schedules and plan decisions.
+Remaining navigation sections explain their pending implementation. Email requests
 use the backend delivery queue; production delivery remains a 13.12 gate.
 
 ## Validation and contracts
