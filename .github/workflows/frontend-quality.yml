@@ -53,3 +53,14 @@ jobs:
         run: |
           npx playwright install --with-deps chromium firefox webkit
           npm run test:browser
+      - name: Browser failure diagnostics (synthetic fixtures only)
+        if: failure()
+        working-directory: frontend
+        run: |
+          if [ -d test-results ]; then
+            rg --files test-results | while IFS= read -r file; do
+              case "$file" in
+                */error-context.md) cat "$file" ;;
+              esac
+            done
+          fi

@@ -3,7 +3,9 @@
 **FALCON — AI-Augmented Multi-goal Financial Advisor with Cognitive Forecasting** is an India-first personal-finance decision-support web application for people with regular or irregular income.
 
 > Current status: Phases 0–12 are complete and merged into `develop`. Phase 13
-> frontend integration, production provider wiring, and deployment are next.
+> Batches 1–4 integrate the React frontend; Batch 5 supplies production transports,
+> deployment configuration and release checks. Live deployment acceptance remains
+> pending the owner's host, domain and provider configuration.
 
 ## Purpose
 
@@ -21,7 +23,7 @@ FALCON will help users understand their financial behaviour, forecast future cas
 - Explain forecasts and recommendations clearly.
 - Protect user data through secure authentication, export and deletion.
 
-## Planned technology
+## Technology
 
 - Frontend: React and TypeScript
 - Backend: FastAPI and Python 3.13
@@ -48,5 +50,6 @@ FALCON is being developed incrementally:
 6. Merge through a pull request.
 
 Backend setup and execution instructions are maintained in
-[`backend/README.md`](backend/README.md). Phase 13 will add the frontend and
-production deployment instructions.
+[`backend/README.md`](backend/README.md). See [`frontend/README.md`](frontend/README.md)
+for the integrated web application and [`deployment/RUNBOOK.md`](deployment/RUNBOOK.md)
+for deployment, provider activation, monitoring and recovery.
