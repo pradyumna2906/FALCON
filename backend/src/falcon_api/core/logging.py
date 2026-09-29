@@ -1,0 +1,93 @@
+"""Minimal structured logging configuration for container collection."""
+
+import json
+import logging
+import sys
+from datetime import UTC, datetime
+from typing import Any
+
+_MANAGED_HANDLER = "_falcon_structured_handler"
+_STRUCTURED_FIELDS = (
+    "attempt",
+    "request_id",
+    "http_method",
+    "http_path",
+    "http_status",
+    "duration_ms",
+    "error_type",
+    "stack",
+    "classification_operation",
+    "classification_item_count",
+    "classification_decision_counts",
+    "classification_source_counts",
+    "classification_reason_counts",
+    "classification_taxonomy_version",
+    "analytics_operation",
+    "analytics_policy_version",
+    "analytics_snapshot_mode",
+    "analytics_range_band",
+    "analytics_query_count",
+    "analytics_query_budget",
+    "analytics_item_count",
+    "analytics_item_count_capped",
+    "analytics_result_state",
+    "scenario_operation_policy_version",
+    "scenario_operation",
+    "scenario_count_band",
+    "scenario_horizon_band",
+    "scenario_trial_band",
+    "scenario_probability_method",
+    "scenario_reliability",
+    "scenario_completion_band",
+    "scenario_negative_savings_risk_band",
+    "scenario_result",
+    "scenario_failure_reason",
+    "assistant_policy_version",
+    "assistant_intent",
+    "assistant_source_types",
+    "assistant_evidence_count_band",
+    "assistant_status",
+    "assistant_refusal_reason",
+    "assistant_citation_count",
+    "assistant_input_token_band",
+    "assistant_output_token_band",
+    "assistant_provider_outcome",
+    "assistant_failure_reason",
+)
+
+
+class JsonLogFormatter(logging.Formatter):
+    """Serialize only approved operational fields as one JSON object."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload: dict[str, Any] = {
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "event": record.getMessage(),
+        }
+        for field in _STRUCTURED_FIELDS:
+            value = getattr(record, field, None)
+            if value is not None:
+                payload[field] = value
+        return json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
+
+
+def configure_logging() -> None:
+    """Install one safe stdout logger and suppress duplicate access logs."""
+    logging.getLogger("uvicorn.access").disabled = True
+
+    falcon_logger = logging.getLogger("falcon_api")
+    falcon_logger.setLevel(logging.INFO)
+    falcon_logger.propagate = False
+
+    if any(
+        getattr(handler, _MANAGED_HANDLER, False)
+        for handler in falcon_logger.handlers
+    ):
+        return
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JsonLogFormatter())
+    setattr(handler, _MANAGED_HANDLER, True)
+    falcon_logger.addHandler(handler)
