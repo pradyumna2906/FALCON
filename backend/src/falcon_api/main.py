@@ -13,12 +13,14 @@ from falcon_api.assistant import (
     AssistantEvidenceRegistry,
     AssistantHistoryService,
     AssistantModel,
-    DisabledAssistantModel,
     GroundedAssistantGenerator,
     KnowledgeEvidenceAdapter,
     structured_evidence_adapters,
 )
 from falcon_api.assistant.monitoring import AssistantMonitor
+from falcon_api.assistant.openai_transport import configured_assistant_model
+from falcon_api.infrastructure.distributed_limits import RedisRequestLimiter
+from redis.asyncio import Redis
 from falcon_api.assistant.orchestration import (
     AssistantRequestLimiter,
     GroundedAssistantOrchestrator,
@@ -84,6 +86,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await database.dispose()
+        if application.state.redis is not None:
+            await application.state.redis.aclose()
 
 
 def create_app(
@@ -211,10 +215,22 @@ def create_app(
     application.state.workspace_limiter = AssistantRequestLimiter(
         requests_per_minute=10, max_concurrent_requests=1,
     )
+    application.state.redis = None
+    if app_settings.redis_url.get_secret_value():
+        client = Redis.from_url(app_settings.redis_url.get_secret_value(),
+                                socket_connect_timeout=2, socket_timeout=2,
+                                max_connections=20)
+        application.state.redis = client
+        assistant_limiter = RedisRequestLimiter(client, namespace="assistant",
+            requests_per_minute=app_settings.assistant_requests_per_minute,
+            max_concurrent_requests=app_settings.assistant_max_concurrent_requests)
+        application.state.assistant_request_limiter = assistant_limiter
+        application.state.workspace_limiter = RedisRequestLimiter(client, namespace="workspace",
+            requests_per_minute=10, max_concurrent_requests=1)
     application.state.assistant_orchestrator = GroundedAssistantOrchestrator(
         registry=assistant_registry,
         generator=GroundedAssistantGenerator(
-            assistant_model or DisabledAssistantModel()
+            assistant_model or configured_assistant_model(app_settings)
         ),
         history=assistant_history_service,
         limiter=assistant_limiter,

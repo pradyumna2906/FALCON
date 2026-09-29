@@ -239,5 +239,23 @@ forecast records are unchanged. Supplemental income/expense selection permits
 an earlier forecast start but requires the same horizon end, and validation
 still requires every eligible period to match the saved plan.
 
-Checkpoints 13.12–13.14 (production delivery, deployment and release audit)
-remain pending. Batch 4 does not deploy or declare production readiness.
+Batch 4 does not deploy or declare production readiness.
+
+## Batch 5 — Checkpoints 13.12–13.14
+
+Baseline: merged PR #65 (`14684de`). Implementation, stage, commit and push were
+approved together. This batch supplies the production transport and deployment
+code; it does not provision a host, send real email or activate paid AI usage.
+
+| Checkpoint | Changes and evidence scope |
+| --- | --- |
+| 13.12 | Configured OpenAI Responses transport with strict structured output, disabled response storage, no tools/redirects/POST retries, cost/usage validation and redacted failure; Redis atomic rate/concurrency leases and fail-closed readiness; TLS SMTP outbox worker, bounded retries/dead letters, expired challenge suppression, ciphertext scrubbing and retention scheduling; delivery key rotation |
+| 13.13 | Frontend container, same-origin TLS reverse proxy with CSP/security headers and auth IP limits, isolated PostgreSQL/Redis, explicit migration service, resource limits, non-root read-only application containers, full forecasting/classification/optimization runtime dependencies, encrypted backup utility and restore drill, operational runbook |
+| 13.14 | Full regression gates, real Redis and PostgreSQL worker checks, three-browser workflows, automated public-form accessibility/responsiveness checks, production dependency audit, TLS/container/restore checks and bounded readiness probe |
+
+See `deployment/RUNBOOK.md` for exact activation, rotation, monitoring,
+backup/restore and rollback steps. The Batch 5 PR is the authoritative CI result
+record. Owner selection of host/domain/providers, real certificate and secrets,
+live provider compatibility/delivery, human accessibility review, actual-host
+financial performance and recovery timing remain deployment acceptance gates.
+Do not report Phase 13 as fully live or production-accepted until these pass.

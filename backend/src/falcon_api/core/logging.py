@@ -8,6 +8,7 @@ from typing import Any
 
 _MANAGED_HANDLER = "_falcon_structured_handler"
 _STRUCTURED_FIELDS = (
+    "attempt",
     "request_id",
     "http_method",
     "http_path",

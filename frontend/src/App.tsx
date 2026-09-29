@@ -46,7 +46,7 @@ function Shell() {
       <AppBar position="static" color="inherit" elevation={0}><Toolbar sx={{ gap: 1 }}>
         <Button sx={{ display: { md: 'none' } }} onClick={() => setOpen(true)} aria-label="Open navigation">Menu</Button>
         <Typography sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.display_name || 'Your workspace'}</Typography>
-        <Chip label="Development preview" size="small" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />
+        {import.meta.env.DEV && <Chip label="Development preview" size="small" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
         <Button component={Link} to="/app/onboarding">Setup</Button>
         <Button onClick={() => { void logout(); }}>Sign out</Button>
       </Toolbar></AppBar>

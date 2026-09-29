@@ -11,18 +11,24 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 WORKDIR /build
 COPY backend/pyproject.toml backend/README.md ./
 COPY backend/src ./src
-RUN python -m pip install --no-compile ".[optimization]"
+ARG FALCON_EXTRAS=optimization
+RUN python -m pip install --no-compile ".[${FALCON_EXTRAS}]"
 
 FROM ${PYTHON_IMAGE} AS runtime
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    OMP_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1
 
 RUN groupadd --gid 10001 falcon \
     && useradd --uid 10001 --gid falcon --no-create-home --shell /usr/sbin/nologin falcon
 
 COPY --from=builder --chown=falcon:falcon /opt/venv /opt/venv
+COPY --chown=falcon:falcon backend/alembic.ini /app/alembic.ini
+COPY --chown=falcon:falcon backend/migrations /app/migrations
 USER 10001:10001
 WORKDIR /app
 EXPOSE 8000
