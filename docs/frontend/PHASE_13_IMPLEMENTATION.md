@@ -230,5 +230,14 @@ export and whole-user erasure with foreign-owner checks. A production-build
 Chromium workflow covers scenario → assistant → report → notification actions.
 The Batch 4 PR records final unit, database, browser and container CI results.
 
+The real-history workflow exposed a Phase 10/11 horizon mismatch: planning
+excludes monthly forecast buckets earlier than the plan's local date, while
+scenario validation originally required all forecast buckets. Scenario evidence
+now uses exactly the same future suffix. Full stored forecast metadata, owner,
+cutoff, confidence bands and protected capacity are still validated; immutable
+forecast records are unchanged. Supplemental income/expense selection permits
+an earlier forecast start but requires the same horizon end, and validation
+still requires every eligible period to match the saved plan.
+
 Checkpoints 13.12–13.14 (production delivery, deployment and release audit)
 remain pending. Batch 4 does not deploy or declare production readiness.

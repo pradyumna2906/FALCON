@@ -24,9 +24,25 @@ from falcon_api.scenario_simulation import (
 )
 from goal_plan_test_data import GOAL_ID, NOW, OWNER_ID, transient_goal_plan_run
 from scenario_test_data import (
+    _point,
     transient_savings_forecast,
     transient_supplemental_forecast,
 )
+
+
+def test_mid_month_plan_uses_only_its_future_forecast_suffix():
+    savings = transient_savings_forecast()
+    expense = transient_supplemental_forecast("total_expense")
+    for forecast in (savings, expense):
+        forecast.points.insert(0, _point(1, date(2026, 9, 1)))
+        forecast.forecast_start = date(2026, 9, 1)
+        forecast.horizon = 3
+    service, _, _, run = _service(forecast=savings, supplemental_forecasts=(expense,))
+    snapshot = asyncio.run(service.build(AsyncMock(), user_id=OWNER_ID,
+        source_plan_id=run.id, scenarios=(ScenarioAssumptions(name="Lower expenses", expense_change_percent=Decimal("-10")),)))
+    assert [p.period_start for p in snapshot.forecast.points] == [p.period_start for p in run.periods]
+    assert [p.period_start for p in snapshot.expense_forecast.points] == [p.period_start for p in run.periods]
+    assert len(savings.points) == 3  # Persisted forecast evidence is unchanged.
 
 
 SOURCE_PLAN_ID = UUID("40000000-0000-4000-8000-000000000001")

@@ -45,9 +45,9 @@ def test_latest_eligible_forecast_query_is_owner_cutoff_and_horizon_scoped() -> 
     assert "forecast_runs.data_cutoff_at <=" in sql
     assert "forecast_runs.created_at <=" in sql
     assert "forecast_runs.source_last_updated_at IS NULL" in sql
-    assert "forecast_runs.forecast_start =" in sql
+    assert "forecast_runs.forecast_start <=" in sql
     assert "forecast_runs.forecast_end =" in sql
-    assert "forecast_runs.horizon =" in sql
+    assert "forecast_runs.horizon >=" in sql
     assert owner_id in compiled.params.values()
     assert "gross_income" in compiled.params.values()
     assert "month" in compiled.params.values()
