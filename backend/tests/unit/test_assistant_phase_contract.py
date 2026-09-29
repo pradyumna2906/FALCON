@@ -64,11 +64,12 @@ def test_assistant_adr_selects_postgresql_and_provider_neutral_boundary() -> Non
         assert premature_dependency not in dependencies.casefold()
 
 
-def test_project_status_marks_phase_12_merged_and_phase_13_next() -> None:
+def test_project_status_distinguishes_release_code_from_live_acceptance() -> None:
     readme = (_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "Phases 0–12 are complete and merged" in readme
     assert "Phase 13" in readme
-    assert "frontend integration" in readme
-    assert "production provider wiring" in readme
-    assert "deployment are next" in readme
+    assert "Batches 1–4 integrate the React frontend" in readme
+    assert "Batch 5 supplies production transports" in readme
+    assert "Live deployment acceptance remains" in readme
+    assert "pending the owner's host, domain and provider configuration" in readme
