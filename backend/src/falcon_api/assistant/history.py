@@ -387,6 +387,19 @@ class AssistantHistoryService:
             row.created_at,
         )
 
+    async def export_turns(self, session: AsyncSession, *, user_id: UUID, limit: int) -> list[dict[str, object]]:
+        """Return retained owner history for a password-confirmed data export."""
+        _owner(user_id)
+        rows = (await session.scalars(select(AssistantConversationTurn).where(
+            AssistantConversationTurn.user_id == user_id,
+        ).order_by(AssistantConversationTurn.id).limit(limit))).all()
+        return [{
+            "id": row.id, "conversation_id": row.conversation_id,
+            "ordinal": row.ordinal, "created_at": row.created_at,
+            "question": self._decrypt(row.question_ciphertext),
+            "answer": json.loads(self._decrypt(row.answer_ciphertext)),
+        } for row in rows]
+
     async def delete(self, session: AsyncSession, *, user_id: UUID, conversation_id: UUID) -> bool:
         """Erase conversation, turns, and audit records via database cascade."""
 

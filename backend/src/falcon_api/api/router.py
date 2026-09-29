@@ -14,6 +14,7 @@ from falcon_api.api.routes.ledger import account_router, category_router
 from falcon_api.api.routes.profile import profile_router
 from falcon_api.api.routes.scenarios import scenario_router
 from falcon_api.api.routes.setup import setup_router, verified_principal
+from falcon_api.api.routes.workspace import workspace_router
 from falcon_api.api.routes.transactions import (
     transaction_router,
     transfer_router,
@@ -39,6 +40,7 @@ for financial_router in (
     scenario_router,
     assistant_router,
     setup_router,
+    workspace_router,
 ):
     api_v1_router.include_router(
         financial_router,

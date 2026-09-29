@@ -46,6 +46,7 @@ from falcon_api.models.scenario import (
     ScenarioSimulationRun,
 )
 from falcon_api.models.user import FinancialProfile, User
+from falcon_api.models.notification import Notification, NotificationPreference
 
 
 def register_models() -> None:
@@ -77,6 +78,8 @@ __all__ = [
     "ImportJob",
     "ImportJobIssue",
     "LiabilityDetail",
+    "Notification",
+    "NotificationPreference",
     "RefreshSession",
     "RefreshToken",
     "ScenarioComparison",

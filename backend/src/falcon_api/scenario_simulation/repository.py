@@ -54,9 +54,9 @@ class ScenarioForecastRepository:
                     ForecastRun.source_last_updated_at.is_(None),
                     ForecastRun.source_last_updated_at <= cutoff_at,
                 ),
-                ForecastRun.forecast_start == periods[0],
+                ForecastRun.forecast_start <= periods[0],
                 ForecastRun.forecast_end == periods[-1],
-                ForecastRun.horizon == len(periods),
+                ForecastRun.horizon >= len(periods),
             )
             .order_by(ForecastRun.created_at.desc(), ForecastRun.id.desc())
             .limit(1)

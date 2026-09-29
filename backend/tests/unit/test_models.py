@@ -65,6 +65,8 @@ _EXPECTED_TABLES = {
     "import_jobs",
     "import_job_issues",
     "liability_details",
+    "notifications",
+    "notification_preferences",
     "refresh_sessions",
     "refresh_tokens",
     "scenario_comparisons",

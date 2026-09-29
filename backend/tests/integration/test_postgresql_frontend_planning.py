@@ -138,6 +138,20 @@ def test_transaction_history_forecasts_goal_contributions_and_plan_lifecycle():
             assert plan["forecast_run_id"] == savings["id"]
             approved = request("POST", f"/goal-plans/{plan['id']}/approve")
             assert approved["status"] == "approved"
+            simulation = request("POST", "/scenario-simulations", 201, json={
+                "source_plan_id": plan["id"], "scenarios": [{"name": "Save more", "expense_change_percent": "-10"}],
+            })
+            simulation_id = simulation["id"]
+            assert simulation["trial_count"] > 0
+            comparison = request("GET", f"/scenario-simulations/{simulation_id}/compare")
+            assert comparison["items"]
+            selected_id = simulation["definitions"][-1]["id"]
+            selected = request("POST", f"/scenario-simulations/{simulation_id}/select", json={"scenario_definition_id": selected_id, "expected_selected_scenario_id": None})
+            assert selected["selected_scenario_id"] == selected_id
+            replay = request("POST", f"/scenario-simulations/{simulation_id}/regenerate", 201)
+            assert replay["id"] != simulation_id
+            assert request("GET", f"/goal-plans/{plan['id']}")["status"] == "approved"
+            assert request("GET", f"/goals/{goal_id}/progress")["current_amount"] == "25.1234"
             regenerated = request("POST", f"/goal-plans/{plan['id']}/regenerate", 201)
             assert regenerated["predecessor_plan_id"] == plan["id"]
             assert request("GET", f"/goal-plans/{plan['id']}")["status"] == "superseded"
@@ -154,6 +168,57 @@ def test_transaction_history_forecasts_goal_contributions_and_plan_lifecycle():
                 assert response.status_code == 404, response.text
             assert client.get("/api/v1/forecasts", headers=foreign).json()["items"] == []
             assert client.get("/api/v1/goal-plans", headers=foreign).json()["items"] == []
+            assert client.get(f"/api/v1/scenario-simulations/{simulation_id}", headers=foreign).status_code == 404
+
+            # Batch 4 report, notification, export and erasure lifecycle.
+            report_params = {"month": history_start.strftime("%Y-%m"), "currency": "INR"}
+            pdf = client.get("/api/v1/reports/monthly.pdf", headers=headers, params=report_params)
+            assert pdf.status_code == 200, pdf.text
+            assert pdf.content.startswith(b"%PDF")
+            assert pdf.headers["cache-control"] == "no-store"
+            csv_report = client.get("/api/v1/reports/transactions.csv", headers=headers, params=report_params)
+            assert csv_report.status_code == 200
+            assert "10000.1234" in csv_report.text
+            assert "10000.1234" not in client.get("/api/v1/reports/transactions.csv", headers=foreign, params=report_params).text
+            request("POST", "/notifications/sync", 204)
+            request("POST", "/notifications/sync", 204)
+            inbox = request("GET", "/notifications")
+            assert len(inbox["items"]) == 1
+            note_id = inbox["items"][0]["id"]
+            assert client.post(f"/api/v1/notifications/{note_id}/read", headers=foreign).status_code == 404
+            assert request("POST", f"/notifications/{note_id}/read")["read_at"]
+            request("DELETE", f"/notifications/{note_id}", 204)
+            request("POST", "/notifications/sync", 204)
+            assert request("GET", "/notifications")["items"] == []
+            request("PUT", "/notifications/preferences", json={"in_app_enabled": False})
+            assert request("GET", "/notifications/preferences")["in_app_enabled"] is False
+            conversation = request("POST", "/assistant/conversations", 201)
+            conversation_id = conversation["id"]
+            assert client.get(f"/api/v1/assistant/conversations/{conversation_id}", headers=foreign).status_code == 404
+            question = {"question": "Transfer my money"}
+            chat_headers = {**headers, "Idempotency-Key": str(uuid4())}
+            chat_path = f"/api/v1/assistant/conversations/{conversation_id}/messages"
+            answer = client.post(chat_path, headers=chat_headers, json=question)
+            assert answer.status_code == 201, answer.text
+            assert answer.json()["answer"]["status"] == "refused"
+            same = client.post(chat_path, headers=chat_headers, json=question)
+            assert same.status_code == 200 and same.json()["replayed"] is True
+            assert same.json()["id"] == answer.json()["id"]
+            assert request("GET", f"/assistant/conversations/{conversation_id}")["turn_count"] == 1
+            session_id = request("GET", "/security/sessions")["items"][0]["id"]
+            assert client.post(f"/api/v1/security/sessions/{session_id}/revoke", headers=foreign, json={"password": password}).status_code == 404
+            request("POST", "/privacy/export", 403, json={"password": "wrong-password"})
+            exported = request("POST", "/privacy/export", json={"password": password})
+            assert len(exported["tables"]["transactions"]) == 24
+            assert exported["tables"]["users"][0]["id"] == str(user_ids[0])
+            assert "user_credentials" not in exported["tables"]
+            assert exported["tables"]["assistant_conversation_turns"][0]["question"] == question["question"]
+            request("DELETE", f"/assistant/conversations/{conversation_id}", 204)
+            request("GET", f"/assistant/conversations/{conversation_id}", 404)
+            request("POST", "/privacy/erase", 403, json={"password": "wrong-password", "confirmation": "DELETE MY ACCOUNT"})
+            request("POST", "/privacy/erase", 204, json={"password": password, "confirmation": "DELETE MY ACCOUNT"})
+            assert client.get("/api/v1/auth/me", headers=headers).status_code == 401
+            assert client.get("/api/v1/auth/me", headers=foreign).status_code == 200
     finally:
         if user_ids:
             with psycopg.connect(

@@ -301,7 +301,7 @@ class ScenarioEvidenceService:
         if forecast is None:
             raise ValueError("The source plan forecast is unavailable.")
         _validate_forecast(run=run, forecast=forecast, user_id=user_id)
-        return _forecast_evidence(forecast)
+        return _forecast_evidence(forecast, as_of=run.local_date)
 
     async def _load_supplemental_forecast(
         self,
@@ -331,10 +331,10 @@ class ScenarioEvidenceService:
             user_id=user_id,
             target=target,
         )
-        return _forecast_evidence(forecast)
+        return _forecast_evidence(forecast, as_of=run.local_date)
 
 
-def _forecast_evidence(forecast: ForecastRun) -> ScenarioForecastEvidence:
+def _forecast_evidence(forecast: ForecastRun, *, as_of: date) -> ScenarioForecastEvidence:
     return ScenarioForecastEvidence(
         run_id=forecast.id,
         contract_version=forecast.contract_version,
@@ -360,6 +360,7 @@ def _forecast_evidence(forecast: ForecastRun) -> ScenarioForecastEvidence:
                 upper_95=money(point.upper_95),
             )
             for point in forecast.points
+            if point.period_start >= as_of
         ),
     )
 
@@ -413,7 +414,8 @@ def _validate_forecast(
     if forecast.currency != run.currency:
         raise ValueError("Scenario forecast and plan currencies must match.")
     _validate_forecast_shape(run=run, forecast=forecast)
-    for point, period in zip(forecast.points, run.periods, strict=True):
+    eligible = tuple(point for point in forecast.points if point.period_start >= run.local_date)
+    for point, period in zip(eligible, run.periods, strict=True):
         protected = money(max(Decimal("0"), Decimal(point.lower_95)))
         if protected != money(period.available_capacity):
             raise ValueError("Scenario forecast capacity must match the frozen source plan.")
@@ -447,12 +449,17 @@ def _validate_forecast_shape(*, run: GoalPlanRun, forecast: ForecastRun) -> None
         raise ValueError("Scenario forecasts cannot exceed the source plan cutoff.")
     plan_periods = tuple(item.period_start for item in run.periods)
     periods = tuple(item.period_start for item in forecast.points)
-    if periods != plan_periods:
+    # Match Phase 10's bridge_savings_forecast cutoff. Past monthly buckets
+    # remain in the immutable forecast, but are never future savings capacity.
+    if periods != tuple(sorted(set(periods))) or any(item.day != 1 for item in periods):
+        raise ValueError("Scenario forecast points must be ordered month boundaries.")
+    eligible_periods = tuple(item for item in periods if item >= run.local_date)
+    if eligible_periods != plan_periods:
         raise ValueError("Scenario forecast periods must match the source plan horizon.")
-    if plan_periods and (
-        forecast.forecast_start != plan_periods[0]
-        or forecast.forecast_end != plan_periods[-1]
-        or forecast.horizon != len(plan_periods)
+    if not periods or (
+        forecast.forecast_start != periods[0]
+        or forecast.forecast_end != periods[-1]
+        or forecast.horizon != len(periods)
     ):
         raise ValueError("Scenario forecast metadata must match the source plan horizon.")
     if any(

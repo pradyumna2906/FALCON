@@ -46,13 +46,14 @@ def test_migrations_share_application_metadata() -> None:
     register_models()
 
     assert model_metadata() is Base.metadata
-    assert len(model_metadata().tables) == 39
+    assert len(model_metadata().tables) == 41
 
 
 def test_assistant_idempotency_revision_is_the_single_head() -> None:
     scripts = ScriptDirectory.from_config(create_alembic_config())
 
-    assert scripts.get_heads() == [_ASSISTANT_IDEMPOTENCY_REVISION]
+    assert scripts.get_heads() == ["a3d9e6f8b215"]
+    assert scripts.get_revision("a3d9e6f8b215").down_revision == _ASSISTANT_IDEMPOTENCY_REVISION
 
     idempotency_revision = scripts.get_revision(
         _ASSISTANT_IDEMPOTENCY_REVISION
