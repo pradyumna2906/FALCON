@@ -19,14 +19,17 @@ terms, transactions, transfers, imports and merchant/category corrections.
 Batch 3 adds Analytics with comparison and account drill-down, budget setup and
 risk, forecast generation/history with uncertainty bands and exact tables, and
 goal contributions, planning evidence, allocation schedules and plan decisions.
-Remaining navigation sections explain their pending implementation. Email requests
-use the backend delivery queue; production delivery remains a 13.12 gate.
+Batch 4 adds scenarios, grounded assistant conversations, PDF/CSV reports,
+notifications and account/privacy controls. Batch 5 supplies the TLS production
+container and release checks. Email requests use the backend delivery queue;
+the new worker delivers them once an owner-configured SMTP service is enabled.
+See `deployment/RUNBOOK.md` for activation and remaining live acceptance gates.
 
 ## Validation and contracts
 
 Run `npm run lint`, `npm test`, and `npm run build` (includes TypeScript).
-For production-build browser validation, install Chromium with
-`npx playwright install --with-deps chromium`, then run `npm run test:browser`.
+For production-build browser validation, install browsers with
+`npx playwright install --with-deps chromium firefox webkit`, then run `npm run test:browser`.
 Playwright 1.63.0 is an exact development-only pin compatible with the Node 24
 baseline. The browser workflow uses synthetic API fixtures; real PostgreSQL
 API integration is tested separately in the backend CI job.

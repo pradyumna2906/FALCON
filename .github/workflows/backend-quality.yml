@@ -64,7 +64,16 @@ jobs:
       FALCON_DB_USER: falcon_test
       FALCON_DB_PASSWORD: ci-only-database-password
       FALCON_RUN_DATABASE_INTEGRATION: "1"
+      FALCON_TEST_REDIS_URL: redis://127.0.0.1:6379/0
     services:
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
       postgres:
         image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
         env:

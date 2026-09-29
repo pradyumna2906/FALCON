@@ -1,5 +1,12 @@
 # Backend
 
+Phase 13 Batch 5 adds an opt-in OpenAI Responses transport, Redis owner limits,
+and the `python -m falcon_api.worker` SMTP/retention scheduler. Local defaults
+remain provider-disabled with process-local limits. The production Compose
+manifest installs forecasting/classification/optimization extras and includes
+explicit migrations. See `deployment/RUNBOOK.md` for secure configuration,
+rotation, recovery, monitoring and the outstanding live acceptance gates.
+
 The FALCON backend is a FastAPI application organized as a layered modular monolith. It is authoritative for validation, financial calculations, persistence, authentication and authorization as those capabilities are introduced in later phases.
 
 The current backend provides:

@@ -25,6 +25,7 @@ dependencies = [
   "PyJWT==2.13.0",
   "pypdf[crypto]==6.16.1",
   "python-multipart==0.0.32",
+  "redis==5.2.1",
   "sqlalchemy[asyncio]==2.0.51",
   "uvicorn==0.52.1",
 ]

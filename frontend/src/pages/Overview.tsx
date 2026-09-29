@@ -347,7 +347,7 @@ export default function Overview() {
       )}
       {goals.data?.items.length === 0 && (
         <Typography>
-          No active goals yet. Goal creation arrives with the Goals checkpoint.
+          No active goals yet. <Link to="/app/goals">Create your first goal.</Link>
         </Typography>
       )}
       {goals.data?.items.map((goal) => (

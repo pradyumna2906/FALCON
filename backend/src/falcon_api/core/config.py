@@ -1,6 +1,7 @@
 """Typed application configuration."""
 
 from enum import StrEnum
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
@@ -58,6 +59,42 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000, ge=1, le=65535)
     docs_enabled: bool | None = None
     cors_allowed_origins: tuple[str, ...] = ()
+    assistant_provider: Literal["disabled", "openai"] = "disabled"
+    openai_api_key: SecretStr = SecretStr("")
+    openai_model: str = ""
+    openai_input_usd_per_million: Decimal = Field(default=0, ge=0)
+    openai_output_usd_per_million: Decimal = Field(default=0, ge=0)
+    redis_url: SecretStr = SecretStr("")
+    public_origin: str = "https://localhost"
+    smtp_host: str = ""
+    smtp_port: int = Field(default=465, ge=1, le=65535)
+    smtp_username: SecretStr = SecretStr("")
+    smtp_password: SecretStr = SecretStr("")
+    smtp_sender: str = ""
+    smtp_mode: Literal["ssl", "starttls"] = "ssl"
+    delivery_previous_keys: dict[str, SecretStr] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_provider_configuration(self) -> Self:
+        if self.assistant_provider == "openai" and (
+            not self.openai_api_key.get_secret_value().strip()
+            or not self.openai_model.strip()
+            or self.openai_input_usd_per_million <= 0
+            or self.openai_output_usd_per_million <= 0
+        ):
+            raise ValueError("OpenAI requires an approved model, key and positive token prices.")
+        if self.smtp_host:
+            origin = _HTTP_URL_ADAPTER.validate_python(self.public_origin)
+            if (origin.scheme != "https" or origin.username or origin.password
+                    or origin.query or origin.fragment or origin.path not in (None, "/")):
+                raise ValueError("Delivery requires a plain HTTPS public origin.")
+            if not self.smtp_sender or any(c in self.smtp_sender for c in "\r\n"):
+                raise ValueError("Delivery requires a valid sender.")
+        for key in self.delivery_previous_keys.values():
+            Fernet(key.get_secret_value().encode("ascii"))
+        if self.redis_url.get_secret_value() and not self.redis_url.get_secret_value().startswith(("redis://", "rediss://")):
+            raise ValueError("Distributed limits require a Redis URL.")
+        return self
     auth_signing_secret: SecretStr = SecretStr(
         _AUTH_SECRET_PLACEHOLDER,
     )

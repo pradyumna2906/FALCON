@@ -62,7 +62,10 @@ def test_phase_10_optimizer_dependencies_are_pinned_for_production() -> None:
     assert "optimization = [" in pyproject
     assert '"numpy==2.5.2"' in pyproject
     assert '"scipy==1.18.1"' in pyproject
-    assert 'python -m pip install --no-compile ".[optimization]"' in dockerfile
+    assert "ARG FALCON_EXTRAS=optimization" in dockerfile
+    assert 'python -m pip install --no-compile ".[${FALCON_EXTRAS}]"' in dockerfile
+    release = (repository_root / "deployment" / "compose.production.yaml").read_text()
+    assert "FALCON_EXTRAS: forecasting,ml,optimization" in release
 
 
 def test_currency_is_normalized_without_conversion() -> None:
