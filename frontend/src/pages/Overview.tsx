@@ -26,6 +26,7 @@ import {
 } from "../api/finance";
 import { useSession } from "../auth/session";
 import { LoadingState } from "../components/States";
+import { FeatureIcon } from "../components/Brand";
 
 function GoalCard({ goal }: { goal: Schema<"GoalResponse"> }) {
   const progress = useResource<Schema<"GoalProgressResponse">>(
@@ -89,19 +90,23 @@ export default function Overview() {
   const data = dashboard.data;
   return (
     <Stack spacing={3}>
-      <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center' }}>
+        <Box>
+        <Typography sx={{ color: 'secondary.main', fontSize: '.72rem', fontWeight: 800, letterSpacing: '.12em', mb: 1 }}>MAKE ROOM FOR WHAT MATTERS</Typography>
         <Typography component="h1" variant="h1">
           Your financial overview
         </Typography>
         <Typography color="text.secondary">
-          Live, owner-scoped results. Each currency is shown separately.
+          A clearer picture of your money, and a little more confidence in what comes next.
         </Typography>
+        </Box>
       </Box>
       <Stack direction="row" sx={{ flexWrap: "wrap" }} useFlexGap spacing={1}>
         <Button
           component={Link}
           to="/app/money?tab=transactions"
           variant="contained"
+          startIcon={<FeatureIcon name="plus" size={18} />}
         >
           Add transaction
         </Button>
@@ -113,7 +118,7 @@ export default function Overview() {
         </Button>
         <Button href="#insights">View insights</Button>
       </Stack>
-      <Paper sx={{ p: 2 }}>
+      <Paper sx={{ p: { xs: 2, sm: 3 }, bgcolor: '#fffdf9' }}>
         <Form
           title="Reporting period"
           submit="Apply filters"
@@ -205,16 +210,18 @@ export default function Overview() {
                 ["Net cash flow", data.metrics.net_cash_flow.value],
                 ["Savings", data.metrics.savings_amount.value],
               ] as const
-            ).map(([label, amount]) => (
-              <Paper key={label} sx={{ p: 2 }}>
-                <Typography color="text.secondary">{label}</Typography>
-                <Typography variant="h2" sx={{ overflowWrap: "anywhere" }}>
+            ).map(([label, amount], index) => (
+              <Paper key={label} sx={{ p: 3, bgcolor: ['#dff2e9', '#fbe6e2', '#ece2fa', '#fff0d3'][index], borderColor: 'transparent', minWidth: 0 }}>
+                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 2 }}><Typography sx={{ fontWeight: 650, color: '#514759' }}>{label}</Typography><Box sx={{ display: 'grid', placeItems: 'center', width: 36, height: 36, bgcolor: '#ffffff99', borderRadius: 2, color: ['#176e62', '#a54540', '#673ba7', '#825310'][index] }}><FeatureIcon name={['money', 'money', 'forecasts', 'goals'][index]} size={20} /></Box></Stack>
+                <Typography variant="h2" sx={{ overflowWrap: "anywhere", fontSize: { xs: '1.7rem', lg: '1.85rem' }, fontWeight: 800, letterSpacing: '-.04em', fontVariantNumeric: 'tabular-nums' }}>
                   {money(amount, data.context.currency)}
                 </Typography>
+                <Typography sx={{ mt: 1, fontSize: '.75rem', color: '#65566b' }}>Your selected period · {data.context.currency}</Typography>
               </Paper>
             ))}
           </Box>
-          <Paper sx={{ p: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.3fr) minmax(0, 1fr)' }, gap: 3, alignItems: 'start' }}>
+          <Paper sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
             <Typography variant="h2">Cash-flow history</Typography>
             <TableContainer>
               <Table size="small" aria-label="Cash-flow history">
@@ -255,10 +262,10 @@ export default function Overview() {
               <Typography>No observed periods yet.</Typography>
             )}
           </Paper>
-          <Paper sx={{ p: 2 }}>
+          <Paper sx={{ p: { xs: 2, sm: 3 } }}>
             <Typography variant="h2">Spending by category</Typography>
             <Stack spacing={2} sx={{ mt: 2 }}>
-              {data.spending.categories.map((category) => (
+              {data.spending.categories.map((category, index) => (
                 <Box key={category.category_id}>
                   <Typography>
                     {category.name} ·{" "}
@@ -271,6 +278,7 @@ export default function Overview() {
                       100,
                       Math.max(0, Number(category.share.value || 0) * 100),
                     )}
+                    sx={{ mt: 1, height: 10, bgcolor: '#f0ebf4', '& .MuiLinearProgress-bar': { bgcolor: ['#70558e', '#218574', '#cf655a', '#ad791f'][index % 4] } }}
                   />
                 </Box>
               ))}
@@ -279,6 +287,7 @@ export default function Overview() {
               <Typography>No categorized spending yet.</Typography>
             )}
           </Paper>
+          </Box>
           <Typography variant="body2">
             Excluded:{" "}
             {data.context.completeness.exclusions.other_currency_count}{" "}
@@ -290,7 +299,8 @@ export default function Overview() {
           </Typography>
         </>
       )}
-      <Paper sx={{ p: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1.3fr)' }, gap: 3, alignItems: 'start' }}>
+      <Paper sx={{ p: 3, bgcolor: '#f1edf5' }}>
         <Typography variant="h2">Financial health</Typography>
         {health.isPending && <Typography>Loading health factors…</Typography>}
         {health.error && (
@@ -305,6 +315,7 @@ export default function Overview() {
             <Typography>
               {health.data.status} · {health.data.explanation}
             </Typography>
+            <Box component="details" sx={{ mt: 2, '& summary': { cursor: 'pointer', fontWeight: 600, py: 1 } }}><Box component="summary">View health factors</Box>
             {health.data.factors.map((factor) => (
               <Box key={factor.factor} sx={{ mt: 1 }}>
                 <Typography sx={{ fontWeight: 600 }}>
@@ -314,10 +325,11 @@ export default function Overview() {
                 <Typography>{factor.explanation}</Typography>
               </Box>
             ))}
+            </Box>
           </>
         )}
       </Paper>
-      <Paper id="insights" sx={{ p: 2 }}>
+      <Paper id="insights" sx={{ p: 3, bgcolor: '#fffdf8' }}>
         <Typography variant="h2">Prioritized insights</Typography>
         {insights.isPending && <Typography>Loading insights…</Typography>}
         {insights.error && (
@@ -341,6 +353,7 @@ export default function Overview() {
           </>
         )}
       </Paper>
+      </Box>
       <Typography variant="h2">Active goals</Typography>
       {goals.error && (
         <Alert severity="warning">{errorMessage(goals.error)}</Alert>

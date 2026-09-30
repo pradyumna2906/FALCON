@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Alert,
+  Box,
   Button,
   Container,
   Paper,
@@ -11,6 +12,7 @@ import { Link, Navigate, useNavigate } from "react-router";
 import { Form, value, optional, type Field } from "../components/Forms";
 import { api } from "../api/client";
 import { useSession } from "../auth/session";
+import { Brand, FeatureIcon } from "../components/Brand";
 
 const email: Field = {
   name: "email",
@@ -72,8 +74,16 @@ export default function AuthPage({
       />
     );
   return (
-    <Container component="main" maxWidth="sm" sx={{ py: 6 }}>
-      <Paper sx={{ p: { xs: 2, sm: 4 } }}>
+    <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+      <Box component={Link} to="/" sx={{ display: 'inline-block', textDecoration: 'none', mb: 4 }} aria-label="FALCON home"><Brand /></Box>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '0.9fr 1.1fr' }, gap: 3, alignItems: 'start' }}>
+      <Box sx={{ display: { xs: 'none', md: 'flex' }, flexDirection: 'column', minHeight: 480, p: 5, borderRadius: 5, bgcolor: '#292239', color: '#fff', backgroundImage: 'radial-gradient(ellipse at 0% 100%, #584076, transparent 75%)' }}>
+        <Box sx={{ width: 54, height: 54, bgcolor: '#d3e7dc', color: '#292239', borderRadius: 4, display: 'grid', placeItems: 'center', mb: 5 }}><FeatureIcon name="goals" size={30} /></Box>
+        <Typography component="p" sx={{ fontSize: '2.4rem', fontWeight: 800, letterSpacing: '-.05em', lineHeight: 1.15 }}>Big plans.<br />Small steps.<br /><Box component="span" sx={{ color: '#d2c3e3' }}>A clearer future.</Box></Typography>
+        <Typography sx={{ mt: 3, color: '#e0d6eb', maxWidth: 320 }}>Build a financial picture that makes sense to you. Your spending, your goals, your next chapter.</Typography>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mt: 'auto', pt: 6, color: '#d3e7dc' }}><FeatureIcon name="shield" /><Typography sx={{ fontSize: '.85rem' }}>Private, verified access to your workspace</Typography></Stack>
+      </Box>
+      <Paper sx={{ p: { xs: 3, sm: 4.5 }, borderRadius: 5 }}>
         <Stack spacing={3}>
           <Typography component="h1" variant="h1">
             {title}
@@ -214,22 +224,16 @@ export default function AuthPage({
               }}
             />
           )}
-          <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap" }}>
-            <Button component={Link} to="/sign-in">
-              Sign in
-            </Button>
-            <Button component={Link} to="/register">
-              Register
-            </Button>
-            <Button component={Link} to="/forgot-password">
-              Forgot password?
-            </Button>
-            <Button component={Link} to="/reset-password">
-              Use reset token
-            </Button>
+          <Stack spacing={1} sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 2 }}>
+            {mode === 'sign-in' ? <>
+              <Button component={Link} to="/forgot-password" sx={{ alignSelf: 'flex-start', px: 0 }}>Forgot password?</Button>
+              <Typography variant="body2" color="text.secondary">New to FALCON? <Link to="/register">Create an account</Link></Typography>
+            </> : <Typography variant="body2" color="text.secondary">Already have an account? <Link to="/sign-in">Sign in</Link></Typography>}
+            {mode === 'forgot-password' && <Typography variant="body2" color="text.secondary">Have a reset token? <Link to="/reset-password">Reset your password</Link></Typography>}
           </Stack>
         </Stack>
       </Paper>
+      </Box>
     </Container>
   );
 }

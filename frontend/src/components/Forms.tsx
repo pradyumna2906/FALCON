@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import {
   Alert,
+  Box,
   Button,
   MenuItem,
   Stack,
@@ -67,6 +68,7 @@ export function Form({
       }}
     >
       <Typography variant="h2">{title}</Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: fields.length > 4 ? 'repeat(2, minmax(0, 1fr))' : '1fr' }, gap: 2.5, pt: 1 }}>
       {fields.map((field) => (
         <TextField
           key={field.name}
@@ -112,10 +114,11 @@ export function Form({
           })}
         </TextField>
       ))}
+      </Box>
       {children}
       {message && <Alert severity="error">{message}</Alert>}
       {saved && <Alert severity="success">Request completed.</Alert>}
-      <Button type="submit" variant="contained" disabled={pending}>
+      <Button type="submit" variant="contained" disabled={pending} sx={{ alignSelf: 'flex-start', minWidth: 150 }}>
         {pending ? "Working…" : submit}
       </Button>
     </Stack>
