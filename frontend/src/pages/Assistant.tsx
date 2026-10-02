@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/PageHeading";
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -106,48 +107,58 @@ export default function Assistant() {
   >(`/assistant/conversations/${id}?limit=20`, !!id);
   return (
     <Stack spacing={3}>
-      <Typography variant="h1">Assistant</Typography>
+      <PageHeading
+        title="Assistant"
+        description="Ask FALCON about your spending, forecasts, goals and possibilities."
+        icon="assistant"
+      />
       <Alert severity="info">
         Answers use your financial evidence and show its reliability. Only
         completed, server-verified answers are displayed. Conversations expire
         after 90 days; you can delete them sooner.
       </Alert>
-      <Form
-        title="Start a conversation"
-        fields={[]}
-        submit="New conversation"
-        onSubmit={async () => {
-          const result = await mutate<Schema<"AssistantConversationResponse">>(
-            "/assistant/conversations",
-            "POST",
-          );
-          setParams({ conversation: result.id });
-          setQuestion("");
-          setError("");
-        }}
-      />
-      <Result query={history}>
-        {(data) => (
-          <DataTable
-            title="Recent conversations (up to 20)"
-            headings={["Created", "Expires", "Turns", "Open"]}
-            rows={data.items.map((c) => [
-              c.created_at,
-              c.expires_at,
-              c.turn_count,
-              <Button
-                onClick={() => {
-                  setParams({ conversation: c.id });
-                  setQuestion("");
-                  setError("");
-                }}
-              >
-                Open {c.id}
-              </Button>,
-            ])}
-          />
-        )}
-      </Result>
+      <Paper sx={{ p: 3, bgcolor: "#eaf2ef", borderColor: "#d6e4df" }}>
+        <Form
+          title="Start a conversation"
+          fields={[]}
+          submit="New conversation"
+          onSubmit={async () => {
+            const result = await mutate<
+              Schema<"AssistantConversationResponse">
+            >("/assistant/conversations", "POST");
+            setParams({ conversation: result.id });
+            setQuestion("");
+            setError("");
+          }}
+        />
+      </Paper>
+      <Paper component="details" sx={{ p: 2.5 }}>
+        <Typography component="summary" sx={{ fontWeight: 650 }}>
+          Recent conversations
+        </Typography>
+        <Result query={history}>
+          {(data) => (
+            <DataTable
+              title="Recent conversations (up to 20)"
+              headings={["Created", "Expires", "Turns", "Open"]}
+              rows={data.items.map((c) => [
+                c.created_at,
+                c.expires_at,
+                c.turn_count,
+                <Button
+                  onClick={() => {
+                    setParams({ conversation: c.id });
+                    setQuestion("");
+                    setError("");
+                  }}
+                >
+                  Open {c.id}
+                </Button>,
+              ])}
+            />
+          )}
+        </Result>
+      </Paper>
       {id && (
         <Result query={conversation}>
           {(data) => (
@@ -231,6 +242,7 @@ export default function Assistant() {
                   label="Your question"
                   multiline
                   minRows={3}
+                  placeholder="What would you like to understand about your finances?"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   required
@@ -241,6 +253,7 @@ export default function Assistant() {
                 <Button
                   type="submit"
                   variant="contained"
+                  sx={{ alignSelf: "flex-end", minWidth: 160 }}
                   disabled={pending || data.turn_count >= 50}
                 >
                   {pending ? "Preparing a verified answer…" : "Send question"}

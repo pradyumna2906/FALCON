@@ -7,9 +7,9 @@ import { useSession } from './auth/session';
 vi.mock('./auth/session', () => ({ useSession: vi.fn() }));
 const actions = { login: vi.fn(), logout: vi.fn(), reloadUser: vi.fn() };
 
-it('renders the honest public foundation preview', () => {
+it('renders the public introduction without inventing financial data', async () => {
   render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: ['/'] })} />);
-  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Understand today.');
+  expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Understand today.');
   expect(screen.getByText(/No example figures/)).toBeInTheDocument();
 });
 
