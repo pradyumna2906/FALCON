@@ -28,6 +28,7 @@ test('onboard, import, correct and review in the production browser build', asyn
     if (path === '/imports') { if (method === 'POST') { expect(request.postData()).toContain('synthetic.csv'); imported = true; return reply(job, 201); } return reply({ items: imported ? [job] : [], has_more: false }); }
     if (path === `/imports/${job.id}`) return reply(job);
     if (path === '/goals') return reply({ items: [] });
+    if (path === '/forecasts') return reply({ items: [] });
     if (path === '/analytics/health-score') return reply({ score: null, status: 'unavailable', explanation: 'More history is required.', factors: [] });
     if (path === '/analytics/insights') return reply({ explanation: 'No supported insights yet.', insights: [] });
     if (path === '/analytics/dashboard') {
@@ -38,7 +39,7 @@ test('onboard, import, correct and review in the production browser build', asyn
   });
   await page.goto('/sign-in');
   await page.getByLabel('Email', { exact: false }).fill(owner.email);
-  await page.getByLabel('Password', { exact: false }).fill('Synthetic-Password-2026!');
+  await page.getByLabel(/^Password/).fill('Synthetic-Password-2026!');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
   await page.getByRole('link', { name: 'Complete setup' }).click();
@@ -62,7 +63,7 @@ test('onboard, import, correct and review in the production browser build', asyn
   await page.getByRole('button', { name: 'Apply correction' }).click();
   await expect.poll(() => corrected).toBe(true);
   await page.getByRole('link', { name: 'Overview', exact: true }).click();
-  await expect(page.getByText('INR 123.4567', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Expenses summary' }).getByText('INR 123.4567', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/batch2-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('button', { name: 'Open navigation' })).toBeVisible();
