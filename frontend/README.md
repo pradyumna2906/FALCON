@@ -41,6 +41,21 @@ No reference-site balances, advice, portfolios or mock records are included in
 the running app. Backend calculations, ownership checks, session refresh,
 verification requirements and privacy operations are unchanged.
 
+Ask FALCON and the Assistant navigation control now open a persistent,
+bottom-right chat dialog on the current workspace page. User/AI messages use
+separate bubbles; citations and reliability can be expanded within each answer.
+The dialog is modeless so navigation remains available, and minimizing preserves
+the active conversation and draft. Signing out unmounts it. The old
+`/app/assistant` URL redirects to Overview and opens the same dialog. Saved
+history, explicit deletion, turn limits and idempotent retries are preserved.
+The assistant bundle/history load only after chat is first opened.
+
+Use [Manual acceptance checklist](../docs/testing/MANUAL_ACCEPTANCE.md) for
+real API/database, SMTP, provider, financial precision and owner-isolation tests.
+It includes a small dataset with exact expected totals and an ordered workflow
+checklist. The default AI provider remains disabled until private backend
+configuration is supplied; a UI change cannot activate provider credentials.
+
 Sign-in returns verified users to their requested workspace route. Verification
 and password-reset links can populate a valid `token` query parameter for manual
 submission. Password fields have a keyboard-accessible visibility control.

@@ -35,7 +35,7 @@ const Analytics = lazy(() => import("./pages/Analytics"));
 const Forecasts = lazy(() => import("./pages/Forecasts"));
 const Goals = lazy(() => import("./pages/Goals"));
 const Scenarios = lazy(() => import("./pages/Scenarios"));
-const Assistant = lazy(() => import("./pages/Assistant"));
+import { AssistantWidget } from "./components/AssistantWidget";
 const Reports = lazy(() => import("./pages/Reports"));
 const Settings = lazy(() => import("./pages/Settings"));
 
@@ -73,8 +73,17 @@ export function RequireSession() {
 
 function Shell() {
   const [open, setOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatRouteKey, setChatRouteKey] = useState<string | null>(null);
   const { user, logout } = useSession();
   const location = useLocation();
+  if (
+    (location.state as { openAssistant?: boolean } | null)?.openAssistant &&
+    chatRouteKey !== location.key
+  ) {
+    setChatRouteKey(location.key);
+    setChatOpen(true);
+  }
   const section =
     navigation.find(([path]) => location.pathname === `/app/${path}`)?.[1] ||
     "Setup";
@@ -118,7 +127,7 @@ function Shell() {
       >
         WORKSPACE
       </Typography>
-    <List component="div" sx={{ display: "grid", gap: 0.5 }}>
+      <List component="div" sx={{ display: "grid", gap: 0.5 }}>
         {navigation.map(([path, label], i) => (
           <Box key={path}>
             {(i === 3 || i === 6) && (
@@ -136,9 +145,18 @@ function Shell() {
               </Typography>
             )}
             <ListItemButton
-              component={NavLink}
-              to={`/app/${path}`}
-              onClick={() => setOpen(false)}
+              component={path === "assistant" ? "button" : NavLink}
+              {...(path === "assistant"
+                ? {
+                    type: "button" as const,
+                    "aria-expanded": chatOpen,
+                    "aria-controls": "falcon-chat-panel",
+                  }
+                : { to: `/app/${path}` })}
+              onClick={() => {
+                setOpen(false);
+                if (path === "assistant") setChatOpen(true);
+              }}
               sx={{
                 borderRadius: "10px",
                 minHeight: 46,
@@ -369,26 +387,11 @@ function Shell() {
             <Outlet />
           </Suspense>
         </Container>
-        {section !== "Assistant" && (
-          <Button
-            component={Link}
-            to="/app/assistant"
-            variant="contained"
-            startIcon={<FeatureIcon name="spark" />}
-            sx={{
-              position: "fixed",
-              bottom: 20,
-              right: { xs: 16, md: 28 },
-              borderRadius: 20,
-              bgcolor: "primary.dark",
-              minHeight: 48,
-              boxShadow: "0 8px 24px #173e3633",
-              zIndex: 100,
-            }}
-          >
-            Ask FALCON
-          </Button>
-        )}
+        <AssistantWidget
+          open={chatOpen}
+          onOpen={() => setChatOpen(true)}
+          onClose={() => setChatOpen(false)}
+        />
       </Box>
     </Box>
   );
@@ -436,7 +439,16 @@ export const routes = [
           { path: "forecasts", element: <Forecasts /> },
           { path: "goals", element: <Goals /> },
           { path: "scenarios", element: <Scenarios /> },
-          { path: "assistant", element: <Assistant /> },
+          {
+            path: "assistant",
+            element: (
+              <Navigate
+                to="/app/overview"
+                state={{ openAssistant: true }}
+                replace
+              />
+            ),
+          },
           { path: "reports", element: <Reports /> },
           { path: "settings", element: <Settings /> },
           { path: "onboarding", element: <Onboarding /> },

@@ -113,7 +113,7 @@ test("scenario selection, verified chat retry, report download and notification 
   await expect(
     page.getByRole("heading", { name: "Baseline · Selected" }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Assistant", exact: true }).click();
+  await page.getByRole("button", { name: "Assistant", exact: true }).click();
   await page.getByRole("button", { name: "New conversation" }).click();
   await page.getByLabel("Your question").fill("Explain my forecast");
   await page.getByRole("button", { name: "Send question" }).click();
@@ -123,9 +123,13 @@ test("scenario selection, verified chat retry, report download and notification 
   await expect(page.getByText(message.answer.answer)).toBeVisible();
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBe(keys[1]);
+  await page
+    .getByText("View evidence and reliability", { exact: true })
+    .click();
   await expect(
     page.getByText("Savings forecast", { exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Minimize chat" }).click();
   await page.getByRole("link", { name: "Reports", exact: true }).click();
   await page.getByLabel("Report month").fill("2026-08");
   const downloading = page.waitForEvent("download");

@@ -60,15 +60,17 @@ test("deep links survive sign-in, passwords can be revealed and email links popu
         ? {}
         : path === "/auth/me"
           ? owner
-          : path === "/auth/login"
-            ? {
-                access_token: "synthetic",
-                token_type: "bearer",
-                expires_at: "2099-01-01T00:00:00Z",
-              }
-            : { items: [] };
+          : path.startsWith("/analytics/")
+            ? undefined
+            : path === "/auth/login"
+              ? {
+                  access_token: "synthetic",
+                  token_type: "bearer",
+                  expires_at: "2099-01-01T00:00:00Z",
+                }
+              : { items: [] };
     await route.fulfill({
-      status: path === "/auth/refresh" ? 401 : 200,
+      status: path === "/auth/refresh" ? 401 : body === undefined ? 503 : 200,
       contentType: "application/json",
       body: JSON.stringify(body),
     });
@@ -89,7 +91,7 @@ test("deep links survive sign-in, passwords can be revealed and email links popu
   await expect(password).toHaveAttribute("type", "password");
   await page.getByLabel("Email", { exact: false }).fill(owner.email);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/assistant$/);
+  await expect(page).toHaveURL(/\/app\/overview$/);
   await expect(
     page.getByRole("heading", { name: "Assistant", exact: true }),
   ).toBeVisible();
