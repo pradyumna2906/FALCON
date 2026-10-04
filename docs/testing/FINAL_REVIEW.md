@@ -39,7 +39,7 @@ from scratch.
 | 80% / 95% interval coverage | 69% / 69% | Four calibration residuals; intervals are provisional |
 | Assistant replay | 720 / 720 guardrail expectations | Deterministic replay, not live LLM accuracy |
 | Arithmetic/HiGHS replay | 1,000 / 1,000 cases | Bounded single-variable allocation oracle |
-| Performance fixture | 100,000 records | Actual feature extraction; HTTP/database throughput unmeasured |
+| Performance fixture | 100,000 records | Feature extraction plus separate isolated database/dashboard CI; HTTP import throughput unmeasured |
 
 The theoretical confidence-policy automatic precision is 97.18% on its selected
 subset, with 85.27% coverage. **This is not overall accuracy**, and synthetic
@@ -220,7 +220,7 @@ npx playwright test
 | Goals/scenarios | Solver cases, invariant/unit/database/browser checks | Review affordability and explanations for actual goals |
 | Assistant | 720 offline replay cases; API/history/privacy tests; persistent-chat browser tests | Configured provider responses, grounding and multi-turn review |
 | Reports/notifications/export/delete | Backend suites, browser download/lifecycle and release smoke CI | Actual files, background delivery and user-PC acceptance |
-| Performance | Feature benchmark, cached loading, event-loop responsiveness test | Target-PC concurrency and database/API load testing |
+| Performance | Feature benchmark, 100,000-row database/dashboard CI, cached loading, event-loop responsiveness test | Target-PC concurrency and HTTP import/API load testing |
 | Security/release | Dependency upgrades and local audits; CI deploy/restore drill | Owner approval, secrets/configuration and production operations |
 
 ## Release gates and presentation wording

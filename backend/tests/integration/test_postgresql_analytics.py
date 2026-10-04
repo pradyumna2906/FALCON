@@ -3,6 +3,8 @@
 from .verification import verify_registered_user
 
 import asyncio
+import json
+import platform
 import os
 import secrets
 from collections.abc import Iterator
@@ -57,7 +59,7 @@ from falcon_api.models.ledger import Transaction, TransferGroup
 from falcon_api.models.planning import Budget, BudgetLimit
 from falcon_api.models.user import User
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, event, update
+from sqlalchemy import delete, event, insert, update
 from sqlalchemy.exc import DBAPIError
 
 pytestmark = [
@@ -561,9 +563,10 @@ def test_authenticated_analytics_api_returns_dashboard_ready_results() -> None:
             asyncio.run(_delete_users(integration_settings(), *user_ids))
 
 
-def test_maximum_range_dashboard_meets_query_and_latency_budgets() -> None:
-    """Prove the live-only core export stays bounded at the 366-day limit."""
-    asyncio.run(_exercise_maximum_range_dashboard())
+def test_maximum_range_dashboard_meets_query_and_latency_budgets(capsys) -> None:
+    """Exercise 100,000 disposable transactions through the actual dashboard."""
+    with capsys.disabled():
+        asyncio.run(_exercise_maximum_range_dashboard())
 
 
 async def _exercise_live_aggregates() -> None:
@@ -1022,21 +1025,37 @@ async def _exercise_maximum_range_dashboard() -> None:
             session.add_all([owner, other])
         async with transaction_scope(resources.session_factory) as session:
             session.add_all([owner_account, other_account, category])
+        record_count = 100_000
+        ingestion_started = perf_counter()
         async with transaction_scope(resources.session_factory) as session:
+            # Bounded batches measure real persistence without materializing
+            # 100,000 ORM instances or bypassing PostgreSQL ownership constraints.
+            for start in range(0, record_count, 1000):
+                await session.execute(
+                    insert(Transaction.__table__),
+                    [
+                        {
+                            "id": uuid4(),
+                            "user_id": owner_id,
+                            "account_id": owner_account.id,
+                            "category_id": category.id,
+                            "transaction_type": TransactionType.EXPENSE.value,
+                            "amount": Decimal("-10"),
+                            "transaction_date": period_start
+                            + timedelta(days=index % 366),
+                            "description": f"Synthetic reporting load {index}",
+                            "merchant_name": f"Bounded Merchant {index % 50:02d}",
+                            "source_type": TransactionSourceType.MANUAL.value,
+                            "status": TransactionStatus.POSTED.value,
+                            "is_user_modified": False,
+                            "created_at": _NOW,
+                            "updated_at": _NOW,
+                        }
+                        for index in range(start, min(start + 1000, record_count))
+                    ],
+                )
             session.add_all(
                 [
-                    _transaction(
-                        owner_id,
-                        owner_account.id,
-                        amount="-10",
-                        transaction_type=TransactionType.EXPENSE,
-                        transaction_date=period_start + timedelta(days=index),
-                        category_id=category.id,
-                        merchant=f"Bounded Merchant {index % 50:02d}",
-                    )
-                    for index in range(366)
-                ]
-                + [
                     _transaction(
                         other_id,
                         other_account.id,
@@ -1049,6 +1068,7 @@ async def _exercise_maximum_range_dashboard() -> None:
                     for index in range(50)
                 ]
             )
+        ingestion_seconds = perf_counter() - ingestion_started
 
         clock = Mock()
         clock.now.return_value = _NOW
@@ -1084,18 +1104,41 @@ async def _exercise_maximum_range_dashboard() -> None:
             )
 
         assert response.context.period.day_count == 366
-        assert response.metrics.total_expense.value == Decimal("3660.0000")
-        assert response.context.completeness.eligible_transaction_count == 366
+        assert response.metrics.total_expense.value == Decimal(record_count * 10)
+        assert response.context.completeness.eligible_transaction_count == record_count
         assert len(response.series) == 13
         assert len(response.spending.merchants) == 50
         assert "must not leak" not in str(response).lower()
         assert len(observed_statements) == 5
         assert elapsed < ANALYTICS_DASHBOARD_PERFORMANCE_BUDGET_SECONDS
+        peak_rss = None
+        if platform.system() == "Linux":
+            import resource
+
+            peak_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        print(
+            "review_database_performance="
+            + json.dumps(
+                {
+                    "synthetic_transactions": record_count,
+                    "ingestion_seconds": ingestion_seconds,
+                    "ingestion_records_per_second": record_count / ingestion_seconds,
+                    "dashboard_export_seconds": elapsed,
+                    "dashboard_select_queries": len(observed_statements),
+                    "exact_total_verified": True,
+                    "owner_isolation_verified": True,
+                    "peak_process_rss_kib": peak_rss,
+                    "memory_scope": "process high-water mark includes the full integration suite",
+                    "python": platform.python_version(),
+                    "platform": platform.platform(),
+                    "scope": "isolated PostgreSQL bulk persistence and real dashboard export, not HTTP statement-import throughput",
+                },
+                sort_keys=True,
+            )
+        )
     finally:
         async with transaction_scope(resources.session_factory) as session:
-            await session.execute(
-                delete(User).where(User.id.in_((owner_id, other_id)))
-            )
+            await session.execute(delete(User).where(User.id.in_((owner_id, other_id))))
         await resources.dispose()
 
 
