@@ -23,10 +23,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     confusion_matrix,
+    accuracy_score,
     f1_score,
     precision_recall_fscore_support,
 )
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.svm import LinearSVC
 
 from falcon_api.classification.dataset import (
@@ -42,7 +43,7 @@ from falcon_api.classification.taxonomy import (
 )
 
 
-MODEL_EVALUATION_SCHEMA_VERSION = "2026.1"
+MODEL_EVALUATION_SCHEMA_VERSION = "2026.2"
 DEFAULT_RANDOM_SEED = 730_021
 ABSTAIN_LABEL = "__abstain__"
 
@@ -132,6 +133,7 @@ class CandidateEvaluation:
     """Publishable evidence for one baseline or learned candidate."""
 
     candidate: CandidateName
+    accuracy: float
     macro_f1: float
     weighted_f1: float
     top_two_accuracy: float
@@ -173,6 +175,8 @@ class ModelComparisonReport:
     selected_thresholds: ConfidenceThresholds
     production_eligible: bool
     deferred_candidates: tuple[str, ...]
+    selection_partition: str
+    validation_scores: dict[str, dict[str, float]]
 
     def to_dict(self) -> dict[str, object]:
         """Return stable JSON-compatible evidence without an estimator object."""
@@ -185,9 +189,10 @@ class ModelComparisonReport:
 
     def to_json(self) -> str:
         """Serialize evidence deterministically for review and version control."""
-        return json.dumps(
-            self.to_dict(), ensure_ascii=False, indent=2, sort_keys=True
-        ) + "\n"
+        return (
+            json.dumps(self.to_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+            + "\n"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -258,9 +263,12 @@ def group_stratified_split(
         partition: [record.record_id for record in partitions[partition]]
         for partition in ("train", "calibration", "test")
     }
-    split_id = "split_" + hashlib.sha256(
-        json.dumps(split_payload, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()[:24]
+    split_id = (
+        "split_"
+        + hashlib.sha256(
+            json.dumps(split_payload, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()[:24]
+    )
     return DatasetSplit(
         train=tuple(partitions["train"]),
         calibration=tuple(partitions["calibration"]),
@@ -276,8 +284,9 @@ def compare_classification_models(
     random_seed: int = DEFAULT_RANDOM_SEED,
     minimum_automatic_precision: float = 0.95,
     minimum_suggestion_precision: float = 0.70,
+    split: DatasetSplit | None = None,
 ) -> ModelComparisonResult:
-    """Train approved candidates and select by held-out macro-F1."""
+    """Select on validation only, then report final-test evidence."""
     _validate_precision_target(
         minimum_automatic_precision, name="minimum_automatic_precision"
     )
@@ -287,7 +296,11 @@ def compare_classification_models(
     if minimum_suggestion_precision > minimum_automatic_precision:
         raise ValueError("Suggestion precision cannot exceed automatic precision.")
 
-    split = group_stratified_split(dataset, random_seed=random_seed)
+    split = split or group_stratified_split(dataset, random_seed=random_seed)
+    if sorted(
+        record.record_id for record in (*split.train, *split.calibration, *split.test)
+    ) != sorted(record.record_id for record in dataset.records):
+        raise ValueError("Split records must exactly partition the dataset.")
     labels = tuple(item.label for item in dataset.manifest.label_counts)
     if len(labels) < 2:
         raise ValueError("Model comparison requires at least two taxonomy labels.")
@@ -301,10 +314,32 @@ def compare_classification_models(
     evaluations.append(_evaluate_keyword_baseline(split, labels))
 
     trained: dict[CandidateName, Pipeline] = {}
+    validation_scores: dict[str, dict[str, float]] = {}
+    policies: dict[CandidateName, ConfidenceThresholds] = {}
     for candidate, estimator in _candidate_estimators(random_seed):
         estimator.fit(_texts(split.train), _targets(split.train))
         trained[candidate] = estimator
         calibration_probabilities = estimator.predict_proba(_texts(split.calibration))
+        predictions = estimator.classes_[np.argmax(calibration_probabilities, axis=1)]
+        validation_scores[candidate.value] = {
+            "macro_f1": float(
+                f1_score(
+                    _targets(split.calibration),
+                    predictions,
+                    labels=labels,
+                    average="macro",
+                    zero_division=0,
+                )
+            ),
+            "accuracy": float(accuracy_score(_targets(split.calibration), predictions)),
+            "expected_calibration_error": float(
+                _expected_calibration_error(
+                    _targets(split.calibration),
+                    predictions,
+                    np.max(calibration_probabilities, axis=1),
+                )
+            ),
+        }
         thresholds = select_confidence_thresholds(
             _targets(split.calibration),
             calibration_probabilities,
@@ -312,36 +347,24 @@ def compare_classification_models(
             minimum_automatic_precision=minimum_automatic_precision,
             minimum_suggestion_precision=minimum_suggestion_precision,
         )
-        evaluations.append(
-            _evaluate_learned_candidate(
-                candidate,
-                estimator,
-                split,
-                labels,
-                thresholds,
-            )
-        )
+        policies[candidate] = thresholds
 
-    learned_evaluations = tuple(
-        item
-        for item in evaluations
-        if item.candidate
-        in {
-            CandidateName.TFIDF_LOGISTIC_REGRESSION,
-            CandidateName.TFIDF_CALIBRATED_LINEAR_SVM,
-        }
-    )
-    selected = max(
-        learned_evaluations,
-        key=lambda item: (
-            item.macro_f1,
-            -item.expected_calibration_error,
-            item.top_two_accuracy,
-            -item.mean_inference_ms,
-            -item.artifact_size_bytes,
-            item.candidate.value,
+    selected_name = max(
+        trained,
+        key=lambda name: (
+            validation_scores[name.value]["macro_f1"],
+            -validation_scores[name.value]["expected_calibration_error"],
+            name.value,
         ),
     )
+    # Freeze selection before any learned candidate sees final-test observations.
+    for candidate, estimator in trained.items():
+        evaluations.append(
+            _evaluate_learned_candidate(
+                candidate, estimator, split, labels, policies[candidate]
+            )
+        )
+    selected = next(item for item in evaluations if item.candidate == selected_name)
     if selected.thresholds is None:
         raise RuntimeError("A learned candidate must publish confidence thresholds.")
     report = ModelComparisonReport(
@@ -371,6 +394,8 @@ def compare_classification_models(
             "MiniLM deferred: compact TF-IDF candidates meet the first comparison "
             "contract without transformer latency or artifact cost.",
         ),
+        selection_partition="calibration_validation",
+        validation_scores=validation_scores,
     )
     return ModelComparisonResult(
         report=report,
@@ -469,7 +494,24 @@ def _candidate_estimators(
             CandidateName.TFIDF_CALIBRATED_LINEAR_SVM,
             Pipeline(
                 (
-                    ("tfidf", TfidfVectorizer(**vectorizer)),
+                    (
+                        "tfidf",
+                        FeatureUnion(
+                            (
+                                ("word", TfidfVectorizer(**vectorizer)),
+                                (
+                                    "character",
+                                    TfidfVectorizer(
+                                        analyzer="char_wb",
+                                        ngram_range=(3, 5),
+                                        min_df=3,
+                                        sublinear_tf=True,
+                                        max_features=60_000,
+                                    ),
+                                ),
+                            )
+                        ),
+                    ),
                     (
                         "classifier",
                         CalibratedClassifierCV(
@@ -620,14 +662,10 @@ def _build_evaluation(
         for label in safe_predictions
     ]
     category_labels = tuple(code.value for code in ClassificationCategoryCode)
-    per_category = _label_metrics(
-        category_truth, category_predictions, category_labels
-    )
+    per_category = _label_metrics(category_truth, category_predictions, category_labels)
     coverage = sum(prediction is not None for prediction in predictions) / len(truth)
     if probabilities is not None:
-        top_two = _top_two_accuracy(
-            truth, probabilities, tuple(probability_classes)
-        )
+        top_two = _top_two_accuracy(truth, probabilities, tuple(probability_classes))
         confidence_values = np.max(probabilities, axis=1)
     else:
         top_two = sum(
@@ -635,9 +673,7 @@ def _build_evaluation(
             for prediction, actual in zip(predictions, truth, strict=True)
         ) / len(truth)
         confidence_values = np.asarray(confidences, dtype=float)
-    ece = _expected_calibration_error(
-        truth, predictions, confidence_values
-    )
+    ece = _expected_calibration_error(truth, predictions, confidence_values)
     unseen_indices = [
         index for index, record in enumerate(split.test) if record.merchant_group
     ]
@@ -669,6 +705,7 @@ def _build_evaluation(
     p95_latency = _percentile(durations, 0.95) if durations else 0.0
     return CandidateEvaluation(
         candidate=candidate,
+        accuracy=round(float(accuracy_score(truth, safe_predictions)), 8),
         macro_f1=round(float(macro_f1), 8),
         weighted_f1=round(float(weighted_f1), 8),
         top_two_accuracy=round(float(top_two), 8),
@@ -755,9 +792,10 @@ def _expected_calibration_error(
         if not count:
             continue
         selected = np.flatnonzero(mask)
-        accuracy = sum(
-            predictions[position] == truth[position] for position in selected
-        ) / count
+        accuracy = (
+            sum(predictions[position] == truth[position] for position in selected)
+            / count
+        )
         confidence = float(np.mean(confidences[mask]))
         error += count / total * abs(accuracy - confidence)
     return error
@@ -778,9 +816,7 @@ def _decision_metrics(
     margin_mask = margin >= thresholds.minimum_top_two_margin
     automatic = margin_mask & (confidence >= thresholds.automatic_confidence)
     suggested = (
-        margin_mask
-        & ~automatic
-        & (confidence >= thresholds.suggestion_confidence)
+        margin_mask & ~automatic & (confidence >= thresholds.suggestion_confidence)
     )
     abstained = ~(automatic | suggested)
     auto_count = int(np.sum(automatic))
@@ -914,9 +950,7 @@ def _parent_category(subcategory: str) -> str:
 
 
 def _seeded_digest(random_seed: int, label: str, group_id: str) -> str:
-    return hashlib.sha256(
-        f"{random_seed}:{label}:{group_id}".encode()
-    ).hexdigest()
+    return hashlib.sha256(f"{random_seed}:{label}:{group_id}".encode()).hexdigest()
 
 
 def _serialized_bytes(value: object) -> bytes:
@@ -949,8 +983,7 @@ def _production_gate(
         and decisions.automatic_precision >= minimum_automatic_precision
         and thresholds is not None
         and thresholds.calibration_automatic_precision is not None
-        and thresholds.calibration_automatic_precision
-        >= minimum_automatic_precision
+        and thresholds.calibration_automatic_precision >= minimum_automatic_precision
     )
 
 

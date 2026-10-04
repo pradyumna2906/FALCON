@@ -306,3 +306,41 @@ def test_comparison_rejects_invalid_precision_targets() -> None:
             minimum_automatic_precision=0.8,
             minimum_suggestion_precision=0.9,
         )
+
+
+def test_final_test_scores_cannot_change_selected_model(monkeypatch) -> None:
+    """Even a reversed final-test ranking must leave validation selection intact."""
+    from dataclasses import replace
+    import falcon_api.classification.training as training
+
+    dataset = _training_dataset()
+    baseline = compare_classification_models(dataset, random_seed=17)
+    original = training._evaluate_learned_candidate
+
+    def reversed_test_evaluation(candidate, *args, **kwargs):
+        evidence = original(candidate, *args, **kwargs)
+        score = 0.0 if candidate == baseline.report.selected_candidate else 1.0
+        return replace(evidence, macro_f1=score, weighted_f1=score)
+
+    monkeypatch.setattr(
+        training, "_evaluate_learned_candidate", reversed_test_evaluation
+    )
+    changed = compare_classification_models(dataset, random_seed=17)
+    assert changed.report.selected_candidate == baseline.report.selected_candidate
+    assert changed.report.selection_partition == "calibration_validation"
+    assert changed.report.validation_scores == baseline.report.validation_scores
+    assert (
+        max(changed.report.evaluations, key=lambda e: e.macro_f1).candidate
+        != changed.report.selected_candidate
+    )
+
+
+def test_comparison_rejects_split_from_another_dataset() -> None:
+    from dataclasses import replace
+
+    dataset = _training_dataset()
+    split = group_stratified_split(dataset)
+    foreign_record = replace(split.test[0], record_id="rec_" + "0" * 32)
+    wrong = replace(split, test=(foreign_record, *split.test[1:]))
+    with pytest.raises(ValueError, match="exactly partition"):
+        compare_classification_models(dataset, split=wrong)

@@ -301,8 +301,8 @@ export default function Assistant({
                 }}
               >
                 <Typography variant="body2" color="text.secondary">
-                  {data.turn_count}/50 turns · Until{" "}
-                  {new Date(data.expires_at).toLocaleDateString()}
+                  {data.turn_count}/50 turns · Expires{" "}
+                  {new Date(data.expires_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Typography>
                 <ConfirmAction
                   label="Delete conversation"
