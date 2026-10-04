@@ -33,3 +33,25 @@ jobs:
         run: python scripts/check_classifier_integration.py --report ml/reports/ci_review/fastapi_integration.json
       - name: Check evidence contracts
         run: python scripts/check_review_evidence.py --reports ml/reports/ci_review
+  windows-fixtures:
+    name: Windows dataset materialization
+    runs-on: windows-2025
+    timeout-minutes: 10
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version-file: .python-version
+      - run: python -m pip install -e 'backend[dev]'
+      - name: Check newline and preservation guards
+        run: python -m pytest backend/tests/unit/test_review_datasets.py --no-cov
+      - name: Restore missing fixtures against committed Windows checkout
+        run: python scripts/build_review_datasets.py --materialize-missing
+      - name: Preserve committed dataset metadata
+        run: git diff --exit-code -- data/synthetic/review_2026_3
