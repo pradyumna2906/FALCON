@@ -96,3 +96,51 @@ def test_materialization_restores_only_missing_matching_files(tmp_path, monkeypa
     module.materialize_missing(tmp_path, "fixture")
     assert (tmp_path / "manifest.json").read_bytes() == original
     assert (tmp_path / "classification.jsonl").read_text() == "expected\n"
+
+
+def test_materialization_accepts_crlf_metadata_without_rewriting_it(
+    tmp_path, monkeypatch
+):
+    import json
+    from scripts import build_review_datasets as module
+
+    manifest = {"dataset_version": "fixture", "files": {}}
+    metadata = json.dumps({"record_count": 20}, indent=2) + "\n"
+
+    def staged_generate(root, version):
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "manifest.json").write_bytes(
+            (json.dumps(manifest, indent=2) + "\n").encode()
+        )
+        (root / "classification_manifest.json").write_bytes(metadata.encode())
+        (root / "classification.jsonl").write_bytes(b"expected\n")
+
+    monkeypatch.setattr(module, "generate", staged_generate)
+    staged_generate(tmp_path, "fixture")
+    for name in ("manifest.json", "classification_manifest.json"):
+        path = tmp_path / name
+        path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+    original = (tmp_path / "classification_manifest.json").read_bytes()
+    (tmp_path / "classification.jsonl").unlink()
+    module.materialize_missing(tmp_path, "fixture")
+    assert (tmp_path / "classification_manifest.json").read_bytes() == original
+    assert (tmp_path / "classification.jsonl").read_bytes() == b"expected\n"
+
+
+def test_materialization_still_rejects_crlf_jsonl_checksum_changes(
+    tmp_path, monkeypatch
+):
+    import json
+    import pytest
+    from scripts import build_review_datasets as module
+
+    def staged_generate(root, version):
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "manifest.json").write_text(json.dumps({"files": {}}))
+        (root / "classification.jsonl").write_bytes(b"expected\n")
+
+    monkeypatch.setattr(module, "generate", staged_generate)
+    staged_generate(tmp_path, "fixture")
+    (tmp_path / "classification.jsonl").write_bytes(b"expected\r\n")
+    with pytest.raises(ValueError, match="classification.jsonl"):
+        module.materialize_missing(tmp_path, "fixture")

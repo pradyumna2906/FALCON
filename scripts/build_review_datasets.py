@@ -445,6 +445,7 @@ def generate(root, version=VERSION):
     (root / "classification_manifest.json").write_text(
         json.dumps(dataset.manifest.to_dict(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
     for name in ("train", "calibration", "test"):
         metadata[f"classification_{name}.jsonl"] = write_jsonl(
@@ -492,7 +493,9 @@ def generate(root, version=VERSION):
         "files": metadata,
     }
     (root / "manifest.json").write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
     print(json.dumps({"output": str(root), "files": metadata}, indent=2))
 
@@ -516,8 +519,15 @@ def materialize_missing(root, version):
         # Validate everything before writing any missing file. Never replace conflicts.
         for candidate in staged.iterdir():
             existing = root / candidate.name
-            if existing.exists() and existing.read_bytes() != candidate.read_bytes():
-                raise ValueError(f"Existing fixture differs: {candidate.name}")
+            if existing.exists():
+                stored, generated = existing.read_bytes(), candidate.read_bytes()
+                if candidate.suffix == ".json":
+                    # Git may check out metadata with CRLF on Windows. Only
+                    # normalize newline encoding; keep JSONL checksum bytes exact.
+                    stored = stored.replace(b"\r\n", b"\n")
+                    generated = generated.replace(b"\r\n", b"\n")
+                if stored != generated:
+                    raise ValueError(f"Existing fixture differs: {candidate.name}")
         restored = []
         for candidate in staged.iterdir():
             existing = root / candidate.name
