@@ -1,0 +1,4786 @@
+{
+  "calibration_records": 4080,
+  "dataset_sha256": "9be681fbf742f7b1f3aeb05c227c5db4f2319292bfb23956f6c36e2d774522a7",
+  "dataset_source_kind": "synthetic",
+  "dataset_version": "2026.2-review",
+  "deferred_candidates": [
+    "Structured boosting deferred: the reference dataset does not justify additional complexity.",
+    "MiniLM deferred: compact TF-IDF candidates meet the first comparison contract without transformer latency or artifact cost."
+  ],
+  "evaluation_schema_version": "2026.1",
+  "evaluations": [
+    {
+      "accuracy": 0.02083333,
+      "artifact_sha256": "a478262d03841b852eecad15e625d91a1c1c6918a1fe142cfa89739f39e031c3",
+      "artifact_size_bytes": 868,
+      "candidate": "majority_baseline",
+      "confusion": [
+        {
+          "actual": "atm_withdrawal",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "bank_charges",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "books_supplies",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "business_income",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "cash_deposit",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "cashback",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "clothing",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "courses",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "dividend",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "electronics",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "freelance",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "fuel",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "gaming",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "groceries",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "hobbies",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "hospital_clinic",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "household_goods",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "interest",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "movies_events",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "other_expense",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "other_income",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "other_insurance",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "other_investment",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "person_transfer",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "public_transport",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "refund",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "rent",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "restaurants",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "retirement",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "salary",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "self_transfer",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "stocks",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "streaming",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "taxes",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "uncategorized",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "utilities",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        }
+      ],
+      "decisions": null,
+      "expected_calibration_error": 0.0,
+      "hyperparameters": {
+        "strategy": "most_frequent"
+      },
+      "macro_f1": 0.00085034,
+      "mean_inference_ms": 0.0,
+      "p95_inference_ms": 0.0,
+      "peak_python_inference_bytes": 0,
+      "per_category": [
+        {
+          "label": "food_dining",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 255
+        },
+        {
+          "label": "housing",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 255
+        },
+        {
+          "label": "transportation",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 425
+        },
+        {
+          "label": "shopping",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 340
+        },
+        {
+          "label": "healthcare",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 255
+        },
+        {
+          "label": "education",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 255
+        },
+        {
+          "label": "entertainment",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 340
+        },
+        {
+          "label": "financial",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 340
+        },
+        {
+          "label": "income",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 680
+        },
+        {
+          "label": "transfer",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 170
+        },
+        {
+          "label": "investment",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 425
+        },
+        {
+          "label": "cash",
+          "precision": 0.04166667,
+          "recall": 1.0,
+          "support": 170
+        },
+        {
+          "label": "other",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 170
+        }
+      ],
+      "per_subcategory": [
+        {
+          "label": "atm_withdrawal",
+          "precision": 0.02083333,
+          "recall": 1.0,
+          "support": 85
+        },
+        {
+          "label": "bank_charges",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "books_supplies",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "business_income",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "cash_deposit",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "cashback",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "clothing",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "courses",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "dividend",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "electronics",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "emi_loan_payment",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "fixed_deposit",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "food_delivery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "freelance",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "fuel",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "gaming",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "general_shopping",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "groceries",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "health_insurance",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "hobbies",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "home_maintenance",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "hospital_clinic",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "household_goods",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "interest",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "movies_events",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "mutual_fund",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "other_expense",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "other_income",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "other_insurance",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "other_investment",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "person_transfer",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "pharmacy",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "public_transport",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "refund",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "rent",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "restaurants",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "retirement",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "salary",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "self_transfer",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "stocks",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "streaming",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "taxes",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "taxi_ride_share",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "toll_parking",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "tuition_fees",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "uncategorized",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "utilities",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "vehicle_maintenance",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        }
+      ],
+      "prediction_coverage": 1.0,
+      "thresholds": null,
+      "top_two_accuracy": 0.04166667,
+      "unseen_merchant_coverage": 1.0,
+      "unseen_merchant_macro_f1": 0.00085034,
+      "weighted_f1": 0.00085034
+    },
+    {
+      "accuracy": 0.17892157,
+      "artifact_sha256": "675977827d1585022f21f72e26afec61acc727e52cc0bfe42917ddff6c8ee898",
+      "artifact_size_bytes": 4606,
+      "candidate": "keyword_rule_baseline",
+      "confusion": [
+        {
+          "actual": "atm_withdrawal",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "bank_charges",
+          "count": 40,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "bank_charges",
+          "count": 45,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "books_supplies",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "business_income",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "cash_deposit",
+          "count": 40,
+          "predicted": "cash_deposit"
+        },
+        {
+          "actual": "cash_deposit",
+          "count": 45,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "cashback",
+          "count": 80,
+          "predicted": "cashback"
+        },
+        {
+          "actual": "cashback",
+          "count": 5,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "clothing",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "courses",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "dividend",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "electronics",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 40,
+          "predicted": "emi_loan_payment"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 45,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "freelance",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "fuel",
+          "count": 80,
+          "predicted": "fuel"
+        },
+        {
+          "actual": "fuel",
+          "count": 5,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "gaming",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "groceries",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "hobbies",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "hospital_clinic",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "household_goods",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "interest",
+          "count": 80,
+          "predicted": "interest"
+        },
+        {
+          "actual": "interest",
+          "count": 5,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "movies_events",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 40,
+          "predicted": "mutual_fund"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 45,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "other_expense",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "other_income",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "other_insurance",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "other_investment",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "person_transfer",
+          "count": 85,
+          "predicted": "self_transfer"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "public_transport",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "refund",
+          "count": 80,
+          "predicted": "refund"
+        },
+        {
+          "actual": "refund",
+          "count": 5,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "rent",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "restaurants",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "retirement",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "salary",
+          "count": 40,
+          "predicted": "salary"
+        },
+        {
+          "actual": "salary",
+          "count": 45,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "self_transfer",
+          "count": 85,
+          "predicted": "self_transfer"
+        },
+        {
+          "actual": "stocks",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "streaming",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "taxes",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 40,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 45,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "uncategorized",
+          "count": 85,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "utilities",
+          "count": 40,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "utilities",
+          "count": 45,
+          "predicted": "__abstain__"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 85,
+          "predicted": "__abstain__"
+        }
+      ],
+      "decisions": null,
+      "expected_calibration_error": 0.02709559,
+      "hyperparameters": {
+        "behavior": "abstain_on_no_match_or_conflict",
+        "ruleset_version": "2026.1"
+      },
+      "macro_f1": 0.19229798,
+      "mean_inference_ms": 0.069301,
+      "p95_inference_ms": 0.115359,
+      "peak_python_inference_bytes": 260224,
+      "per_category": [
+        {
+          "label": "food_dining",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 255
+        },
+        {
+          "label": "housing",
+          "precision": 1.0,
+          "recall": 0.15686275,
+          "support": 255
+        },
+        {
+          "label": "transportation",
+          "precision": 1.0,
+          "recall": 0.18823529,
+          "support": 425
+        },
+        {
+          "label": "shopping",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 340
+        },
+        {
+          "label": "healthcare",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 255
+        },
+        {
+          "label": "education",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 255
+        },
+        {
+          "label": "entertainment",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 340
+        },
+        {
+          "label": "financial",
+          "precision": 0.66666667,
+          "recall": 0.23529412,
+          "support": 340
+        },
+        {
+          "label": "income",
+          "precision": 1.0,
+          "recall": 0.41176471,
+          "support": 680
+        },
+        {
+          "label": "transfer",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 170
+        },
+        {
+          "label": "investment",
+          "precision": 1.0,
+          "recall": 0.09411765,
+          "support": 425
+        },
+        {
+          "label": "cash",
+          "precision": 1.0,
+          "recall": 0.73529412,
+          "support": 170
+        },
+        {
+          "label": "other",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 170
+        }
+      ],
+      "per_subcategory": [
+        {
+          "label": "atm_withdrawal",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 85
+        },
+        {
+          "label": "bank_charges",
+          "precision": 0.5,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "books_supplies",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "business_income",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "cash_deposit",
+          "precision": 1.0,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "cashback",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "clothing",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "courses",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "dividend",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "electronics",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "emi_loan_payment",
+          "precision": 1.0,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "fixed_deposit",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "food_delivery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "freelance",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "fuel",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "gaming",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "general_shopping",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "groceries",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "health_insurance",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "hobbies",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "home_maintenance",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "hospital_clinic",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "household_goods",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "interest",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "movies_events",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "mutual_fund",
+          "precision": 1.0,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "other_expense",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "other_income",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "other_insurance",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "other_investment",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "person_transfer",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "pharmacy",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "public_transport",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "refund",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "rent",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "restaurants",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "retirement",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "salary",
+          "precision": 1.0,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "self_transfer",
+          "precision": 0.5,
+          "recall": 1.0,
+          "support": 85
+        },
+        {
+          "label": "stocks",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "streaming",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "taxes",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "taxi_ride_share",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "toll_parking",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "tuition_fees",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "uncategorized",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "utilities",
+          "precision": 1.0,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "vehicle_maintenance",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        }
+      ],
+      "prediction_coverage": 0.20955882,
+      "thresholds": null,
+      "top_two_accuracy": 0.17892157,
+      "unseen_merchant_coverage": 0.20955882,
+      "unseen_merchant_macro_f1": 0.19229798,
+      "weighted_f1": 0.19229798
+    },
+    {
+      "accuracy": 0.85294118,
+      "artifact_sha256": "a34d4f27efe9c4fb7bc7121c426e508cda4509db147f8500503a93b18a380b8f",
+      "artifact_size_bytes": 17217703,
+      "candidate": "tfidf_logistic_regression",
+      "confusion": [
+        {
+          "actual": "atm_withdrawal",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "bank_charges",
+          "count": 82,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "bank_charges",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "bank_charges",
+          "count": 2,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "books_supplies",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "books_supplies",
+          "count": 80,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "books_supplies",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "books_supplies",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "business_income",
+          "count": 81,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "business_income",
+          "count": 1,
+          "predicted": "interest"
+        },
+        {
+          "actual": "business_income",
+          "count": 2,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "business_income",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "cash_deposit",
+          "count": 85,
+          "predicted": "cash_deposit"
+        },
+        {
+          "actual": "cashback",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "cashback",
+          "count": 80,
+          "predicted": "cashback"
+        },
+        {
+          "actual": "cashback",
+          "count": 2,
+          "predicted": "dividend"
+        },
+        {
+          "actual": "cashback",
+          "count": 1,
+          "predicted": "interest"
+        },
+        {
+          "actual": "cashback",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "clothing",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "clothing",
+          "count": 79,
+          "predicted": "clothing"
+        },
+        {
+          "actual": "clothing",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "clothing",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "clothing",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "clothing",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "courses",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "courses",
+          "count": 76,
+          "predicted": "courses"
+        },
+        {
+          "actual": "courses",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "courses",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "courses",
+          "count": 2,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "courses",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "courses",
+          "count": 2,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "dividend",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "dividend",
+          "count": 81,
+          "predicted": "dividend"
+        },
+        {
+          "actual": "dividend",
+          "count": 1,
+          "predicted": "interest"
+        },
+        {
+          "actual": "dividend",
+          "count": 1,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "dividend",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "electronics",
+          "count": 17,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "electronics",
+          "count": 7,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "electronics",
+          "count": 7,
+          "predicted": "courses"
+        },
+        {
+          "actual": "electronics",
+          "count": 3,
+          "predicted": "food_delivery"
+        },
+        {
+          "actual": "electronics",
+          "count": 4,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "electronics",
+          "count": 3,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "electronics",
+          "count": 1,
+          "predicted": "hospital_clinic"
+        },
+        {
+          "actual": "electronics",
+          "count": 2,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "electronics",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "electronics",
+          "count": 1,
+          "predicted": "other_investment"
+        },
+        {
+          "actual": "electronics",
+          "count": 2,
+          "predicted": "pharmacy"
+        },
+        {
+          "actual": "electronics",
+          "count": 9,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "electronics",
+          "count": 2,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "electronics",
+          "count": 11,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "electronics",
+          "count": 5,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "electronics",
+          "count": 10,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 80,
+          "predicted": "emi_loan_payment"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 1,
+          "predicted": "pharmacy"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 60,
+          "predicted": "fixed_deposit"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 1,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 9,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 12,
+          "predicted": "other_investment"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 2,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 69,
+          "predicted": "food_delivery"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 6,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 4,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "freelance",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "freelance",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "freelance",
+          "count": 1,
+          "predicted": "dividend"
+        },
+        {
+          "actual": "freelance",
+          "count": 71,
+          "predicted": "freelance"
+        },
+        {
+          "actual": "freelance",
+          "count": 1,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "freelance",
+          "count": 2,
+          "predicted": "refund"
+        },
+        {
+          "actual": "freelance",
+          "count": 8,
+          "predicted": "tuition_fees"
+        },
+        {
+          "actual": "fuel",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "fuel",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "fuel",
+          "count": 80,
+          "predicted": "fuel"
+        },
+        {
+          "actual": "fuel",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "fuel",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "fuel",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "gaming",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "gaming",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "gaming",
+          "count": 80,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "gaming",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "gaming",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "gaming",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 1,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 80,
+          "predicted": "general_shopping"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 1,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "groceries",
+          "count": 10,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "groceries",
+          "count": 3,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "groceries",
+          "count": 3,
+          "predicted": "courses"
+        },
+        {
+          "actual": "groceries",
+          "count": 2,
+          "predicted": "food_delivery"
+        },
+        {
+          "actual": "groceries",
+          "count": 1,
+          "predicted": "general_shopping"
+        },
+        {
+          "actual": "groceries",
+          "count": 40,
+          "predicted": "groceries"
+        },
+        {
+          "actual": "groceries",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "groceries",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "groceries",
+          "count": 2,
+          "predicted": "pharmacy"
+        },
+        {
+          "actual": "groceries",
+          "count": 4,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "groceries",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "groceries",
+          "count": 5,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "groceries",
+          "count": 4,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "groceries",
+          "count": 8,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 40,
+          "predicted": "health_insurance"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 40,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "hobbies",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "hobbies",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "hobbies",
+          "count": 80,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "hobbies",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "hobbies",
+          "count": 1,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 11,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 3,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 1,
+          "predicted": "electronics"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 3,
+          "predicted": "food_delivery"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 3,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 2,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 37,
+          "predicted": "home_maintenance"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 2,
+          "predicted": "hospital_clinic"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 1,
+          "predicted": "household_goods"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 1,
+          "predicted": "pharmacy"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 3,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 1,
+          "predicted": "stocks"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 6,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 3,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 8,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "hospital_clinic",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "hospital_clinic",
+          "count": 1,
+          "predicted": "emi_loan_payment"
+        },
+        {
+          "actual": "hospital_clinic",
+          "count": 81,
+          "predicted": "hospital_clinic"
+        },
+        {
+          "actual": "household_goods",
+          "count": 6,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "household_goods",
+          "count": 5,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "household_goods",
+          "count": 3,
+          "predicted": "courses"
+        },
+        {
+          "actual": "household_goods",
+          "count": 2,
+          "predicted": "food_delivery"
+        },
+        {
+          "actual": "household_goods",
+          "count": 2,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "household_goods",
+          "count": 3,
+          "predicted": "general_shopping"
+        },
+        {
+          "actual": "household_goods",
+          "count": 3,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "household_goods",
+          "count": 40,
+          "predicted": "household_goods"
+        },
+        {
+          "actual": "household_goods",
+          "count": 2,
+          "predicted": "pharmacy"
+        },
+        {
+          "actual": "household_goods",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "household_goods",
+          "count": 3,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "household_goods",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "household_goods",
+          "count": 6,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "household_goods",
+          "count": 2,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "household_goods",
+          "count": 6,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "interest",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "interest",
+          "count": 1,
+          "predicted": "cashback"
+        },
+        {
+          "actual": "interest",
+          "count": 1,
+          "predicted": "dividend"
+        },
+        {
+          "actual": "interest",
+          "count": 80,
+          "predicted": "interest"
+        },
+        {
+          "actual": "interest",
+          "count": 1,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "interest",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "movies_events",
+          "count": 4,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "movies_events",
+          "count": 80,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "movies_events",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 80,
+          "predicted": "mutual_fund"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "other_expense",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "other_expense",
+          "count": 1,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "other_expense",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "other_expense",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "other_expense",
+          "count": 80,
+          "predicted": "other_expense"
+        },
+        {
+          "actual": "other_expense",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "other_income",
+          "count": 2,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "other_income",
+          "count": 1,
+          "predicted": "dividend"
+        },
+        {
+          "actual": "other_income",
+          "count": 80,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "other_income",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "other_income",
+          "count": 1,
+          "predicted": "salary"
+        },
+        {
+          "actual": "other_insurance",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "other_insurance",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "other_insurance",
+          "count": 80,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "other_insurance",
+          "count": 2,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "other_investment",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "other_investment",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "other_investment",
+          "count": 81,
+          "predicted": "other_investment"
+        },
+        {
+          "actual": "other_investment",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "other_investment",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "person_transfer",
+          "count": 82,
+          "predicted": "person_transfer"
+        },
+        {
+          "actual": "person_transfer",
+          "count": 3,
+          "predicted": "self_transfer"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 80,
+          "predicted": "pharmacy"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "public_transport",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "public_transport",
+          "count": 1,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "public_transport",
+          "count": 1,
+          "predicted": "hospital_clinic"
+        },
+        {
+          "actual": "public_transport",
+          "count": 2,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "public_transport",
+          "count": 80,
+          "predicted": "public_transport"
+        },
+        {
+          "actual": "refund",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "refund",
+          "count": 1,
+          "predicted": "cashback"
+        },
+        {
+          "actual": "refund",
+          "count": 1,
+          "predicted": "dividend"
+        },
+        {
+          "actual": "refund",
+          "count": 1,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "refund",
+          "count": 81,
+          "predicted": "refund"
+        },
+        {
+          "actual": "rent",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "rent",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "rent",
+          "count": 36,
+          "predicted": "emi_loan_payment"
+        },
+        {
+          "actual": "rent",
+          "count": 1,
+          "predicted": "food_delivery"
+        },
+        {
+          "actual": "rent",
+          "count": 1,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "rent",
+          "count": 30,
+          "predicted": "rent"
+        },
+        {
+          "actual": "rent",
+          "count": 4,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "rent",
+          "count": 7,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "rent",
+          "count": 2,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "rent",
+          "count": 2,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "restaurants",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "restaurants",
+          "count": 2,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "restaurants",
+          "count": 49,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "restaurants",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "restaurants",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "restaurants",
+          "count": 31,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "retirement",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "retirement",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "retirement",
+          "count": 80,
+          "predicted": "retirement"
+        },
+        {
+          "actual": "retirement",
+          "count": 2,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "retirement",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "salary",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "salary",
+          "count": 1,
+          "predicted": "dividend"
+        },
+        {
+          "actual": "salary",
+          "count": 2,
+          "predicted": "interest"
+        },
+        {
+          "actual": "salary",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "salary",
+          "count": 80,
+          "predicted": "salary"
+        },
+        {
+          "actual": "self_transfer",
+          "count": 2,
+          "predicted": "person_transfer"
+        },
+        {
+          "actual": "self_transfer",
+          "count": 83,
+          "predicted": "self_transfer"
+        },
+        {
+          "actual": "stocks",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "stocks",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "stocks",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "stocks",
+          "count": 80,
+          "predicted": "stocks"
+        },
+        {
+          "actual": "stocks",
+          "count": 1,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "streaming",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "streaming",
+          "count": 80,
+          "predicted": "streaming"
+        },
+        {
+          "actual": "streaming",
+          "count": 2,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "streaming",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "streaming",
+          "count": 1,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "taxes",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "taxes",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "taxes",
+          "count": 81,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "taxes",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "taxes",
+          "count": 1,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 1,
+          "predicted": "pharmacy"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 80,
+          "predicted": "taxi_ride_share"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 2,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 80,
+          "predicted": "toll_parking"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 1,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 2,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 80,
+          "predicted": "tuition_fees"
+        },
+        {
+          "actual": "uncategorized",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "uncategorized",
+          "count": 2,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "uncategorized",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "uncategorized",
+          "count": 80,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "utilities",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "utilities",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "utilities",
+          "count": 2,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "utilities",
+          "count": 80,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "utilities",
+          "count": 1,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 1,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 15,
+          "predicted": "home_maintenance"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 1,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 66,
+          "predicted": "vehicle_maintenance"
+        }
+      ],
+      "decisions": {
+        "abstained_count": 606,
+        "abstention_rate": 0.14852941,
+        "automatic_count": 3028,
+        "automatic_coverage": 0.74215686,
+        "automatic_precision": 0.9824967,
+        "suggested_count": 446,
+        "suggestion_coverage": 0.10931373,
+        "suggestion_precision": 0.8206278
+      },
+      "expected_calibration_error": 0.1650513,
+      "hyperparameters": {
+        "classifier": "LogisticRegression(C=4.0, class_weight='balanced', max_iter=2000,\n                   random_state=20261004)",
+        "classifier__C": 4.0,
+        "classifier__class_weight": "balanced",
+        "classifier__dual": false,
+        "classifier__fit_intercept": true,
+        "classifier__intercept_scaling": 1,
+        "classifier__l1_ratio": 0.0,
+        "classifier__max_iter": 2000,
+        "classifier__n_jobs": null,
+        "classifier__penalty": "deprecated",
+        "classifier__random_state": 20261004,
+        "classifier__solver": "lbfgs",
+        "classifier__tol": 0.0001,
+        "classifier__verbose": 0,
+        "classifier__warm_start": false,
+        "memory": null,
+        "steps": "[('tfidf', TfidfVectorizer(max_features=40000, ngram_range=(1, 2), strip_accents='unicode',\n                sublinear_tf=True)), ('classifier', LogisticRegression(C=4.0, class_weight='balanced', max_iter=2000,\n                   random_state=20261004))]",
+        "tfidf": "TfidfVectorizer(max_features=40000, ngram_range=(1, 2), strip_accents='unicode',\n                sublinear_tf=True)",
+        "tfidf__analyzer": "word",
+        "tfidf__binary": false,
+        "tfidf__decode_error": "strict",
+        "tfidf__dtype": "<class 'numpy.float64'>",
+        "tfidf__encoding": "utf-8",
+        "tfidf__input": "content",
+        "tfidf__lowercase": true,
+        "tfidf__max_df": 1.0,
+        "tfidf__max_features": 40000,
+        "tfidf__min_df": 1,
+        "tfidf__ngram_range": [
+          1,
+          2
+        ],
+        "tfidf__norm": "l2",
+        "tfidf__preprocessor": null,
+        "tfidf__smooth_idf": true,
+        "tfidf__stop_words": null,
+        "tfidf__strip_accents": "unicode",
+        "tfidf__sublinear_tf": true,
+        "tfidf__token_pattern": "(?u)\\b\\w\\w+\\b",
+        "tfidf__tokenizer": null,
+        "tfidf__use_idf": true,
+        "tfidf__vocabulary": null,
+        "transform_input": null,
+        "verbose": false
+      },
+      "macro_f1": 0.84303388,
+      "mean_inference_ms": 4.164041,
+      "p95_inference_ms": 7.626268,
+      "peak_python_inference_bytes": 19105376,
+      "per_category": [
+        {
+          "label": "food_dining",
+          "precision": 0.87628866,
+          "recall": 0.66666667,
+          "support": 255
+        },
+        {
+          "label": "housing",
+          "precision": 0.7755102,
+          "recall": 0.59607843,
+          "support": 255
+        },
+        {
+          "label": "transportation",
+          "precision": 0.8336933,
+          "recall": 0.90823529,
+          "support": 425
+        },
+        {
+          "label": "shopping",
+          "precision": 0.98536585,
+          "recall": 0.59411765,
+          "support": 340
+        },
+        {
+          "label": "healthcare",
+          "precision": 0.93925234,
+          "recall": 0.78823529,
+          "support": 255
+        },
+        {
+          "label": "education",
+          "precision": 0.81099656,
+          "recall": 0.9254902,
+          "support": 255
+        },
+        {
+          "label": "entertainment",
+          "precision": 0.84031414,
+          "recall": 0.94411765,
+          "support": 340
+        },
+        {
+          "label": "financial",
+          "precision": 0.63068182,
+          "recall": 0.97941176,
+          "support": 340
+        },
+        {
+          "label": "income",
+          "precision": 0.9985119,
+          "recall": 0.98676471,
+          "support": 680
+        },
+        {
+          "label": "transfer",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 170
+        },
+        {
+          "label": "investment",
+          "precision": 0.99493671,
+          "recall": 0.92470588,
+          "support": 425
+        },
+        {
+          "label": "cash",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 170
+        },
+        {
+          "label": "other",
+          "precision": 0.8,
+          "recall": 0.94117647,
+          "support": 170
+        }
+      ],
+      "per_subcategory": [
+        {
+          "label": "atm_withdrawal",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 85
+        },
+        {
+          "label": "bank_charges",
+          "precision": 0.47674419,
+          "recall": 0.96470588,
+          "support": 85
+        },
+        {
+          "label": "books_supplies",
+          "precision": 0.79207921,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "business_income",
+          "precision": 0.91011236,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "cash_deposit",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 85
+        },
+        {
+          "label": "cashback",
+          "precision": 0.97560976,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "clothing",
+          "precision": 1.0,
+          "recall": 0.92941176,
+          "support": 85
+        },
+        {
+          "label": "courses",
+          "precision": 0.74509804,
+          "recall": 0.89411765,
+          "support": 85
+        },
+        {
+          "label": "dividend",
+          "precision": 0.92045455,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "electronics",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "emi_loan_payment",
+          "precision": 0.68376068,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "fixed_deposit",
+          "precision": 1.0,
+          "recall": 0.70588235,
+          "support": 85
+        },
+        {
+          "label": "food_delivery",
+          "precision": 0.8625,
+          "recall": 0.81176471,
+          "support": 85
+        },
+        {
+          "label": "freelance",
+          "precision": 1.0,
+          "recall": 0.83529412,
+          "support": 85
+        },
+        {
+          "label": "fuel",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "gaming",
+          "precision": 0.86956522,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "general_shopping",
+          "precision": 0.95238095,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "groceries",
+          "precision": 1.0,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "health_insurance",
+          "precision": 1.0,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "hobbies",
+          "precision": 0.73394495,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "home_maintenance",
+          "precision": 0.71153846,
+          "recall": 0.43529412,
+          "support": 85
+        },
+        {
+          "label": "hospital_clinic",
+          "precision": 0.95294118,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "household_goods",
+          "precision": 0.97560976,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "interest",
+          "precision": 0.94117647,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "movies_events",
+          "precision": 0.79207921,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "mutual_fund",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "other_expense",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "other_income",
+          "precision": 0.93023256,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "other_insurance",
+          "precision": 0.64516129,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "other_investment",
+          "precision": 0.86170213,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "person_transfer",
+          "precision": 0.97619048,
+          "recall": 0.96470588,
+          "support": 85
+        },
+        {
+          "label": "pharmacy",
+          "precision": 0.8988764,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "public_transport",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "refund",
+          "precision": 0.9,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "rent",
+          "precision": 1.0,
+          "recall": 0.35294118,
+          "support": 85
+        },
+        {
+          "label": "restaurants",
+          "precision": 0.66216216,
+          "recall": 0.57647059,
+          "support": 85
+        },
+        {
+          "label": "retirement",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "salary",
+          "precision": 0.98765432,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "self_transfer",
+          "precision": 0.96511628,
+          "recall": 0.97647059,
+          "support": 85
+        },
+        {
+          "label": "stocks",
+          "precision": 0.98765432,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "streaming",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "taxes",
+          "precision": 0.70434783,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "taxi_ride_share",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "toll_parking",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "tuition_fees",
+          "precision": 0.90909091,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "uncategorized",
+          "precision": 0.66666667,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "utilities",
+          "precision": 0.70175439,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "vehicle_maintenance",
+          "precision": 0.46153846,
+          "recall": 0.77647059,
+          "support": 85
+        }
+      ],
+      "prediction_coverage": 1.0,
+      "thresholds": {
+        "automatic_confidence": 0.4,
+        "calibration_automatic_coverage": 0.7661764705882353,
+        "calibration_automatic_precision": 0.980806142034549,
+        "calibration_suggestion_coverage": 0.866421568627451,
+        "calibration_suggestion_precision": 0.9606789250353607,
+        "minimum_top_two_margin": 0.0,
+        "suggestion_confidence": 0.2
+      },
+      "top_two_accuracy": 0.89264706,
+      "unseen_merchant_coverage": 1.0,
+      "unseen_merchant_macro_f1": 0.84303388,
+      "weighted_f1": 0.84303388
+    },
+    {
+      "accuracy": 0.85661765,
+      "artifact_sha256": "a202492e2b11a8ce5a963dac08d095eb779571941706703229b56772393de7d0",
+      "artifact_size_bytes": 47959715,
+      "candidate": "tfidf_calibrated_linear_svm",
+      "confusion": [
+        {
+          "actual": "atm_withdrawal",
+          "count": 85,
+          "predicted": "atm_withdrawal"
+        },
+        {
+          "actual": "bank_charges",
+          "count": 83,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "bank_charges",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "bank_charges",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "books_supplies",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "books_supplies",
+          "count": 80,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "books_supplies",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "books_supplies",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "business_income",
+          "count": 81,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "business_income",
+          "count": 1,
+          "predicted": "interest"
+        },
+        {
+          "actual": "business_income",
+          "count": 2,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "business_income",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "cash_deposit",
+          "count": 85,
+          "predicted": "cash_deposit"
+        },
+        {
+          "actual": "cashback",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "cashback",
+          "count": 80,
+          "predicted": "cashback"
+        },
+        {
+          "actual": "cashback",
+          "count": 1,
+          "predicted": "dividend"
+        },
+        {
+          "actual": "cashback",
+          "count": 2,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "cashback",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "clothing",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "clothing",
+          "count": 80,
+          "predicted": "clothing"
+        },
+        {
+          "actual": "clothing",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "clothing",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "clothing",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "courses",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "courses",
+          "count": 80,
+          "predicted": "courses"
+        },
+        {
+          "actual": "courses",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "courses",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "dividend",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "dividend",
+          "count": 81,
+          "predicted": "dividend"
+        },
+        {
+          "actual": "dividend",
+          "count": 2,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "dividend",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "electronics",
+          "count": 42,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "electronics",
+          "count": 2,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "electronics",
+          "count": 3,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "electronics",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "electronics",
+          "count": 4,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "electronics",
+          "count": 10,
+          "predicted": "refund"
+        },
+        {
+          "actual": "electronics",
+          "count": 3,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "electronics",
+          "count": 3,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "electronics",
+          "count": 17,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 80,
+          "predicted": "emi_loan_payment"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "emi_loan_payment",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 56,
+          "predicted": "fixed_deposit"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 1,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 9,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 16,
+          "predicted": "other_investment"
+        },
+        {
+          "actual": "fixed_deposit",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 80,
+          "predicted": "food_delivery"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "food_delivery",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "freelance",
+          "count": 2,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "freelance",
+          "count": 80,
+          "predicted": "freelance"
+        },
+        {
+          "actual": "freelance",
+          "count": 2,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "freelance",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "fuel",
+          "count": 4,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "fuel",
+          "count": 80,
+          "predicted": "fuel"
+        },
+        {
+          "actual": "fuel",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "gaming",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "gaming",
+          "count": 80,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "gaming",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "gaming",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 1,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 80,
+          "predicted": "general_shopping"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "general_shopping",
+          "count": 1,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "groceries",
+          "count": 20,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "groceries",
+          "count": 3,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "groceries",
+          "count": 1,
+          "predicted": "courses"
+        },
+        {
+          "actual": "groceries",
+          "count": 3,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "groceries",
+          "count": 40,
+          "predicted": "groceries"
+        },
+        {
+          "actual": "groceries",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "groceries",
+          "count": 5,
+          "predicted": "refund"
+        },
+        {
+          "actual": "groceries",
+          "count": 2,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "groceries",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "groceries",
+          "count": 9,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 40,
+          "predicted": "health_insurance"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 41,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "health_insurance",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "hobbies",
+          "count": 4,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "hobbies",
+          "count": 80,
+          "predicted": "hobbies"
+        },
+        {
+          "actual": "hobbies",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 21,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 3,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 2,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 35,
+          "predicted": "home_maintenance"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 6,
+          "predicted": "refund"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 2,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 9,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "home_maintenance",
+          "count": 5,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "hospital_clinic",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "hospital_clinic",
+          "count": 80,
+          "predicted": "hospital_clinic"
+        },
+        {
+          "actual": "hospital_clinic",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "hospital_clinic",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "hospital_clinic",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "household_goods",
+          "count": 17,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "household_goods",
+          "count": 9,
+          "predicted": "books_supplies"
+        },
+        {
+          "actual": "household_goods",
+          "count": 2,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "household_goods",
+          "count": 40,
+          "predicted": "household_goods"
+        },
+        {
+          "actual": "household_goods",
+          "count": 3,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "household_goods",
+          "count": 4,
+          "predicted": "refund"
+        },
+        {
+          "actual": "household_goods",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "household_goods",
+          "count": 9,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "interest",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "interest",
+          "count": 1,
+          "predicted": "freelance"
+        },
+        {
+          "actual": "interest",
+          "count": 80,
+          "predicted": "interest"
+        },
+        {
+          "actual": "interest",
+          "count": 3,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "movies_events",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "movies_events",
+          "count": 80,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "movies_events",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "movies_events",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 80,
+          "predicted": "mutual_fund"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "mutual_fund",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "other_expense",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "other_expense",
+          "count": 80,
+          "predicted": "other_expense"
+        },
+        {
+          "actual": "other_expense",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "other_expense",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "other_income",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "other_income",
+          "count": 1,
+          "predicted": "freelance"
+        },
+        {
+          "actual": "other_income",
+          "count": 1,
+          "predicted": "interest"
+        },
+        {
+          "actual": "other_income",
+          "count": 81,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "other_income",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "other_insurance",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "other_insurance",
+          "count": 81,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "other_insurance",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "other_investment",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "other_investment",
+          "count": 1,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "other_investment",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "other_investment",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "other_investment",
+          "count": 80,
+          "predicted": "other_investment"
+        },
+        {
+          "actual": "person_transfer",
+          "count": 84,
+          "predicted": "person_transfer"
+        },
+        {
+          "actual": "person_transfer",
+          "count": 1,
+          "predicted": "self_transfer"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 2,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 80,
+          "predicted": "pharmacy"
+        },
+        {
+          "actual": "pharmacy",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "public_transport",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "public_transport",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "public_transport",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "public_transport",
+          "count": 80,
+          "predicted": "public_transport"
+        },
+        {
+          "actual": "public_transport",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "refund",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "refund",
+          "count": 1,
+          "predicted": "freelance"
+        },
+        {
+          "actual": "refund",
+          "count": 3,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "refund",
+          "count": 80,
+          "predicted": "refund"
+        },
+        {
+          "actual": "rent",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "rent",
+          "count": 40,
+          "predicted": "emi_loan_payment"
+        },
+        {
+          "actual": "rent",
+          "count": 1,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "rent",
+          "count": 24,
+          "predicted": "mutual_fund"
+        },
+        {
+          "actual": "rent",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "rent",
+          "count": 5,
+          "predicted": "rent"
+        },
+        {
+          "actual": "rent",
+          "count": 4,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "rent",
+          "count": 8,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "restaurants",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "restaurants",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "restaurants",
+          "count": 72,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "restaurants",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "restaurants",
+          "count": 8,
+          "predicted": "vehicle_maintenance"
+        },
+        {
+          "actual": "retirement",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "retirement",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "retirement",
+          "count": 80,
+          "predicted": "retirement"
+        },
+        {
+          "actual": "retirement",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "salary",
+          "count": 1,
+          "predicted": "business_income"
+        },
+        {
+          "actual": "salary",
+          "count": 1,
+          "predicted": "dividend"
+        },
+        {
+          "actual": "salary",
+          "count": 1,
+          "predicted": "interest"
+        },
+        {
+          "actual": "salary",
+          "count": 1,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "salary",
+          "count": 1,
+          "predicted": "refund"
+        },
+        {
+          "actual": "salary",
+          "count": 80,
+          "predicted": "salary"
+        },
+        {
+          "actual": "self_transfer",
+          "count": 4,
+          "predicted": "person_transfer"
+        },
+        {
+          "actual": "self_transfer",
+          "count": 81,
+          "predicted": "self_transfer"
+        },
+        {
+          "actual": "stocks",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "stocks",
+          "count": 1,
+          "predicted": "other_income"
+        },
+        {
+          "actual": "stocks",
+          "count": 80,
+          "predicted": "stocks"
+        },
+        {
+          "actual": "stocks",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "streaming",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "streaming",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "streaming",
+          "count": 80,
+          "predicted": "streaming"
+        },
+        {
+          "actual": "streaming",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "streaming",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "taxes",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "taxes",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "taxes",
+          "count": 80,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "taxes",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 1,
+          "predicted": "restaurants"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 80,
+          "predicted": "taxi_ride_share"
+        },
+        {
+          "actual": "taxi_ride_share",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 1,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 1,
+          "predicted": "movies_events"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 1,
+          "predicted": "taxes"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 80,
+          "predicted": "toll_parking"
+        },
+        {
+          "actual": "toll_parking",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 80,
+          "predicted": "tuition_fees"
+        },
+        {
+          "actual": "tuition_fees",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "uncategorized",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "uncategorized",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "uncategorized",
+          "count": 81,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "utilities",
+          "count": 2,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "utilities",
+          "count": 1,
+          "predicted": "gaming"
+        },
+        {
+          "actual": "utilities",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "utilities",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "utilities",
+          "count": 80,
+          "predicted": "utilities"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 3,
+          "predicted": "bank_charges"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 16,
+          "predicted": "home_maintenance"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 1,
+          "predicted": "other_insurance"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 1,
+          "predicted": "uncategorized"
+        },
+        {
+          "actual": "vehicle_maintenance",
+          "count": 64,
+          "predicted": "vehicle_maintenance"
+        }
+      ],
+      "decisions": {
+        "abstained_count": 351,
+        "abstention_rate": 0.08602941,
+        "automatic_count": 3561,
+        "automatic_coverage": 0.87279412,
+        "automatic_precision": 0.96040438,
+        "suggested_count": 168,
+        "suggestion_coverage": 0.04117647,
+        "suggestion_precision": 0.39285714
+      },
+      "expected_calibration_error": 0.0971474,
+      "hyperparameters": {
+        "classifier": "CalibratedClassifierCV(cv=3,\n                       estimator=LinearSVC(class_weight='balanced',\n                                           random_state=20261004))",
+        "classifier__cv": 3,
+        "classifier__ensemble": "auto",
+        "classifier__estimator": "LinearSVC(class_weight='balanced', random_state=20261004)",
+        "classifier__estimator__C": 1.0,
+        "classifier__estimator__class_weight": "balanced",
+        "classifier__estimator__dual": "auto",
+        "classifier__estimator__fit_intercept": true,
+        "classifier__estimator__intercept_scaling": 1,
+        "classifier__estimator__loss": "squared_hinge",
+        "classifier__estimator__max_iter": 1000,
+        "classifier__estimator__multi_class": "ovr",
+        "classifier__estimator__penalty": "l2",
+        "classifier__estimator__random_state": 20261004,
+        "classifier__estimator__tol": 0.0001,
+        "classifier__estimator__verbose": 0,
+        "classifier__method": "sigmoid",
+        "classifier__n_jobs": null,
+        "memory": null,
+        "steps": "[('tfidf', TfidfVectorizer(max_features=40000, ngram_range=(1, 2), strip_accents='unicode',\n                sublinear_tf=True)), ('classifier', CalibratedClassifierCV(cv=3,\n                       estimator=LinearSVC(class_weight='balanced',\n                                           random_state=20261004)))]",
+        "tfidf": "TfidfVectorizer(max_features=40000, ngram_range=(1, 2), strip_accents='unicode',\n                sublinear_tf=True)",
+        "tfidf__analyzer": "word",
+        "tfidf__binary": false,
+        "tfidf__decode_error": "strict",
+        "tfidf__dtype": "<class 'numpy.float64'>",
+        "tfidf__encoding": "utf-8",
+        "tfidf__input": "content",
+        "tfidf__lowercase": true,
+        "tfidf__max_df": 1.0,
+        "tfidf__max_features": 40000,
+        "tfidf__min_df": 1,
+        "tfidf__ngram_range": [
+          1,
+          2
+        ],
+        "tfidf__norm": "l2",
+        "tfidf__preprocessor": null,
+        "tfidf__smooth_idf": true,
+        "tfidf__stop_words": null,
+        "tfidf__strip_accents": "unicode",
+        "tfidf__sublinear_tf": true,
+        "tfidf__token_pattern": "(?u)\\b\\w\\w+\\b",
+        "tfidf__tokenizer": null,
+        "tfidf__use_idf": true,
+        "tfidf__vocabulary": null,
+        "transform_input": null,
+        "verbose": false
+      },
+      "macro_f1": 0.84841555,
+      "mean_inference_ms": 24.209031,
+      "p95_inference_ms": 32.696102,
+      "peak_python_inference_bytes": 3698299,
+      "per_category": [
+        {
+          "label": "food_dining",
+          "precision": 0.97,
+          "recall": 0.76078431,
+          "support": 255
+        },
+        {
+          "label": "housing",
+          "precision": 0.88235294,
+          "recall": 0.47058824,
+          "support": 255
+        },
+        {
+          "label": "transportation",
+          "precision": 0.96482412,
+          "recall": 0.90352941,
+          "support": 425
+        },
+        {
+          "label": "shopping",
+          "precision": 1.0,
+          "recall": 0.58823529,
+          "support": 340
+        },
+        {
+          "label": "healthcare",
+          "precision": 1.0,
+          "recall": 0.78431373,
+          "support": 255
+        },
+        {
+          "label": "education",
+          "precision": 0.92664093,
+          "recall": 0.94117647,
+          "support": 255
+        },
+        {
+          "label": "entertainment",
+          "precision": 0.91428571,
+          "recall": 0.94117647,
+          "support": 340
+        },
+        {
+          "label": "financial",
+          "precision": 0.52755906,
+          "recall": 0.98529412,
+          "support": 340
+        },
+        {
+          "label": "income",
+          "precision": 0.9631728,
+          "recall": 1.0,
+          "support": 680
+        },
+        {
+          "label": "transfer",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 170
+        },
+        {
+          "label": "investment",
+          "precision": 0.94230769,
+          "recall": 0.92235294,
+          "support": 425
+        },
+        {
+          "label": "cash",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 170
+        },
+        {
+          "label": "other",
+          "precision": 0.675,
+          "recall": 0.95294118,
+          "support": 170
+        }
+      ],
+      "per_subcategory": [
+        {
+          "label": "atm_withdrawal",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 85
+        },
+        {
+          "label": "bank_charges",
+          "precision": 0.31558935,
+          "recall": 0.97647059,
+          "support": 85
+        },
+        {
+          "label": "books_supplies",
+          "precision": 0.81632653,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "business_income",
+          "precision": 0.91011236,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "cash_deposit",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 85
+        },
+        {
+          "label": "cashback",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "clothing",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "courses",
+          "precision": 0.98765432,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "dividend",
+          "precision": 0.97590361,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "electronics",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 85
+        },
+        {
+          "label": "emi_loan_payment",
+          "precision": 0.66666667,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "fixed_deposit",
+          "precision": 1.0,
+          "recall": 0.65882353,
+          "support": 85
+        },
+        {
+          "label": "food_delivery",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "freelance",
+          "precision": 0.96385542,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "fuel",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "gaming",
+          "precision": 0.85106383,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "general_shopping",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "groceries",
+          "precision": 1.0,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "health_insurance",
+          "precision": 1.0,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "hobbies",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "home_maintenance",
+          "precision": 0.68627451,
+          "recall": 0.41176471,
+          "support": 85
+        },
+        {
+          "label": "hospital_clinic",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "household_goods",
+          "precision": 1.0,
+          "recall": 0.47058824,
+          "support": 85
+        },
+        {
+          "label": "interest",
+          "precision": 0.96385542,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "movies_events",
+          "precision": 0.83333333,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "mutual_fund",
+          "precision": 0.76923077,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "other_expense",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "other_income",
+          "precision": 0.83505155,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "other_insurance",
+          "precision": 0.51592357,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "other_investment",
+          "precision": 0.83333333,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "person_transfer",
+          "precision": 0.95454545,
+          "recall": 0.98823529,
+          "support": 85
+        },
+        {
+          "label": "pharmacy",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "public_transport",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "refund",
+          "precision": 0.72072072,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "rent",
+          "precision": 1.0,
+          "recall": 0.05882353,
+          "support": 85
+        },
+        {
+          "label": "restaurants",
+          "precision": 0.9,
+          "recall": 0.84705882,
+          "support": 85
+        },
+        {
+          "label": "retirement",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "salary",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "self_transfer",
+          "precision": 0.98780488,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "stocks",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "streaming",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "taxes",
+          "precision": 0.84210526,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "taxi_ride_share",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "toll_parking",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "tuition_fees",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "uncategorized",
+          "precision": 0.50625,
+          "recall": 0.95294118,
+          "support": 85
+        },
+        {
+          "label": "utilities",
+          "precision": 1.0,
+          "recall": 0.94117647,
+          "support": 85
+        },
+        {
+          "label": "vehicle_maintenance",
+          "precision": 0.82051282,
+          "recall": 0.75294118,
+          "support": 85
+        }
+      ],
+      "prediction_coverage": 1.0,
+      "thresholds": {
+        "automatic_confidence": 0.43,
+        "calibration_automatic_coverage": 0.8747549019607843,
+        "calibration_automatic_precision": 0.9551695152703839,
+        "calibration_suggestion_coverage": 0.9144607843137255,
+        "calibration_suggestion_precision": 0.9305816135084428,
+        "minimum_top_two_margin": 0.0,
+        "suggestion_confidence": 0.2
+      },
+      "top_two_accuracy": 0.89436275,
+      "unseen_merchant_coverage": 1.0,
+      "unseen_merchant_macro_f1": 0.84841555,
+      "weighted_f1": 0.84841555
+    }
+  ],
+  "feature_schema_version": "2026.1",
+  "library_versions": {
+    "joblib": "1.5.3",
+    "numpy": "2.5.2",
+    "python": "3.13.15",
+    "scikit_learn": "1.8.0",
+    "scipy": "1.18.1"
+  },
+  "production_eligible": false,
+  "random_seed": 20261004,
+  "selected_candidate": "tfidf_calibrated_linear_svm",
+  "selected_thresholds": {
+    "automatic_confidence": 0.43,
+    "calibration_automatic_coverage": 0.8747549019607843,
+    "calibration_automatic_precision": 0.9551695152703839,
+    "calibration_suggestion_coverage": 0.9144607843137255,
+    "calibration_suggestion_precision": 0.9305816135084428,
+    "minimum_top_two_margin": 0.0,
+    "suggestion_confidence": 0.2
+  },
+  "selection_partition": "calibration_validation",
+  "split_id": "split_1c78feceed445ca11f42eba0",
+  "taxonomy_version": "2026.1",
+  "test_records": 4080,
+  "train_records": 12240,
+  "validation_scores": {
+    "tfidf_calibrated_linear_svm": {
+      "accuracy": 0.8536764705882353,
+      "expected_calibration_error": 0.0863900918723063,
+      "macro_f1": 0.848870501794115
+    },
+    "tfidf_logistic_regression": {
+      "accuracy": 0.8524509803921568,
+      "expected_calibration_error": 0.13948065868340984,
+      "macro_f1": 0.8437002339624579
+    }
+  }
+}

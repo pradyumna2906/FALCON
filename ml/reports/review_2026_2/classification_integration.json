@@ -1,0 +1,14 @@
+{
+  "accuracy_target": 0.9,
+  "artifact_sha256": "a202492e2b11a8ce5a963dac08d095eb779571941706703229b56772393de7d0",
+  "automatic_use_of_synthetic_model": false,
+  "classes": 48,
+  "feature_schema": "2026.1",
+  "macro_f1_target": 0.9,
+  "model_version": "classification_2026_2_review.1",
+  "production_eligible": false,
+  "real_world_accuracy_verified": false,
+  "registry_load_verified": true,
+  "target_met_on_synthetic_test": false,
+  "taxonomy": "2026.1"
+}

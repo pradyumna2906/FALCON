@@ -1,0 +1,76 @@
+{
+  "ambiguous_fraction": "1/17",
+  "classification_split_id": "split_885e1a8459cc42652b47b3d2",
+  "dataset_version": "2026.3-review",
+  "files": {
+    "assistant_cases.jsonl": {
+      "records": 720,
+      "sha256": "f5ed674959b6eb5c4baed480afcf4e2c13be7c0f689a52acafc0895832c2d7ba"
+    },
+    "classification.jsonl": {
+      "records": 20400,
+      "sha256": "b22a218595d053c3001101a160d6f55f4bbb36d0b13c9f5894ed04b8bfc027b3"
+    },
+    "classification_calibration.jsonl": {
+      "records": 4080,
+      "sha256": "6ffe60d8f2004efdfc8f497a5ee5634fe5f8c260e5f443488f92c083d36feeab"
+    },
+    "classification_test.jsonl": {
+      "records": 4080,
+      "sha256": "77c53e5c40f21e4e7a8bf4502596d72d9288f3d4ac80df57c08294a89d2dd316"
+    },
+    "classification_train.jsonl": {
+      "records": 12240,
+      "sha256": "c8bd8ac211d0ace8757675c4023769daea20e886de99919f41a42237465e2e53"
+    },
+    "forecast_histories.jsonl": {
+      "records": 150,
+      "sha256": "f35130bed3c1a46de4f06bcc38878a349a0129e5f1f967bf30f71723cde1f979"
+    },
+    "performance_transactions.jsonl": {
+      "records": 100000,
+      "sha256": "81908b00f013463aa735286de390dbad2e8deb5c0eee4250d4310471db200546"
+    },
+    "planning_cases.jsonl": {
+      "records": 1000,
+      "sha256": "a6800fd6b71b8b29e52f8684341ec088854b237a3711125eea067eb3084c6bc7"
+    }
+  },
+  "license": "Project-generated fixtures; repository license applies; no third-party observed data",
+  "real_world_accuracy_verified": false,
+  "seed": 20261004,
+  "source_kind": "synthetic",
+  "template_families": {
+    "calibration": [
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "test": [
+      25,
+      26,
+      27,
+      28,
+      29
+    ],
+    "train": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+    ]
+  }
+}

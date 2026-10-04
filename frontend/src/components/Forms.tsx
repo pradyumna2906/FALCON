@@ -1,8 +1,10 @@
 import { useRef, useState, type ReactNode } from "react";
 import {
   Alert,
+  Box,
   Button,
   MenuItem,
+  InputAdornment,
   Stack,
   TextField,
   Typography,
@@ -29,22 +31,28 @@ export function Form({
   submit,
   onSubmit,
   children,
+  layout = "default",
 }: {
   title: string;
   fields: Field[];
   submit: string;
   onSubmit: (data: FormData) => Promise<void>;
   children?: ReactNode;
+  layout?: "default" | "inline";
 }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [saved, setSaved] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<
+    Record<string, boolean>
+  >({});
   const lock = useRef(false);
   return (
     <Stack
       component="form"
       spacing={2}
       aria-label={title}
+      aria-busy={pending}
       onSubmit={async (event) => {
         event.preventDefault();
         if (lock.current) return;
@@ -67,55 +75,116 @@ export function Form({
       }}
     >
       <Typography variant="h2">{title}</Typography>
-      {fields.map((field) => (
-        <TextField
-          key={field.name}
-          name={field.name}
-          label={field.label}
-          type={field.type || "text"}
-          required={field.required}
-          defaultValue={field.value ?? ""}
-          select={!!field.options}
-          disabled={pending}
-          helperText={field.help}
-          fullWidth
-          autoComplete={
-            field.type === "password"
-              ? field.name === "new_password"
-                ? "new-password"
-                : field.name === "password" ? "current-password" : "off"
-              : field.type === "email"
-                ? "email"
-                : "off"
-          }
-          slotProps={{
-            inputLabel: { shrink: true },
-            htmlInput: {
-              min: field.min,
-              max: field.max,
-              minLength: field.minLength,
-              maxLength: field.maxLength,
-              pattern: field.pattern,
-              step: field.type === "number" ? "1" : undefined,
-            },
-          }}
-        >
-          {field.options?.map((option) => {
-            const value = typeof option === "string" ? option : option.value;
-            return (
-              <MenuItem key={value} value={value}>
-                {typeof option === "string"
-                  ? option.replaceAll("_", " ")
-                  : option.label}
-              </MenuItem>
-            );
-          })}
-        </TextField>
-      ))}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm:
+              layout === "inline" || fields.length > 4
+                ? "repeat(2, minmax(0, 1fr))"
+                : "1fr",
+            lg:
+              layout === "inline"
+                ? `repeat(${Math.min(fields.length, 4)}, minmax(0, 1fr))`
+                : fields.length > 4
+                  ? "repeat(2, minmax(0, 1fr))"
+                  : "1fr",
+          },
+          gap: 2.5,
+          pt: 1,
+        }}
+      >
+        {fields.map((field) => (
+          <TextField
+            key={field.name}
+            name={field.name}
+            label={field.label}
+            type={
+              field.type === "password" && visiblePasswords[field.name]
+                ? "text"
+                : field.type || "text"
+            }
+            required={field.required}
+            defaultValue={field.value ?? ""}
+            select={!!field.options}
+            disabled={pending}
+            helperText={field.help}
+            fullWidth
+            autoComplete={
+              field.type === "password"
+                ? field.name === "new_password"
+                  ? "new-password"
+                  : field.name === "password"
+                    ? "current-password"
+                    : "off"
+                : field.type === "email"
+                  ? "email"
+                  : "off"
+            }
+            slotProps={{
+              input:
+                field.type === "password"
+                  ? {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Button
+                            type="button"
+                            size="small"
+                            aria-label={`${visiblePasswords[field.name] ? "Hide" : "Show"} ${field.label.toLowerCase()}`}
+                            aria-pressed={!!visiblePasswords[field.name]}
+                            disabled={pending}
+                            onClick={() =>
+                              setVisiblePasswords((previous) => ({
+                                ...previous,
+                                [field.name]: !previous[field.name],
+                              }))
+                            }
+                            sx={{ minWidth: 44, px: 1 }}
+                          >
+                            {visiblePasswords[field.name] ? "Hide" : "Show"}
+                          </Button>
+                        </InputAdornment>
+                      ),
+                    }
+                  : undefined,
+              inputLabel: { shrink: true },
+              htmlInput: {
+                min: field.min,
+                max: field.max,
+                minLength: field.minLength,
+                maxLength: field.maxLength,
+                pattern: field.pattern,
+                step: field.type === "number" ? "1" : undefined,
+              },
+            }}
+          >
+            {field.options?.map((option) => {
+              const value = typeof option === "string" ? option : option.value;
+              return (
+                <MenuItem key={value} value={value}>
+                  {typeof option === "string"
+                    ? option.replaceAll("_", " ")
+                    : option.label}
+                </MenuItem>
+              );
+            })}
+          </TextField>
+        ))}
+      </Box>
       {children}
       {message && <Alert severity="error">{message}</Alert>}
-      {saved && <Alert severity="success">Request completed.</Alert>}
-      <Button type="submit" variant="contained" disabled={pending}>
+      {saved && (
+        <Alert severity="success" role="status">
+          Request completed.
+        </Alert>
+      )}
+      <Button
+        type="submit"
+        variant="contained"
+        disabled={pending}
+        sx={{ alignSelf: "flex-start", minWidth: 150 }}
+      >
         {pending ? "Working…" : submit}
       </Button>
     </Stack>

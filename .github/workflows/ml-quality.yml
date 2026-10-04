@@ -1,0 +1,57 @@
+name: ML review evidence
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+permissions:
+  contents: read
+concurrency:
+  group: ml-quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version-file: .python-version
+      - run: python -m pip install -e 'backend[dev,forecasting,ml,optimization,forecasting-prophet]'
+      - name: Generate reproducible synthetic datasets
+        run: python scripts/build_review_datasets.py --output data/synthetic/ci_review
+      - name: Evaluate real adapters and package classifier
+        run: python scripts/evaluate_review_models.py --data data/synthetic/ci_review --reports ml/reports/ci_review
+      - name: Verify FastAPI wiring and provisional policy
+        run: python scripts/check_classifier_integration.py --report ml/reports/ci_review/fastapi_integration.json
+      - name: Check evidence contracts
+        run: python scripts/check_review_evidence.py --reports ml/reports/ci_review
+  windows-fixtures:
+    name: Windows dataset materialization
+    runs-on: windows-2025
+    timeout-minutes: 10
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version-file: .python-version
+      - run: python -m pip install -e 'backend[dev]'
+      - name: Check newline and preservation guards
+        run: python -m pytest backend/tests/unit/test_review_datasets.py --no-cov
+      - name: Restore missing fixtures against committed Windows checkout
+        run: python scripts/build_review_datasets.py --materialize-missing
+      - name: Preserve committed dataset metadata
+        run: git diff --exit-code -- data/synthetic/review_2026_3
