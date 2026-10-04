@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 from alembic import command
@@ -84,7 +85,16 @@ pytestmark = [
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _ALEMBIC_CONFIG = _REPOSITORY_ROOT / "backend" / "alembic.ini"
-_NOW = datetime(2026, 9, 15, 12, tzinfo=UTC)
+# PostgreSQL assigns actual insertion timestamps. Keep fixture horizons relative
+# to the same clock, otherwise a past fixed month loses future capacity.
+_NOW = datetime.now(UTC)
+_LOCAL_DATE = _NOW.astimezone(ZoneInfo("Asia/Kolkata")).date()
+
+
+def _fixture_month(offset: int) -> date:
+    month_index = _LOCAL_DATE.year * 12 + _LOCAL_DATE.month - 1 + offset
+    year, month = divmod(month_index, 12)
+    return date(year, month + 1, 1)
 
 
 class FixedClock:
@@ -161,7 +171,7 @@ async def _exercise_goal_plan_history() -> None:
                     target_amount=Decimal("100.0000"),
                     starting_amount=Decimal("0.0000"),
                     currency=None,
-                    target_date=date(2026, 12, 31),
+                    target_date=_fixture_month(3) - timedelta(days=1),
                     priority=GoalPriority.HIGH,
                     description=None,
                 ),
@@ -231,7 +241,7 @@ async def _exercise_goal_plan_history() -> None:
             name="Unexpected expense",
             one_time_expenses=(
                 OneTimeExpenseAssumption(
-                    period_start=date(2026, 10, 1),
+                    period_start=_fixture_month(1),
                     amount=Decimal("25.0000"),
                 ),
             ),
@@ -489,7 +499,7 @@ def _forecast_payload() -> ForecastRunWrite:
             upper_95=Decimal("100.0000"),
         )
         for step, period in enumerate(
-            (date(2026, 10, 1), date(2026, 11, 1)),
+            (_fixture_month(1), _fixture_month(2)),
             start=1,
         )
     )
@@ -497,12 +507,12 @@ def _forecast_payload() -> ForecastRunWrite:
         target=ForecastTarget.SAVINGS_AMOUNT,
         granularity=ForecastGranularity.MONTH,
         currency="INR",
-        history_start=date(2026, 1, 1),
-        history_end=date(2026, 9, 14),
+        history_start=_fixture_month(-8),
+        history_end=_LOCAL_DATE - timedelta(days=1),
         data_cutoff_at=_NOW,
         source_last_updated_at=_NOW,
-        forecast_start=date(2026, 10, 1),
-        forecast_end=date(2026, 11, 1),
+        forecast_start=_fixture_month(1),
+        forecast_end=_fixture_month(2),
         contract_version="2026.1",
         quality_policy_version="2026.1",
         evaluation_policy_version="2026.1",
