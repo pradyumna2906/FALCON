@@ -1,9 +1,12 @@
 # FALCON final-review handoff
 
-The implementation and automated evidence are reviewable. **Production release
-and a 90% ML claim are not approved.** All committed ML benchmark data is
-synthetic. Live email/AI-provider acceptance, owner-PC testing and independent
-real-data validation remain required.
+The implementation and automated evidence support review for the academic
+v1.0.0 release, subject to passing checks on the final release commit. On
+2026-10-26 the owner reported successful testing with real-world data and
+approved release preparation. See [release acceptance](RELEASE_ACCEPTANCE.md).
+All committed ML benchmark data remains synthetic; no measured real-world
+accuracy, live provider/SMTP acceptance or public deployment is established by
+that report. A 90% classifier claim is unsupported.
 
 ## What the project does
 
@@ -239,5 +242,5 @@ real-world validation remains future work.”
 Do not say all models have 90% accuracy, the project is 100% bug-free, forecast
 WAPE is an accuracy percentage, or offline replay proves live chatbot quality.
 Complete the existing 50 manual checks, record failures and review the latest CI
-status before approving release. Neither this branch nor its PR has been merged
-or deployed by this task.
+status before approving release. Consult the current PR and release history for merge status; public deployment
+is a separate operation.

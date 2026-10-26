@@ -229,6 +229,12 @@ export default function Transactions() {
                   name: "category_id",
                   label: "Reviewed category",
                   required: true,
+                  disabled: categories.isPending || !categoryOptions.some((c) =>
+                    c.label.endsWith(`(${transaction.transaction_type})`),
+                  ),
+                  help: categories.isPending
+                    ? "Loading categories…"
+                    : undefined,
                   options: categoryOptions.filter((c) =>
                     c.label.endsWith(`(${transaction.transaction_type})`),
                   ),

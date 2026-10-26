@@ -9,6 +9,8 @@ test('onboard, import, correct and review in the production browser build', asyn
   let hasAccount = false, imported = false, corrected = false;
   let profile: Record<string, unknown> | null = null;
   let loggedIn = false;
+  let releaseCategories!: () => void;
+  const categoriesReady = new Promise<void>(resolve => { releaseCategories = resolve; });
   const transaction = { id: 'dddddddd-dddd-4ddd-dddd-dddddddddddd', account_id: account.id, category_id: null as string | null, transaction_type: 'expense', amount: '123.4567', transaction_date: '2026-09-01', description: 'Synthetic groceries', source_type: 'import', status: 'posted', merchant_name: null };
   const job = { id: 'eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee', original_filename: 'synthetic.csv', status: 'partial', accepted_count: 1, rejected_count: 1, balance_reconciled: null, issues: [{ row_number: 3, code: 'zero_amount', message: 'Amount must not be zero.' }], issues_truncated: false, created_at: '2026-09-01T00:00:00Z' };
   const unexpected: string[] = [];
@@ -21,7 +23,7 @@ test('onboard, import, correct and review in the production browser build', asyn
     if (path === '/auth/logout') { loggedIn = false; return reply(null, 204); }
     if (path === '/profile') { if (method === 'PUT') { profile = { ...request.postDataJSON(), id: owner.id, completion_status: 'complete', updated_at: '2026-09-01T00:00:00Z' }; return reply(profile, 201); } return reply(profile || {}, profile ? 200 : 404); }
     if (path === '/accounts') { if (method === 'POST') { hasAccount = true; return reply(account, 201); } return reply({ items: hasAccount ? [account] : [] }); }
-    if (path === '/categories') return reply({ items: [category] });
+    if (path === '/categories') { await categoriesReady; return reply({ items: [category] }); }
     if (path === '/transactions') return reply({ items: imported ? [{ ...transaction, category_id: corrected ? category.id : null }] : [], next_cursor: null });
     if (path.endsWith('/classification')) return reply({});
     if (path.endsWith('/classification/correction')) { expect(request.postDataJSON()).toEqual({ category_id: category.id }); corrected = true; return reply({}); }
@@ -58,7 +60,15 @@ test('onboard, import, correct and review in the production browser build', asyn
   await page.getByRole('button', { name: 'Import statement', exact: true }).click();
   await expect(page.getByText('Amount must not be zero.')).toBeVisible();
   await page.getByRole('link', { name: 'Review imported transactions' }).click();
-  await page.getByRole('combobox', { name: 'Reviewed category' }).click();
+  const reviewedCategory = page.getByRole('combobox', { name: 'Reviewed category' });
+  // A fast transaction response must not expose an empty category menu while
+  // category discovery is still in flight. Exercise the ordering explicitly.
+  await expect(reviewedCategory).toBeDisabled();
+  releaseCategories();
+  await expect(reviewedCategory).toBeEnabled();
+  await reviewedCategory.focus();
+  await reviewedCategory.press('ArrowDown');
+  await expect(reviewedCategory).toHaveAttribute('aria-expanded', 'true');
   await page.getByRole('option', { name: 'Food (expense)' }).click();
   await page.getByRole('button', { name: 'Apply correction' }).click();
   await expect.poll(() => corrected).toBe(true);

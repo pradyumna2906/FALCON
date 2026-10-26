@@ -58,9 +58,5 @@ jobs:
         working-directory: frontend
         run: |
           if [ -d test-results ]; then
-            rg --files test-results | while IFS= read -r file; do
-              case "$file" in
-                */error-context.md) cat "$file" ;;
-              esac
-            done
+            find test-results -name error-context.md -type f -exec cat {} +
           fi

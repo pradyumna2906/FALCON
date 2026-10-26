@@ -16,6 +16,7 @@ export type Field = {
   label: string;
   type?: string;
   required?: boolean;
+  disabled?: boolean;
   value?: string;
   options?: readonly (string | { value: string; label: string })[];
   min?: string;
@@ -108,7 +109,7 @@ export function Form({
             required={field.required}
             defaultValue={field.value ?? ""}
             select={!!field.options}
-            disabled={pending}
+            disabled={pending || field.disabled}
             helperText={field.help}
             fullWidth
             autoComplete={
