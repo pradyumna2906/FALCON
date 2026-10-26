@@ -67,9 +67,10 @@ def test_assistant_adr_selects_postgresql_and_provider_neutral_boundary() -> Non
 def test_project_status_distinguishes_release_code_from_live_acceptance() -> None:
     readme = (_ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert "Phases 0–12 are complete and merged" in readme
-    assert "Phase 13" in readme
-    assert "Batches 1–4 integrate the React frontend" in readme
-    assert "Batch 5 supplies production transports" in readme
-    assert "Live deployment acceptance remains" in readme
-    assert "pending the owner's host, domain and provider configuration" in readme
+    assert "v1.0.0 — Academic Project Release" in readme
+    assert "The owner reports successful testing with real financial data" in readme
+    assert "Public" in readme and "production activation" in readme
+    assert "Email verification/recovery delivery requires private SMTP" in readme
+    assert "Live assistant responses require private provider" in readme
+    assert "independently measured model accuracy" in readme
+    assert "review classifier remains provisional" in readme

@@ -68,7 +68,9 @@ test('onboard, import, correct and review in the production browser build', asyn
   await expect(reviewedCategory).toBeEnabled();
   await reviewedCategory.focus();
   await reviewedCategory.press('ArrowDown');
-  await expect(reviewedCategory).toHaveAttribute('aria-expanded', 'true');
+  // MUI's modal menu hides the underlying combobox from the accessibility
+  // tree while open. Assert the exposed listbox rather than the hidden input.
+  await expect(page.getByRole('listbox', { name: /Reviewed category/ })).toBeVisible();
   await page.getByRole('option', { name: 'Food (expense)' }).click();
   await page.getByRole('button', { name: 'Apply correction' }).click();
   await expect.poll(() => corrected).toBe(true);
