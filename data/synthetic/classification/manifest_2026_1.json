@@ -1,0 +1,204 @@
+{
+  "dataset_version": "2026.1",
+  "feature_schema_version": "2026.1",
+  "group_count": 288,
+  "label_counts": [
+    {
+      "count": 18,
+      "label": "atm_withdrawal"
+    },
+    {
+      "count": 18,
+      "label": "bank_charges"
+    },
+    {
+      "count": 18,
+      "label": "books_supplies"
+    },
+    {
+      "count": 18,
+      "label": "business_income"
+    },
+    {
+      "count": 18,
+      "label": "cash_deposit"
+    },
+    {
+      "count": 18,
+      "label": "cashback"
+    },
+    {
+      "count": 18,
+      "label": "clothing"
+    },
+    {
+      "count": 18,
+      "label": "courses"
+    },
+    {
+      "count": 18,
+      "label": "dividend"
+    },
+    {
+      "count": 18,
+      "label": "electronics"
+    },
+    {
+      "count": 18,
+      "label": "emi_loan_payment"
+    },
+    {
+      "count": 18,
+      "label": "fixed_deposit"
+    },
+    {
+      "count": 18,
+      "label": "food_delivery"
+    },
+    {
+      "count": 18,
+      "label": "freelance"
+    },
+    {
+      "count": 18,
+      "label": "fuel"
+    },
+    {
+      "count": 18,
+      "label": "gaming"
+    },
+    {
+      "count": 18,
+      "label": "general_shopping"
+    },
+    {
+      "count": 18,
+      "label": "groceries"
+    },
+    {
+      "count": 18,
+      "label": "health_insurance"
+    },
+    {
+      "count": 18,
+      "label": "hobbies"
+    },
+    {
+      "count": 18,
+      "label": "home_maintenance"
+    },
+    {
+      "count": 18,
+      "label": "hospital_clinic"
+    },
+    {
+      "count": 18,
+      "label": "household_goods"
+    },
+    {
+      "count": 18,
+      "label": "interest"
+    },
+    {
+      "count": 18,
+      "label": "movies_events"
+    },
+    {
+      "count": 18,
+      "label": "mutual_fund"
+    },
+    {
+      "count": 18,
+      "label": "other_expense"
+    },
+    {
+      "count": 18,
+      "label": "other_income"
+    },
+    {
+      "count": 18,
+      "label": "other_insurance"
+    },
+    {
+      "count": 18,
+      "label": "other_investment"
+    },
+    {
+      "count": 18,
+      "label": "person_transfer"
+    },
+    {
+      "count": 18,
+      "label": "pharmacy"
+    },
+    {
+      "count": 18,
+      "label": "public_transport"
+    },
+    {
+      "count": 18,
+      "label": "refund"
+    },
+    {
+      "count": 18,
+      "label": "rent"
+    },
+    {
+      "count": 18,
+      "label": "restaurants"
+    },
+    {
+      "count": 18,
+      "label": "retirement"
+    },
+    {
+      "count": 18,
+      "label": "salary"
+    },
+    {
+      "count": 18,
+      "label": "self_transfer"
+    },
+    {
+      "count": 18,
+      "label": "stocks"
+    },
+    {
+      "count": 18,
+      "label": "streaming"
+    },
+    {
+      "count": 18,
+      "label": "taxes"
+    },
+    {
+      "count": 18,
+      "label": "taxi_ride_share"
+    },
+    {
+      "count": 18,
+      "label": "toll_parking"
+    },
+    {
+      "count": 18,
+      "label": "tuition_fees"
+    },
+    {
+      "count": 18,
+      "label": "uncategorized"
+    },
+    {
+      "count": 18,
+      "label": "utilities"
+    },
+    {
+      "count": 18,
+      "label": "vehicle_maintenance"
+    }
+  ],
+  "merchant_group_count": 864,
+  "record_count": 864,
+  "records_sha256": "5d6af020ee58275c61306837723b32b2272ec7415276f6ff8338af4b01c71516",
+  "source_kind": "synthetic",
+  "taxonomy_version": "2026.1"
+}

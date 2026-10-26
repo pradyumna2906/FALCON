@@ -1,0 +1,53 @@
+{
+  "points": [
+    {
+      "candidate": "tfidf_logistic_regression",
+      "fit_and_validation_seconds": 1.494392401999903,
+      "training_records": 2448,
+      "validation_accuracy": 0.8279411764705882,
+      "validation_macro_f1": 0.8201979595522791,
+      "validation_records": 4080
+    },
+    {
+      "candidate": "tfidf_calibrated_linear_svm",
+      "fit_and_validation_seconds": 3.4691094740001063,
+      "training_records": 2448,
+      "validation_accuracy": 0.9203431372549019,
+      "validation_macro_f1": 0.9167104443661186,
+      "validation_records": 4080
+    },
+    {
+      "candidate": "tfidf_logistic_regression",
+      "fit_and_validation_seconds": 5.759003770000163,
+      "training_records": 6528,
+      "validation_accuracy": 0.8463235294117647,
+      "validation_macro_f1": 0.8370357817746282,
+      "validation_records": 4080
+    },
+    {
+      "candidate": "tfidf_calibrated_linear_svm",
+      "fit_and_validation_seconds": 7.653685277000022,
+      "training_records": 6528,
+      "validation_accuracy": 0.932843137254902,
+      "validation_macro_f1": 0.9304771226602456,
+      "validation_records": 4080
+    },
+    {
+      "candidate": "tfidf_logistic_regression",
+      "fit_and_validation_seconds": 8.382801197999925,
+      "training_records": 12240,
+      "validation_accuracy": 0.8524509803921568,
+      "validation_macro_f1": 0.8437002339624579,
+      "validation_records": 4080
+    },
+    {
+      "candidate": "tfidf_calibrated_linear_svm",
+      "fit_and_validation_seconds": 16.144170548000147,
+      "training_records": 12240,
+      "validation_accuracy": 0.9313725490196079,
+      "validation_macro_f1": 0.929607771732357,
+      "validation_records": 4080
+    }
+  ],
+  "selection_partition": "validation_only"
+}
