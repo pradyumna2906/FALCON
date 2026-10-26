@@ -21,6 +21,8 @@
 
 - Prevent opening the imported-transaction category selector before matching
   categories load; browser coverage explicitly verifies delayed category loading.
+- Upgrade pypdf to 6.21.2 to address the 11 advisories found by the fresh
+  production audit; retain active-PDF rejection and statement tests.
 - Keep browser failure diagnostics available without requiring ripgrep on CI.
 - Align backend/frontend versions and generated API metadata with v1.0.0.
 - Record owner-reported real-data acceptance without inventing measurements.
