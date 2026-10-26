@@ -23,6 +23,8 @@
   categories load; browser coverage explicitly verifies delayed category loading.
 - Upgrade pypdf to 6.21.2 to address the 11 advisories found by the fresh
   production audit; retain active-PDF rejection and statement tests.
+- Upgrade Zod to 4.6.7 for the constrained-collection memory-exhaustion
+  advisory; update its exact package and lockfile entries.
 - Keep browser failure diagnostics available without requiring ripgrep on CI.
 - Align backend/frontend versions and generated API metadata with v1.0.0.
 - Record owner-reported real-data acceptance without inventing measurements.
