@@ -18,6 +18,13 @@ jobs:
     name: Frontend contracts, tests and build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # Match frontend/package.json's exact Playwright version. The official image
+    # contains browsers and OS dependencies, avoiding apt mirror downloads.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -48,11 +55,14 @@ jobs:
           npm run lint
           npm test
           npm run build
-      - name: Browser workflow checks
+      - name: Verify preinstalled browser executables
         working-directory: frontend
         run: |
-          npx playwright install --with-deps chromium firefox webkit
-          npm run test:browser
+          node -e "if (require('@playwright/test/package.json').version !== '1.63.0') { throw new Error('Update the pinned Playwright image to match the installed package'); }"
+          node --input-type=module -e "import { accessSync } from 'node:fs'; import { chromium, firefox, webkit } from '@playwright/test'; for (const browser of [chromium, firefox, webkit]) { accessSync(browser.executablePath()); console.log(browser.name() + ': browser executable available'); }"
+      - name: Browser workflow checks
+        working-directory: frontend
+        run: npm run test:browser
       - name: Browser failure diagnostics (synthetic fixtures only)
         if: failure()
         working-directory: frontend
