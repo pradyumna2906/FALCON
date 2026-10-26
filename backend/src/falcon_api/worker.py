@@ -3,7 +3,8 @@
 Run with python -m falcon_api.worker. Delivery is at least once: a crash after
 SMTP acceptance and before commit may resend the same stable Message-ID.
 """
-
+import sys
+import tempfile
 import asyncio
 from datetime import timedelta
 from email.message import EmailMessage
@@ -143,8 +144,9 @@ async def run_worker(settings=None, *, stop=None):
         key.get_secret_value().encode("ascii") for key in settings.assistant_history_encryption_keys))
     stop = stop or asyncio.Event()
     loop = asyncio.get_running_loop()
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, stop.set)
+    if sys.platform != "win32":
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, stop.set)
     try:
         while not stop.is_set():
             try:
@@ -155,7 +157,7 @@ async def run_worker(settings=None, *, stop=None):
                         break
                 async with transaction_scope(database.session_factory) as session:
                     await retention(session, history)
-                Path("/tmp/falcon-worker.ready").touch()
+                Path(tempfile.gettempdir(), "falcon-worker.ready").touch()
                 logger.info("worker_cycle_completed")
             except Exception:
                 logger.error("worker_cycle_failed")
@@ -170,4 +172,7 @@ async def run_worker(settings=None, *, stop=None):
 if __name__ == "__main__":
     configure_logging()
     with asyncio.Runner(loop_factory=create_psycopg_compatible_event_loop) as runner:
-        runner.run(run_worker())
+        try:
+            runner.run(run_worker())
+        except KeyboardInterrupt:
+            pass
