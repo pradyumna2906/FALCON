@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from asyncio import to_thread
 from typing import Final
 from uuid import UUID
 
@@ -153,7 +154,8 @@ class TransactionClassificationService:
                 if features.normalized_merchant is not None
                 else None
             )
-            outcome = self._hybrid.classify(
+            outcome = await to_thread(
+                self._hybrid.classify,
                 features,
                 merchant_memory=memory,
             )

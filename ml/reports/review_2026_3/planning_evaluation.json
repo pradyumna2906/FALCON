@@ -1,0 +1,8 @@
+{
+  "cases": 1000,
+  "failed_ids": [],
+  "independent_oracle": "single-variable bounded allocation optimum=min(capacity,requested,target)",
+  "passed": 1000,
+  "scope": "exact live summary properties and real HiGHS adapter; full multi-goal integration separately tested by backend suites",
+  "solver_p95_ms": 2.680182800145302
+}

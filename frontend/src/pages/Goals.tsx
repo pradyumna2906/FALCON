@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/PageHeading";
 import { useState } from "react";
 import {
   Alert,
@@ -660,9 +661,11 @@ export default function Goals() {
   );
   return (
     <Stack spacing={3}>
-      <Typography component="h1" variant="h1">
-        Goals &amp; Plans
-      </Typography>
+      <PageHeading
+        title="Goals &amp; Plans"
+        description="Make room for what matters, one contribution and one decision at a time."
+        icon="goals"
+      />
       <Tabs
         value={tab}
         onChange={(_, next: string) => setParams({ tab: next })}

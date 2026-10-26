@@ -1,14 +1,7 @@
+import { PageHeading } from "../components/PageHeading";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  Alert,
-  Button,
-  Paper,
-  Stack,
-  Tab,
-  Tabs,
-  Typography,
-} from "@mui/material";
+import { Alert, Button, Paper, Stack, Tab, Tabs } from "@mui/material";
 import { Link } from "react-router";
 import { api } from "../api/client";
 import { useFinanceMutation, useResource, type Schema } from "../api/finance";
@@ -22,7 +15,11 @@ export default function Settings() {
   const [tab, setTab] = useState("preferences");
   return (
     <Stack spacing={3}>
-      <Typography variant="h1">Settings & privacy</Typography>
+      <PageHeading
+        title="Settings & privacy"
+        description="Your preferences, security and personal data, in your control."
+        icon="settings"
+      />
       <Tabs
         value={tab}
         onChange={(_, next: string) => setTab(next)}

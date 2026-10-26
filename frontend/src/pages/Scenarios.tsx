@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/PageHeading";
 import { useState } from "react";
 import { Alert, Button, Paper, Stack, Typography } from "@mui/material";
 import { Link, useSearchParams } from "react-router";
@@ -111,7 +112,11 @@ export default function Scenarios() {
   const mutate = useFinanceMutation();
   return (
     <Stack spacing={3}>
-      <Typography variant="h1">Scenarios</Typography>
+      <PageHeading
+        title="Scenarios"
+        description="Compare the what-ifs before you change your financial plan."
+        icon="scenarios"
+      />
       <Alert severity="info">
         Explore hypothetical changes against a saved goal plan. Simulating or
         selecting an alternative never changes your transactions, goals or

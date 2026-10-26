@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from asyncio import to_thread
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -150,7 +151,8 @@ class FinancialForecastService:
 
         candidates = self._candidates(granularity)
         try:
-            selection = select_forecast_model(
+            selection = await to_thread(
+                select_forecast_model,
                 values=values,
                 plan=plan,
                 candidates=candidates,
@@ -160,7 +162,7 @@ class FinancialForecastService:
                 for candidate in candidates
                 if candidate.code == selection.selected_model_code
             )
-            expected = selected_candidate.predict(values, horizon)
+            expected = await to_thread(selected_candidate.predict, values, horizon)
         except (ForecastCandidateFitError, StopIteration, ValueError):
             raise ApplicationError(
                 code="forecast_model_unavailable",

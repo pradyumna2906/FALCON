@@ -1,21 +1,28 @@
 """Build and package the provisional Phase 7 classifier into the local registry.
 
-Inputs: deterministic synthetic reference data only.
+Inputs: deterministic synthetic review data (or explicit legacy reference).
 Outputs: ignored ``model.pkl`` and strict ``manifest.json`` below ml/artifacts.
 Prerequisite: install the backend with its ``ml`` extra.
 """
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import argparse
 from pathlib import Path
 
-from build_classification_evidence import build_reference_dataset
+from scripts.build_classification_evidence import build_reference_dataset
+from scripts.build_review_datasets import build_review_classification
 from falcon_api.classification.artifacts import package_model_comparison_result
 from falcon_api.classification.training import compare_classification_models
 
 
-DEFAULT_MODEL_VERSION = "classification_2026_1_demo.1"
+DEFAULT_MODEL_VERSION = "classification_2026_3_review.1"
 
 
 def main() -> None:
@@ -23,6 +30,7 @@ def main() -> None:
     repository_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-version", default=DEFAULT_MODEL_VERSION)
+    parser.add_argument("--dataset", choices=("review", "reference"), default="review")
     parser.add_argument(
         "--registry-root",
         type=Path,
@@ -35,8 +43,14 @@ def main() -> None:
     )
     arguments = parser.parse_args()
 
-    dataset = build_reference_dataset()
-    result = compare_classification_models(dataset)
+    if arguments.dataset == "review":
+        dataset, split = build_review_classification()
+        result = compare_classification_models(
+            dataset, split=split, random_seed=split.random_seed
+        )
+    else:
+        dataset = build_reference_dataset()
+        result = compare_classification_models(dataset)
     manifest = package_model_comparison_result(
         result,
         registry_root=arguments.registry_root,

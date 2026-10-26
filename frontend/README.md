@@ -25,6 +25,51 @@ container and release checks. Email requests use the backend delivery queue;
 the new worker delivers them once an owner-configured SMTP service is enabled.
 See `deployment/RUNBOOK.md` for activation and remaining live acceptance gates.
 
+## FALCON interface
+
+The public landing page, authentication pages and application shell use a
+responsive forest-green, gold and warm-neutral design inspired by the supplied
+FALCON Finance reference. The sidebar keeps every existing workspace route;
+on mobile it becomes a labelled navigation drawer. The overview adds financial
+health, observed cash flow, category spending, goals, a saved forecast preview,
+recent transactions and links to reports and the assistant.
+
+Every financial figure comes from the existing authenticated API. Chart numbers
+are used only for approximate geometry; the API's exact decimal strings remain
+available in labels and tables. Transactions retain their own account currency.
+No reference-site balances, advice, portfolios or mock records are included in
+the running app. Backend calculations, ownership checks, session refresh,
+verification requirements and privacy operations are unchanged.
+
+Ask FALCON and the Assistant navigation control now open a persistent,
+bottom-right chat dialog on the current workspace page. User/AI messages use
+separate bubbles; citations and reliability can be expanded within each answer.
+The dialog is modeless so navigation remains available, and minimizing preserves
+the active conversation and draft. Signing out unmounts it. The old
+`/app/assistant` URL redirects to Overview and opens the same dialog. Saved
+history, explicit deletion, turn limits and idempotent retries are preserved.
+The assistant bundle/history load only after chat is first opened.
+
+Use [Manual acceptance checklist](../docs/testing/MANUAL_ACCEPTANCE.md) for
+real API/database, SMTP, provider, financial precision and owner-isolation tests.
+It includes a small dataset with exact expected totals and an ordered workflow
+checklist. The default AI provider remains disabled until private backend
+configuration is supplied; a UI change cannot activate provider credentials.
+
+Sign-in returns verified users to their requested workspace route. Verification
+and password-reset links can populate a valid `token` query parameter for manual
+submission. Password fields have a keyboard-accessible visibility control.
+Loading, empty and error states remain tied to the existing resource/mutation
+flows. The redesigned dashboard makes read requests only; existing forms remain
+the explicit way to change financial data.
+
+`e2e/redesign.spec.ts` checks mobile/desktop layout, WCAG 2.1 AA automated
+accessibility rules, 200% text sizing, password visibility, sign-in return paths,
+email-link tokens, API-driven dashboard content, account currencies and invalid
+date ranges. Browser fixtures are synthetic; they do not verify SMTP delivery,
+live database connectivity or provider activation. Continue using the production
+runbook's live acceptance checks before releasing.
+
 ## Validation and contracts
 
 Run `npm run lint`, `npm test`, and `npm run build` (includes TypeScript).

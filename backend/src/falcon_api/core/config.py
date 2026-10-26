@@ -179,7 +179,7 @@ class Settings(BaseSettings):
     db_readiness_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
     classification_artifact_root: Path = _DEFAULT_CLASSIFICATION_ARTIFACT_ROOT
     classification_model_version: str = Field(
-        default="classification_2026_1_demo.1",
+        default="classification_2026_3_review.1",
         pattern=_CLASSIFICATION_VERSION_PATTERN,
     )
 

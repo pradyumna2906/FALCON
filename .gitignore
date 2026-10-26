@@ -34,6 +34,11 @@ yarn-debug.log*
 pnpm-debug.log*
 
 # Generated and private financial data
+data/synthetic/review_2026_*/*.jsonl
+ml/reports/local_review*/
+ml/reports/review_2026_*/forecast_checkpoint.json
+data/synthetic/ci_review/
+ml/reports/ci_review/
 data/raw/
 data/processed/
 data/uploads/

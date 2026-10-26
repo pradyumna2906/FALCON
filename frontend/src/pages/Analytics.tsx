@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/PageHeading";
 import { useState } from "react";
 import {
   Alert,
@@ -8,6 +9,7 @@ import {
   Tabs,
   Typography,
 } from "@mui/material";
+import { useSearchParams } from "react-router";
 import { useSession } from "../auth/session";
 import {
   useResource,
@@ -581,7 +583,11 @@ const sections = {
 };
 export default function Analytics() {
   const { user } = useSession();
-  const [tab, setTab] = useState<keyof typeof sections>("cash");
+  const [params, setParams] = useSearchParams();
+  const name = params.get("tab") || "cash";
+  const tab = Object.hasOwn(sections, name)
+    ? (name as keyof typeof sections)
+    : "cash";
   const [filters, setFilters] = useState({
     currency: user?.default_currency || "INR",
     date_from: "",
@@ -595,12 +601,15 @@ export default function Analytics() {
   const common = base.toString();
   return (
     <Stack spacing={3}>
-      <Typography component="h1" variant="h1">
-        Analytics
-      </Typography>
+      <PageHeading
+        title="Analytics"
+        description="Understand patterns, review spending, and keep your budget in perspective."
+        icon="analytics"
+      />
       <Paper sx={{ p: 3 }}>
         <Form
           title="Analysis filters"
+          layout="inline"
           submit="Apply analysis filters"
           fields={[
             { ...currencyField, value: filters.currency },
@@ -641,7 +650,7 @@ export default function Analytics() {
         variant="scrollable"
         scrollButtons="auto"
         aria-label="Analytics sections"
-        onChange={(_, next: keyof typeof sections) => setTab(next)}
+        onChange={(_, next: keyof typeof sections) => setParams({ tab: next })}
       >
         {Object.entries(sections).map(([key, label]) => (
           <Tab

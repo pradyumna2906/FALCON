@@ -1,3 +1,4 @@
+import { PageHeading } from "../components/PageHeading";
 import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
 import { useSearchParams } from "react-router";
 import { useSession } from "../auth/session";
@@ -47,14 +48,14 @@ export function ForecastChart({ run }: { run: Schema<"ForecastRunResponse"> }) {
         aria-label={`${words(run.target)} expected forecast with 80% and 95% prediction intervals; exact values in the table below`}
         style={{ width: "100%", maxHeight: 360 }}
       >
-        <polygon points={band("lower_95", "upper_95")} fill="#dbeafe" />
-        <polygon points={band("lower_80", "upper_80")} fill="#93c5fd" />
+        <polygon points={band("lower_95", "upper_95")} fill="#e7f1ed" />
+        <polygon points={band("lower_80", "upper_80")} fill="#a5cabe" />
         <polyline
           points={points
             .map((p, i) => `${x(i)},${y(p.expected_value)}`)
             .join(" ")}
           fill="none"
-          stroke="#1565c0"
+          stroke="#23685b"
           strokeWidth="3"
         />
         {points.map((p, i) => (
@@ -63,7 +64,7 @@ export function ForecastChart({ run }: { run: Schema<"ForecastRunResponse"> }) {
             cx={x(i)}
             cy={y(p.expected_value)}
             r="3"
-            fill="#102a43"
+            fill="#173e36"
           >
             <title>
               {p.period_start}: {money(p.expected_value, run.currency)}
@@ -81,7 +82,7 @@ export function ForecastChart({ run }: { run: Schema<"ForecastRunResponse"> }) {
         </text>
       </svg>
       <Typography variant="body2">
-        Dark line: expected · blue band: 80% · pale band: 95%. Prediction
+        Dark line: expected · green band: 80% · pale band: 95%. Prediction
         intervals are estimates, not guarantees.
       </Typography>
     </Box>
@@ -184,9 +185,11 @@ export default function Forecasts() {
   const mutate = useFinanceMutation();
   return (
     <Stack spacing={3}>
-      <Typography component="h1" variant="h1">
-        Forecasts
-      </Typography>
+      <PageHeading
+        title="Forecasts"
+        description="Explore what comes next, with uncertainty and model evidence in view."
+        icon="forecasts"
+      />
       <Alert severity="info">
         Generate from your stored transaction history. Select completed history
         periods; insufficient history is rejected by the server. More history

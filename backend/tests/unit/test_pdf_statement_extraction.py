@@ -17,6 +17,7 @@ from falcon_api.imports.pdf_extraction import (
 from falcon_api.imports.normalization import normalize_statement
 from falcon_api.models.enums import ImportDateOrder
 from pypdf import PdfWriter
+from pypdf.actions import JavaScript
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
 
@@ -51,7 +52,7 @@ def _pdf(*, pages: int = 1, password: str | None = None, active: bool = False) -
     if password:
         writer.encrypt(password)
     if active:
-        writer.add_js("app.alert('unsafe')")
+        writer.add_open_action(JavaScript("app.alert('unsafe')"))
     output = io.BytesIO()
     writer.write(output)
     return output.getvalue()

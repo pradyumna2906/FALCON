@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "falcon-api"
-version = "0.1.0"
+version = "1.0.0"
 description = "Backend API for the FALCON financial advisor."
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
@@ -22,8 +22,8 @@ dependencies = [
   "pwdlib[argon2]==0.3.0",
   "pydantic==2.13.4",
   "pydantic-settings==2.14.2",
-  "PyJWT==2.13.0",
-  "pypdf[crypto]==6.16.1",
+  "PyJWT==2.15.1",
+  "pypdf[crypto]==6.21.2",
   "python-multipart==0.0.32",
   "redis==5.2.1",
   "sqlalchemy[asyncio]==2.0.51",

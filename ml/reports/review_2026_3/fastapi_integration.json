@@ -1,0 +1,11 @@
+{
+  "application_factory_wiring_verified": true,
+  "lazy_load_verified": true,
+  "cached_instance_verified": true,
+  "model_version": "classification_2026_3_review.1",
+  "decision": "abstained",
+  "source": "ml",
+  "subcategory": null,
+  "synthetic_automatic_assignment_blocked": true,
+  "database_or_http_flow_evaluated": false
+}

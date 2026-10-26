@@ -1,5 +1,6 @@
+import { PageHeading } from "../components/PageHeading";
 import { lazy, Suspense } from "react";
-import { Stack, Tab, Tabs, Typography } from "@mui/material";
+import { Stack, Tab, Tabs } from "@mui/material";
 import { useSearchParams } from "react-router";
 import { LoadingState } from "../components/States";
 const Accounts = lazy(() => import("./money/Accounts"));
@@ -27,9 +28,11 @@ export default function Money() {
   const Page = sections[tab];
   return (
     <Stack spacing={3}>
-      <Typography component="h1" variant="h1">
-        Money
-      </Typography>
+      <PageHeading
+        title="Money"
+        description="Your accounts, transactions, imports and merchant memory."
+        icon="money"
+      />
       <Tabs
         value={tab}
         variant="scrollable"

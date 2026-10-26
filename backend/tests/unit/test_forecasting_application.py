@@ -66,9 +66,7 @@ def test_service_generates_calibrates_and_persists_under_trusted_owner() -> None
     session = AsyncMock()
     user_id = uuid4()
 
-    result = asyncio.run(
-        service.generate(session, user_id=user_id, command=_command())
-    )
+    result = asyncio.run(service.generate(session, user_id=user_id, command=_command()))
 
     assert result is persisted
     assert source.list_source_buckets.await_args.kwargs["user_id"] == user_id
@@ -125,3 +123,49 @@ def test_service_get_is_owner_scoped_and_returns_safe_not_found() -> None:
         "user_id": user_id,
         "run_id": run_id,
     }
+
+
+def test_forecast_fitting_keeps_the_request_event_loop_responsive() -> None:
+    """A second coroutine must run while a synchronous model is fitting."""
+    import threading
+    from dataclasses import dataclass
+
+    started = threading.Event()
+    release = threading.Event()
+
+    @dataclass
+    class BlockingCandidate:
+        code: str = "last_value"
+        minimum_training_points: int = 1
+
+        def predict(self, values, horizon):
+            started.set()
+            if not release.wait(timeout=5):
+                raise ValueError("Model blocked the event loop")
+            return (values[-1],) * horizon
+
+    source = AsyncMock(spec=ForecastingRepository)
+    source.list_source_buckets.return_value = _buckets()
+    persistence = AsyncMock(spec=ForecastPersistenceRepository)
+    service = FinancialForecastService(
+        source_repository=source,
+        persistence_repository=persistence,
+        candidate_factory=lambda _: (BlockingCandidate(),),
+        clock=lambda: datetime(2026, 6, 1, tzinfo=UTC),
+    )
+
+    async def run():
+        task = asyncio.create_task(
+            service.generate(AsyncMock(), user_id=uuid4(), command=_command())
+        )
+        try:
+            while not started.is_set() and not task.done():
+                await asyncio.sleep(0)
+            assert not task.done(), "Fitting ran on the event loop instead of a worker"
+            release.set()
+            await task
+        finally:
+            release.set()
+
+    asyncio.run(run())
+    persistence.create.assert_awaited_once()
